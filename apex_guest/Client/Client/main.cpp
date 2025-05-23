@@ -134,7 +134,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[29];//29
+uint64_t add[30];//30
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -370,6 +370,7 @@ int main(int argc, char** argv)
 	//add[28] = (uintptr_t)&medbackpack;
 	add[27] = (uintptr_t)&onevone;
 	add[28] = (uintptr_t)&spectator_list;
+	add[29] = (uintptr_t)&SuperKey;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

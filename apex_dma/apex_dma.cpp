@@ -46,7 +46,7 @@ extern int bone;
 bool shooting = false;
 
 //const int SuperKey = VK_SPACE;
-int SuperKey = false;
+int SuperKey = 0x20; // VK_SPACE
 //bool SuperKeyToggle = true;
 
 //int itementcount = 10000;
@@ -1144,6 +1144,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, spec_list_addr))
   printf("Read failed!\n");
 }
 
+uint64_t superkey_addr = 0;
+printf("Reading SuperKey address: %lx\n", add_addr + sizeof(uint64_t) * 29);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 29, superkey_addr)) {
+    printf("Read failed for SuperKey address!\n");
+}
+
 //
 //uint64_t min_max_fov_addr = 0;
 //printf("Reading min_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 29);
@@ -1223,6 +1229,9 @@ while (vars_t)
         client_mem.Read<bool>(shooting_addr, shooting);
         client_mem.Read<bool>(onevone_addr, onevone);
         client_mem.WriteArray<spectator>(spec_list_addr, spectator_list, toRead);
+        if (superkey_addr != 0) { // Ensure the address was read successfully
+            client_mem.Read<int>(superkey_addr, SuperKey);
+        }
 
         if (esp && next)
         {
