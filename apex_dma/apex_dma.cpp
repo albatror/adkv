@@ -10,6 +10,7 @@
 #include <thread>
 #include <array>
 #include <fstream>
+#include <vector> // Added for std::vector
 ////////////////////////
 ////////////////////////
 
@@ -306,6 +307,18 @@ void updateInsideValue()
 	//bool autoWallJumpEnabled = true; // Initialize auto wall jump as enabled
 //walljump *//////////////////////////////////////
 
+// Global/loop-scoped storage for collected data
+std::vector<PlayerSkeleton> all_player_skeletons;
+Matrix global_view_matrix; // For the view matrix read as per Part 4
+
+// Global placeholder variables for resolved client-side addresses for skeleton data
+// These MUST be populated by the server's logic for reading the client's 'add' array,
+// e.g., by reading the values at client_base_address + offset_of_add_array + (30 * sizeof(uint64_t))
+// and client_base_address + offset_of_add_array + (31 * sizeof(uint64_t)).
+// This resolution mechanism is external to this specific code modification.
+uint64_t g_resolved_client_skel_data_addr = 0; 
+uint64_t g_resolved_client_skel_flag_addr = 0; 
+
 void DoActions()
 {
 	actions_t = true;
@@ -362,6 +375,13 @@ void DoActions()
 			if (LocalPlayer == 0)
 				continue;
 
+			// Part 4: Read and store global ViewMatrix
+			// Assuming g_Base + OFFSET_MATRIX is the direct address of the 4x4 float matrix data
+			if (!apex_mem.Read<Matrix>(g_Base + OFFSET_MATRIX, global_view_matrix)) {
+				// Handle error reading global_view_matrix, maybe log or skip processing
+				// For now, if it fails, subsequent uses might use old/default data
+			}
+
 // Retrieve the local player entity object
 Entity LPlayer = getEntity(LocalPlayer);
 
@@ -372,6 +392,9 @@ Entity LPlayer = getEntity(LocalPlayer);
 			}
 
 			uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+			
+			// Part 3: Clear skeleton list for current iteration
+			all_player_skeletons.clear();
 
 //////////////////////////////////
 
@@ -596,6 +619,16 @@ if (isGrappling && grappleAttached == 1) {
 					{
 						continue;
 					}
+
+					// Part 3: Collect PlayerSkeleton for relevant players
+					if (Target.isAlive()) { // Example: only collect for alive players
+						// Further checks like enemy team could be added here if needed
+						// For now, collect for all non-local, alive players.
+						PlayerSkeleton current_skeleton = Target.getPlayerSkeleton();
+						if (current_skeleton.valid) {
+							all_player_skeletons.push_back(current_skeleton);
+						}
+					}
 					
 //////////////////
 					float localyaw = LPlayer.GetYaw();
@@ -653,8 +686,61 @@ if (isGrappling && grappleAttached == 1) {
 			}else{
 				aimentity = lastaimentity;
 			}
-		}
-	}
+
+			// Part 2: Populate SkeletonESPDataPacket
+			SkeletonESPDataPacket esp_packet;
+
+			// Copy global_view_matrix (4x4) to esp_packet.view_matrix (3x4)
+			// Assuming global_view_matrix.matrix is row-major order
+			for (int r = 0; r < 3; ++r) {
+				for (int c = 0; c < 4; ++c) {
+					esp_packet.view_matrix.m[r][c] = global_view_matrix.matrix[r * 4 + c];
+				}
+			}
+
+			// Populate skeletons
+			esp_packet.num_skeletons = 0;
+			for (size_t i = 0; i < all_player_skeletons.size() && i < MAX_SKELETONS_IN_PACKET; ++i) {
+				esp_packet.skeletons[i] = all_player_skeletons[i];
+				esp_packet.num_skeletons++;
+			}
+			
+			// SERVER-SIDE: Direct memory write to client for Skeleton ESP data.
+			// Assumes g_resolved_client_skel_data_addr and g_resolved_client_skel_flag_addr
+			// have been correctly populated by the server by reading the client's 'add' array
+			// (e.g., add[30] for data address, add[31] for flag address).
+			// Note: Using 'client_mem' for writing to the client process.
+			if (g_resolved_client_skel_data_addr != 0 && g_resolved_client_skel_flag_addr != 0) {
+				if (client_mem.get_proc_status() == process_status::FOUND_READY) { // Ensure client_mem is valid
+					if (client_mem.Write<SkeletonESPDataPacket>(g_resolved_client_skel_data_addr, esp_packet)) {
+						// Successfully wrote the packet, now set the flag.
+						if (!client_mem.Write<bool>(g_resolved_client_skel_flag_addr, true)) {
+							// Handle error: Failed to write the boolean flag to client
+							// printf("Error: Failed to write g_new_skeleton_data_received flag to client.\n");
+						} else {
+							// Optional: Log successful write
+							// if (esp_packet.num_skeletons > 0) {
+							//     printf("DMG: Wrote %d skeletons to client.\n", esp_packet.num_skeletons);
+							// }
+						}
+					} else {
+						// Handle error: Failed to write SkeletonESPDataPacket to client
+						// printf("Error: Failed to write SkeletonESPDataPacket to client.\n");
+					}
+				} else {
+					// Handle error: client_mem is not ready (client process not found/attached)
+					// printf("Error: Client process not ready for direct memory write (client_mem).\n");
+				}
+			} else {
+				// Handle error or log: Client target addresses for skeleton data are not resolved.
+				// This indicates the server-side mechanism to read client's 'add' array (and populate globals)
+				// has not run or failed.
+				// printf("Warning: Client addresses for skeleton data not resolved by server. Cannot write ESP packet.\n");
+			}
+			// End of direct memory write section
+
+		} // End of while (g_Base != 0 && c_Base != 0)
+	} // End of while (actions_t)
 
 	actions_t = false;
 }

@@ -10,6 +10,12 @@
 //test contraste texte
 #include "C:\Users\YOUR_USER\YOUR_FOLDER\OKVM\adkv-master\apex_guest\Client\Client\imgui\imgui.h"
 
+// Definitions for global skeleton ESP data variables (declared in globals.h)
+SkeletonESPDataPacket g_latest_skeleton_data;
+bool g_new_skeleton_data_received = false;
+
+// ProcessSkeletonESPPacket function is removed as data will be written directly by server.
+
 typedef struct player
 {
 	float dist = 0;
@@ -42,7 +48,9 @@ int aim_key2 = VK_RBUTTON;
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
-extern visuals v;
+extern visuals v; // This is from overlay.h, v.box, v.name etc.
+bool v_skeleton_esp = false; // Definition for the new global toggle
+
 int aim = 0; //read
 bool esp = false; //read
 //bool item_glow = false;
@@ -134,7 +142,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[30];//30
+uint64_t add[32]; // Changed size from 30 to 32
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -367,10 +375,14 @@ int main(int argc, char** argv)
 	add[25] = (uintptr_t)&firing_range;
 	add[26] = (uintptr_t)&shooting;
 	//items
-	//add[28] = (uintptr_t)&medbackpack;
+	//add[28] = (uintptr_t)&medbackpack; 
 	add[27] = (uintptr_t)&onevone;
-	add[28] = (uintptr_t)&spectator_list;
-	add[29] = (uintptr_t)&SuperKey;
+	add[28] = (uintptr_t)&spectator_list; // Restoring original use, or decide if still needed
+	add[29] = (uintptr_t)&SuperKey;       // Restoring original use
+	// Assigning new shared memory addresses to add[30] and add[31]
+	// This requires the array size to be at least 32.
+	add[30] = (uintptr_t)&g_latest_skeleton_data;
+	add[31] = (uintptr_t)&g_new_skeleton_data_received;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -379,6 +391,11 @@ int main(int argc, char** argv)
 	printf(XorStr("Waiting for host process...\n"));
 	while (check == 0xABCD)
 	{
+        // Data for g_latest_skeleton_data and g_new_skeleton_data_received
+        // is now expected to be written directly by the server into this process's memory
+        // using addresses previously shared via the add[] array (now indices 30 and 31).
+        // No explicit client-side packet reception logic is needed here.
+
 		if (IsKeyDown(VK_F4))
 		{
 			active = false;
@@ -450,6 +467,7 @@ int main(int argc, char** argv)
 				config >> max_max_fov;
 				config >> min_smooth;
 				config >> max_smooth;
+				config >> std::boolalpha >> v_skeleton_esp; // Load Skeleton ESP toggle
 				config.close();
 			}
 		}
@@ -596,3 +614,93 @@ int main(int argc, char** argv)
 		system(XorStr("taskkill /F /T /IM Overlay.exe")); //custom overlay process name
 	return 0;
 }
+
+// New function to render skeletons
+// This function would ideally be called from the ImGui rendering loop in Overlay::CreateOverlay
+// For now, defined here. Needs access to an Overlay instance for W2S and screen dimensions.
+void RenderSkeletons(Overlay& overlay, int screen_width, int screen_height) {
+    if (!v_skeleton_esp) { // Added toggle check
+        return;
+    }
+    if (!g_new_skeleton_data_received || g_latest_skeleton_data.num_skeletons == 0) {
+        return;
+    }
+
+    // Static storage for screen positions and on-screen status for each skeleton's bones
+    // Using std::map to map hitbox_id to screen coordinates and visibility status
+    static std::map<int, Vector2> skeleton_screen_pos_maps[MAX_SKELETONS_IN_PACKET];
+    static std::map<int, bool> skeleton_on_screen_maps[MAX_SKELETONS_IN_PACKET];
+
+    // Process world positions to screen positions
+    for (int skeleton_idx = 0; skeleton_idx < g_latest_skeleton_data.num_skeletons; ++skeleton_idx) {
+        skeleton_screen_pos_maps[skeleton_idx].clear();
+        skeleton_on_screen_maps[skeleton_idx].clear();
+
+        const PlayerSkeleton& player_skel = g_latest_skeleton_data.skeletons[skeleton_idx];
+        if (!player_skel.valid) continue;
+
+        for (int bone_array_idx = 0; bone_array_idx < player_skel.num_bones; ++bone_array_idx) {
+            const SkeletonBone& bone = player_skel.bones[bone_array_idx];
+            Vector2 screen_pos;
+            // Calling WorldToScreen from the passed Overlay object
+            bool on_screen = overlay.WorldToScreen(bone.position, g_latest_skeleton_data.view_matrix, screen_pos, screen_width, screen_height);
+            skeleton_screen_pos_maps[skeleton_idx][bone.id] = screen_pos; 
+            skeleton_on_screen_maps[skeleton_idx][bone.id] = on_screen;
+        }
+    }
+    
+    const std::vector<std::pair<int, int>> bone_connections = {
+        {0, 1},   // Head to Neck
+        {1, 2},   // Neck to Chest (Hitbox ID 2)
+        {2, 3},   // Chest to Stomach (Hitbox ID 3)
+        {3, 4},   // Stomach to Pelvis (Hitbox ID 4)
+        {2, 6},   // Chest to Left Shoulder (ID 6)
+        {6, 7},   // Left Shoulder (6) to Left Elbow (7)
+        {7, 8},   // Left Elbow (7) to Left Wrist (8)
+        {2, 9},   // Chest to Right Shoulder (ID 9)
+        {9, 10},  // Right Shoulder (9) to Right Elbow (ID 10)
+        {10, 11}, // Right Elbow (10) to Right Wrist (ID 11)
+        {4, 12},  // Pelvis (ID 4) to Left Thigh (ID 12)
+        {12, 13}, // Left Thigh (12) to Left Knee (ID 13)
+        {13, 14}, // Left Knee (13) to Left Ankle (ID 14)
+        {4, 16},  // Pelvis (ID 4) to Right Thigh (ID 16)
+        {16, 17}, // Right Thigh (16) to Right Knee (ID 17)
+        {17, 18}  // Right Knee (17) to Right Ankle (ID 18)
+    };
+
+    // This drawing should happen within an ImGui window context.
+    // Assuming this function is called from within an ImGui::Begin/End pair,
+    // or it sets up its own full-screen transparent window.
+    // For now, using ImGui::GetBackgroundDrawList() which might draw on the main overlay.
+    ImDrawList* draw_list = ImGui::GetBackgroundDrawList(); 
+
+    for (int skeleton_idx = 0; skeleton_idx < g_latest_skeleton_data.num_skeletons; ++skeleton_idx) {
+        const PlayerSkeleton& player_skel = g_latest_skeleton_data.skeletons[skeleton_idx];
+        if (!player_skel.valid || skeleton_screen_pos_maps[skeleton_idx].empty()) continue;
+
+        for (const auto& conn : bone_connections) {
+            auto it1_pos_data = skeleton_screen_pos_maps[skeleton_idx].find(conn.first);
+            auto it1_on_screen_data = skeleton_on_screen_maps[skeleton_idx].find(conn.first);
+            auto it2_pos_data = skeleton_screen_pos_maps[skeleton_idx].find(conn.second);
+            auto it2_on_screen_data = skeleton_on_screen_maps[skeleton_idx].find(conn.second);
+
+            if (it1_pos_data != skeleton_screen_pos_maps[skeleton_idx].end() &&
+                it2_pos_data != skeleton_screen_pos_maps[skeleton_idx].end() &&
+                it1_on_screen_data != skeleton_on_screen_maps[skeleton_idx].end() && it1_on_screen_data->second &&
+                it2_on_screen_data != skeleton_on_screen_maps[skeleton_idx].end() && it2_on_screen_data->second) {
+                
+                draw_list->AddLine(
+                    ImVec2(it1_pos_data->second.x, it1_pos_data->second.y),
+                    ImVec2(it2_pos_data->second.x, it2_pos_data->second.y),
+                    WHITE, // Defined in overlay.h, consider moving or passing ImColor
+                    1.5f
+                );
+            }
+        }
+    }
+    g_new_skeleton_data_received = false; 
+}
+
+// TODO: Call RenderSkeletons(ov1, ov1.getWidth(), ov1.getHeight()); 
+// from Overlay::CreateOverlay() main loop, after ImGui::NewFrame() and other ESP rendering.
+// For example, after the RenderEsp() call or as part of it if direct editing was possible.

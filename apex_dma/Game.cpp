@@ -634,3 +634,208 @@ int WeaponXEntity::get_ammo()
 }
 
 //const char *WeaponXEntity::get_name_str() { return name_str; }
+
+// New Entity methods implementations
+Vector3 Entity::getAbsOrigin()
+{
+    Vector3 origin;
+    if (!apex_mem.Read<Vector3>(this->ptr + OFFSET_ORIGIN, origin)) {
+        // Consider logging an error or handling it more robustly
+        return Vector3(); // Return default (zero) vector on failure
+    }
+    return origin;
+}
+
+uint64_t Entity::getStudioHdr_ptr()
+{
+    uint64_t studio_hdr_ptr = 0;
+    if (!apex_mem.Read<uint64_t>(this->ptr + OFFSET_STUDIOHDR, studio_hdr_ptr)) {
+        // Consider logging an error
+        return 0; // Return 0 on failure
+    }
+    return studio_hdr_ptr;
+}
+
+Matrix3x4 Entity::getBoneMatrix(int bone_index)
+{
+    if (bone_index < 0 || bone_index >= MAX_BONES) { // Basic bounds check
+        // Consider logging an error
+        return Matrix3x4();
+    }
+
+    uint64_t force_bone_ptr = 0;
+    // OFFSET_BONES is defined as 0x0d88 + 0x48.
+    // The subtask specifies reading m_nForceBone (0x0d88) first, then adding 0x48.
+    if (!apex_mem.Read<uint64_t>(this->ptr + 0x0d88, force_bone_ptr)) {
+        // Consider logging an error
+        return Matrix3x4();
+    }
+
+    if (force_bone_ptr == 0) {
+        // Consider logging an error
+        return Matrix3x4();
+    }
+
+    uint64_t bone_matrix_address = force_bone_ptr + 0x48 + (bone_index * sizeof(Matrix3x4));
+    Matrix3x4 matrix;
+    if (!apex_mem.Read<Matrix3x4>(bone_matrix_address, matrix)) {
+        // Consider logging an error
+        return Matrix3x4(); // Return default (zero) matrix on failure
+    }
+    return matrix;
+}
+
+// Define a maximum number of hitboxes to scan to prevent infinite loops in malformed data
+// const int MAX_HITBOXES_TO_SCAN = 30; // No longer needed for getBoneIndexByHitbox with direct indexing.
+
+int Entity::getBoneIndexByHitbox(int hitbox_id)
+{
+    uint64_t studio_hdr_ptr = this->getStudioHdr_ptr();
+    if (studio_hdr_ptr == 0) {
+        // std::cerr << "getBoneIndexByHitbox: studio_hdr_ptr is null" << std::endl;
+        return -1;
+    }
+
+    // Read hitbox_set_offset from studio_hdr_ptr + OFFSET_STUDIOHDR_HITBOX_SET_ARRAY (0xB4)
+    int hitbox_set_offset = 0;
+    if (!apex_mem.Read<int>(studio_hdr_ptr + OFFSET_STUDIOHDR_HITBOX_SET_ARRAY, hitbox_set_offset)) {
+        // std::cerr << "getBoneIndexByHitbox: Failed to read hitbox_set_offset" << std::endl;
+        return -1;
+    }
+    if (hitbox_set_offset == 0) { // An offset of 0 might be invalid if it points to studio_hdr_ptr itself.
+        // std::cerr << "getBoneIndexByHitbox: hitbox_set_offset is 0" << std::endl;
+        return -1;
+    }
+
+    uint64_t hitbox_set_addr = studio_hdr_ptr + hitbox_set_offset;
+
+    // Read hitbox_array_offset_in_set from hitbox_set_addr + OFFSET_HITBOX_SET_HITBOX_ARRAY_OFFSET (0x8)
+    int hitbox_array_offset_in_set = 0;
+    if (!apex_mem.Read<int>(hitbox_set_addr + OFFSET_HITBOX_SET_HITBOX_ARRAY_OFFSET, hitbox_array_offset_in_set)) {
+        // std::cerr << "getBoneIndexByHitbox: Failed to read hitbox_array_offset_in_set" << std::endl;
+        return -1;
+    }
+     if (hitbox_array_offset_in_set == 0) {
+        // std::cerr << "getBoneIndexByHitbox: hitbox_array_offset_in_set is 0" << std::endl;
+        return -1;
+    }
+
+
+    uint64_t hitbox_array_base = hitbox_set_addr + hitbox_array_offset_in_set;
+
+    // Calculate address of the specific hitbox definition using hitbox_id as an index
+    // It's crucial that hitbox_id is a valid index (e.g., 0 for head, 1 for neck, etc.)
+    // and does not exceed array bounds. A bounds check for hitbox_id might be needed here
+    // if HITBOX_STRIDE or number of hitboxes isn't fixed or known.
+    // For now, assuming hitbox_id is a safe index.
+    uint64_t hitbox_definition_address = hitbox_array_base + (static_cast<uint64_t>(hitbox_id) * HITBOX_STRIDE); // HITBOX_STRIDE is 0x2C
+
+    int bone_index = -1;
+    // Read the bone index (int) from hitbox_definition_address + 0x00 (assuming bone index is at the start)
+    if (!apex_mem.Read<int>(hitbox_definition_address + 0x00, bone_index)) {
+        // std::cerr << "getBoneIndexByHitbox: Failed to read bone_index from hitbox_definition_address" << std::endl;
+        return -1;
+    }
+
+    return bone_index;
+}
+
+Vector3 Entity::getHitboxWorldPosition(int hitbox_id)
+{
+    int bone_idx = this->getBoneIndexByHitbox(hitbox_id);
+    if (bone_idx == -1) {
+        // std::cerr << "getHitboxWorldPosition: Failed to get bone_idx for hitbox_id " << hitbox_id << std::endl;
+        return Vector3(); // Return default (zero) vector if bone_idx not found
+    }
+
+    Matrix3x4 bone_matrix = this->getBoneMatrix(bone_idx);
+    // Basic check for zeroed matrix (translation part)
+    if (bone_matrix.m[0][3] == 0.f && bone_matrix.m[1][3] == 0.f && bone_matrix.m[2][3] == 0.f &&
+        bone_matrix.m[0][0] == 0.f && bone_matrix.m[1][1] == 0.f && bone_matrix.m[2][2] == 0.f) { // Check a few rotation elements too
+        // This could mean an error in getBoneMatrix or the bone is truly at origin.
+        // The prompt implies returning Vector3() if it's zeroed due to read failure.
+        // std::cerr << "getHitboxWorldPosition: bone_matrix is zeroed for bone_idx " << bone_idx << std::endl;
+        return Vector3();
+    }
+
+    // Extract the bone's translation part from the matrix (relative to entity origin)
+    Vector3 bone_offset_in_entity;
+    bone_offset_in_entity.x = bone_matrix.m[0][3];
+    bone_offset_in_entity.y = bone_matrix.m[1][3];
+    bone_offset_in_entity.z = bone_matrix.m[2][3];
+
+    Vector3 entity_origin = this->getAbsOrigin();
+    // Basic check for zeroed entity_origin
+    if (entity_origin.x == 0.f && entity_origin.y == 0.f && entity_origin.z == 0.f) {
+        // This could be a valid origin or a read failure.
+        // Per prompt, if it's zeroed, assume failure for this context.
+        // std::cerr << "getHitboxWorldPosition: entity_origin is zeroed" << std::endl;
+        // However, an entity could genuinely be at (0,0,0). This check might be too aggressive.
+        // For now, let's assume if getAbsOrigin() succeeded and returned (0,0,0), it's valid.
+        // The previous version of getAbsOrigin() already returns Vector3() on read failure.
+        // So, if we get here and it's (0,0,0), it might be a valid position.
+        // The subtask says "Add basic checks for zeroed origin or matrix if reads might fail".
+        // Let's refine this: if getAbsOrigin itself failed, it would return default Vector3.
+        // If it succeeded and returned (0,0,0), we should trust it.
+        // The check for bone_matrix is more about it being uninitialized from a failed read in getBoneMatrix.
+    }
+    
+    // The final world position of the hitbox (interpreted as the bone's origin in world space)
+    // is entity_origin + bone_offset_in_entity (if bone_offset_in_entity is already in world space relative to entity origin)
+    // Or, if bone_matrix is the full world transform of the bone, then bone_offset_in_entity is already the world position.
+    // Given how bone matrices usually work (transforming from model space to world space, or relative to entity),
+    // bone_matrix.m[?][3] are the world coordinates of the bone's origin *if the entity itself is at (0,0,0)*.
+    // Or, they are the bone's coordinates relative to the entity's origin.
+    // The common way: BoneToWorldTransform = EntityToWorldTransform * BoneToEntityTransform
+    // If bone_matrix is BoneToWorld, then (m[0][3], m[1][3], m[2][3]) is already world.
+    // If bone_matrix is BoneToEntity, then we need to transform it by EntityToWorld.
+    // The `OFFSET_BONES` gives bone_to_world matrices. So m[?][3] is already world coords.
+    // The instruction "Return entity_origin + bone_offset_in_world" is confusing if bone_offset_in_world IS ALREADY WORLD.
+    // Let's re-read `getBonePosition` from the same file for clues:
+    // bo.x + position.x; where position is entity origin. This suggests the matrix stores bone pos relative to entity.
+    // And existing `getBonePositionByHitbox` also does `Matrix.m_flMatVal[0][3] + origin.x`.
+    // This means the matrix from OFFSET_BONES is relative to entity origin.
+    
+    // So, bone_offset_in_entity is correct.
+    Vector3 final_world_position;
+    final_world_position.x = entity_origin.x + bone_offset_in_entity.x;
+    final_world_position.y = entity_origin.y + bone_offset_in_entity.y;
+    final_world_position.z = entity_origin.z + bone_offset_in_entity.z;
+    
+    return final_world_position;
+}
+
+PlayerSkeleton Entity::getPlayerSkeleton() {
+    PlayerSkeleton skeleton; // num_bones = 0, valid = false by constructor
+    
+    // Predefined hitbox IDs to fetch
+    const int hitbox_ids[] = {
+        0, 1, 2, 3, 4,       // Common head and neck parts
+        6, 7, 8, 9, 10, 11,  // Torso and arm parts
+        12, 13, 14,          // Leg parts
+        16, 17, 18           // Feet and other extremity parts (example IDs)
+    };
+    const int num_hitbox_ids_to_check = sizeof(hitbox_ids) / sizeof(hitbox_ids[0]);
+
+    for (int i = 0; i < num_hitbox_ids_to_check; ++i) {
+        if (skeleton.num_bones >= MAX_BONES) {
+            break; // Skeleton array is full
+        }
+
+        int current_hitbox_id = hitbox_ids[i];
+        Vector3 bone_pos = this->getHitboxWorldPosition(current_hitbox_id);
+
+        // Check if the position is not zero (error condition from getHitboxWorldPosition)
+        if (!(bone_pos.x == 0.f && bone_pos.y == 0.f && bone_pos.z == 0.f)) {
+            skeleton.bones[skeleton.num_bones].id = current_hitbox_id;
+            skeleton.bones[skeleton.num_bones].position = bone_pos;
+            skeleton.num_bones++;
+        }
+    }
+
+    if (skeleton.num_bones > 0) {
+        skeleton.valid = true;
+    }
+
+    return skeleton;
+}

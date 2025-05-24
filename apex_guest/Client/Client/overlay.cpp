@@ -4,6 +4,36 @@
 
 
 using namespace std;
+
+// Forward declaration for RenderSkeletons function (defined in main.cpp)
+class Overlay; // Forward declare Overlay for the function signature if this was in a common header
+               // Not strictly necessary if Overlay class is already fully defined above in this file or via overlay.h
+void RenderSkeletons(Overlay& overlay, int screen_width, int screen_height);
+
+// Implementation of WorldToScreen
+// Note: This W2S uses the 3rd row of Matrix3x4 for 'w' calculation.
+// This is a specific interpretation due to Matrix3x4 being provided in the packet.
+// A full 4x4 view-projection matrix is usually standard.
+bool Overlay::WorldToScreen(const Vector3& world_pos, const Matrix3x4& view_matrix, Vector2& screen_pos_out, int in_screen_width, int in_screen_height) {
+    float screen_x = view_matrix.m[0][0] * world_pos.x + view_matrix.m[0][1] * world_pos.y + view_matrix.m[0][2] * world_pos.z + view_matrix.m[0][3];
+    float screen_y = view_matrix.m[1][0] * world_pos.x + view_matrix.m[1][1] * world_pos.y + view_matrix.m[1][2] * world_pos.z + view_matrix.m[1][3];
+    float w        = view_matrix.m[2][0] * world_pos.x + view_matrix.m[2][1] * world_pos.y + view_matrix.m[2][2] * world_pos.z + view_matrix.m[2][3];
+
+    if (w < 0.01f) {
+        return false;
+    }
+
+    float inv_w = 1.0f / w;
+    float ndc_x = screen_x * inv_w;
+    float ndc_y = screen_y * inv_w;
+
+    // Convert NDC to screen coordinates
+    screen_pos_out.x = (in_screen_width / 2.0f) + (ndc_x * in_screen_width / 2.0f);
+    screen_pos_out.y = (in_screen_height / 2.0f) - (ndc_y * in_screen_height / 2.0f); // Y is often inverted
+
+    return true;
+}
+
 extern int aim;
 extern bool esp;
 //extern bool item_glow;
@@ -231,6 +261,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Distance"), &v.distance);
 			ImGui::Checkbox(XorStr("Health bar"), &v.healthbar);
 			ImGui::Checkbox(XorStr("Shield bar"), &v.shieldbar);
+			ImGui::Checkbox(XorStr("Skeleton ESP"), &v_skeleton_esp); // Added Skeleton ESP checkbox
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -307,6 +338,7 @@ void Overlay::RenderMenu()
 					config << max_max_fov << "\n";
 					config << min_smooth << "\n";
 					config << max_smooth << "\n";
+					config << std::boolalpha << v_skeleton_esp << "\n"; // Save Skeleton ESP toggle
 					config.close();
 				}
 			}
@@ -393,6 +425,8 @@ void Overlay::RenderInfo()
 	ImGui::Checkbox(XorStr("1V1"), &onevone);
 	//ImGui::SameLine();
 	//ImGui::TextColored(GREEN, "%.0f", esp_distance / 39.62); //meters
+	// Removed duplicated skeleton ESP drawing logic from RenderInfo()
+
 	ImGui::Text(XorStr("SMT"));
 	ImGui::SameLine();
 	ImGui::SliderFloat(XorStr("##2"), &smooth, 12.0f, 250.0f, "%.2f");
@@ -416,8 +450,81 @@ void Overlay::RenderInfo()
 		ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), IM_COL32(255, 0, 0, 255)); // Red if not ready
 	}
 
-	ImGui::End();
-}
+	ImGui::End(); // End of "##info" window from RenderInfo()
+
+    // -------- New Skeleton ESP Drawing Logic in its own window --------
+    if (g_new_skeleton_data_received && g_latest_skeleton_data.num_skeletons > 0) {
+        // Static storage for screen positions and on-screen status for each skeleton's bones
+        static std::map<int, Vector2> skeleton_screen_pos_maps[MAX_SKELETONS_IN_PACKET];
+        static std::map<int, bool> skeleton_on_screen_maps[MAX_SKELETONS_IN_PACKET];
+
+        int current_screen_width = getWidth(); 
+        int current_screen_height = getHeight();
+
+        // Process world positions to screen positions
+        for (int skeleton_idx = 0; skeleton_idx < g_latest_skeleton_data.num_skeletons; ++skeleton_idx) {
+            skeleton_screen_pos_maps[skeleton_idx].clear();
+            skeleton_on_screen_maps[skeleton_idx].clear();
+
+            const PlayerSkeleton& player_skel = g_latest_skeleton_data.skeletons[skeleton_idx];
+            if (!player_skel.valid) continue;
+
+            for (int bone_array_idx = 0; bone_array_idx < player_skel.num_bones; ++bone_array_idx) {
+                const SkeletonBone& bone = player_skel.bones[bone_array_idx];
+                Vector2 screen_pos;
+                bool on_screen = this->WorldToScreen(bone.position, g_latest_skeleton_data.view_matrix, screen_pos, current_screen_width, current_screen_height);
+                skeleton_screen_pos_maps[skeleton_idx][bone.id] = screen_pos; 
+                skeleton_on_screen_maps[skeleton_idx][bone.id] = on_screen;
+            }
+        }
+        
+        // Define bone connections using hitbox IDs
+        const std::vector<std::pair<int, int>> bone_connections = {
+            {0, 1}, {1, 2}, {2, 3}, {3, 4},             // Spine
+            {2, 6}, {6, 7}, {7, 8},                     // Left Arm
+            {2, 9}, {9, 10}, {10, 11},                  // Right Arm
+            {4, 12}, {12, 13}, {13, 14},                // Left Leg
+            {4, 16}, {16, 17}, {17, 18}                 // Right Leg
+        };
+
+		// Begin a new transparent, full-screen window for drawing skeletons
+		ImGui::SetNextWindowPos(ImVec2(0,0));
+        ImGui::SetNextWindowSize(ImVec2((float)current_screen_width, (float)current_screen_height));
+		ImGui::Begin("SkeletonOverlayWindow", nullptr, 
+			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | 
+			ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | 
+			ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing);
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList(); // Use current window's draw list
+
+        for (int skeleton_idx = 0; skeleton_idx < g_latest_skeleton_data.num_skeletons; ++skeleton_idx) {
+            const PlayerSkeleton& player_skel = g_latest_skeleton_data.skeletons[skeleton_idx];
+            if (!player_skel.valid || skeleton_screen_pos_maps[skeleton_idx].empty()) continue;
+
+            for (const auto& conn : bone_connections) {
+                auto it1_pos_data = skeleton_screen_pos_maps[skeleton_idx].find(conn.first);
+                auto it1_on_screen_data = skeleton_on_screen_maps[skeleton_idx].find(conn.first);
+                auto it2_pos_data = skeleton_screen_pos_maps[skeleton_idx].find(conn.second);
+                auto it2_on_screen_data = skeleton_on_screen_maps[skeleton_idx].find(conn.second);
+
+                if (it1_pos_data != skeleton_screen_pos_maps[skeleton_idx].end() &&
+                    it2_pos_data != skeleton_screen_pos_maps[skeleton_idx].end() &&
+                    it1_on_screen_data != skeleton_on_screen_maps[skeleton_idx].end() && it1_on_screen_data->second &&
+                    it2_on_screen_data != skeleton_on_screen_maps[skeleton_idx].end() && it2_on_screen_data->second) {
+                    
+                    draw_list->AddLine(
+                        ImVec2(it1_pos_data->second.x, it1_pos_data->second.y),
+                        ImVec2(it2_pos_data->second.x, it2_pos_data->second.y),
+                        WHITE, 1.5f
+                    );
+                }
+            }
+        }
+        ImGui::End(); // End of "SkeletonOverlayWindow"
+        g_new_skeleton_data_received = false; 
+    }
+} // End of RenderInfo. This is where the skeleton code should NOT be.
+  // It should be in RenderEsp. I need to find the end of RenderEsp.
 
 void Overlay::ClickThrough(bool v)
 {
@@ -565,6 +672,9 @@ DWORD Overlay::CreateOverlay()
 			ImGui::End();
 		}
 		RenderEsp();
+
+		// Call RenderSkeletons to draw the skeletons
+		RenderSkeletons(*this, getWidth(), getHeight());
 
 		// Rendering
 		ImGui::EndFrame();

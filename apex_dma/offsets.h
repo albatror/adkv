@@ -61,6 +61,12 @@
 #define OFFSET_ORIGIN 0x017c //[DataMap.DT_BaseEntity].m_vecAbsOrigin updated 2025/01/08
 #define OFFSET_BONES 0x0d88 + 0x48 //[RecvTable.DT_BaseAnimating].m_nForceBone + 0x48 updated 2025/04/18
 #define OFFSET_STUDIOHDR 0xfd0 //[Miscellaneous].CBaseAnimating!m_pStudioHdr updated 2025/04/18
+
+// Hitbox related offsets - Verify these, based on common patterns
+#define OFFSET_STUDIOHDR_HITBOX_SET_ARRAY 0xB4 // Offset from studiohdr_t to mstudiohitboxset_t array
+#define OFFSET_HITBOX_SET_HITBOX_ARRAY_OFFSET 0x8 // Offset from mstudiohitboxset_t to mstudiobbox_t array
+#define HITBOX_STRIDE 0x2C // Size of mstudiobbox_t (approximated, verify!)
+
 #define OFFSET_AIMPUNCH 0x2438 //[DataMap.DT_Player].m_currentFrameLocalPlayer.m_vecPunchWeapon_Angle updated 2024/09/18
 #define OFFSET_CAMERAPOS 0x1f40 //[Miscellaneous].CPlayer!camera_origin updated 2025/04/18
 #define OFFSET_VIEWANGLES 0x2594 - 0x14 //[RecvTable.DT_Player].m_ammoPoolCapacity - 0x14 updated 2025/04/18

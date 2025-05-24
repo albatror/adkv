@@ -17,6 +17,8 @@
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
 
+#include "globals.h" // For Vector3, Matrix3x4, Vector2, etc.
+
 #define GREEN ImColor(0, 255, 0)
 #define RED ImColor(255, 0, 0)
 #define BLUE ImColor(0, 0, 255)
@@ -59,6 +61,10 @@ public:
 	void String(ImVec2 pos, ImColor color, const char* text);
 	//seer
 	void DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health);
+
+	// World to Screen function
+	bool WorldToScreen(const Vector3& world_pos, const Matrix3x4& view_matrix, Vector2& screen_pos_out, int screen_width, int screen_height);
+
 private:
 	bool running;
 	HWND overlayHWND;

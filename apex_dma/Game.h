@@ -1,6 +1,7 @@
 #include "Math.h"
 #include "offsets.h"
 #include "memory.h"
+#include "shared_structs.h"
 
 #define NUM_ENT_ENTRIES			(1 << 12)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
@@ -63,6 +64,14 @@ public:
 	QAngle GetRecoil();
 	Vector GetViewAnglesV();
 	float GetYaw();
+
+	// New methods for hitbox and skeleton data
+	uint64_t getStudioHdr_ptr();
+	Vector3 getAbsOrigin(); // From shared_structs.h
+	Matrix3x4 getBoneMatrix(int bone_index); // From shared_structs.h
+	int getBoneIndexByHitbox(int hitbox_id);
+	Vector3 getHitboxWorldPosition(int hitbox_id); // From shared_structs.h
+	PlayerSkeleton getPlayerSkeleton(); // From shared_structs.h
 
   	void enableGlow();
 	void disableGlow();
