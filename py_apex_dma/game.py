@@ -353,8 +353,51 @@ class WeaponXEntity:
 def get_entity(entity_ptr: int, mem: Memory, g_base: int) -> Entity:
     return Entity(entity_ptr, mem, g_base) # Updated placeholder to use constructor
 
-def world_to_screen(world_pos: structs.Vector, view_matrix_data: structs.MatrixData, screen_width: int, screen_height: int) -> structs.Vector:
-    return structs.Vector(0,0,0) # Placeholder return
+def world_to_screen(world_pos: structs.Vector, view_matrix_data: structs.MatrixData, screen_width: int, screen_height: int) -> structs.Vector | None:
+    """
+    Projects a 3D world position to 2D screen coordinates.
+    Returns a Vector with x, y screen coordinates, or None if behind camera.
+    """
+    if not world_pos or not view_matrix_data:
+        return None
+
+    matrix = view_matrix_data.matrix # This is float[16]
+
+    # Homogeneous coordinates for the world position
+    world_x, world_y, world_z = world_pos.x, world_pos.y, world_pos.z
+
+    # Transform by the view matrix (matrix is column-major or row-major? Assuming standard row-major for multiplication)
+    # If matrix is from DirectX/OpenGL, it's typically column-major if passed as is.
+    # If it's just a float[16] array, common layout is m[row][col].
+    # matrix[0] matrix[1] matrix[2] matrix[3]  (row 0)
+    # matrix[4] matrix[5] matrix[6] matrix[7]  (row 1)
+    # ...
+    # Clip Coordinate W (perspective Z)
+    clip_w = world_x * matrix[3] + world_y * matrix[7] + world_z * matrix[11] + matrix[15]
+
+    if clip_w < 0.01: # Point is behind or too close to the camera plane
+        return None
+
+    # Clip Coordinate X
+    clip_x = world_x * matrix[0] + world_y * matrix[4] + world_z * matrix[8] + matrix[12]
+    # Clip Coordinate Y
+    clip_y = world_x * matrix[1] + world_y * matrix[5] + world_z * matrix[9] + matrix[13]
+
+    # Normalized Device Coordinates (NDC)
+    ndc_x = clip_x / clip_w
+    ndc_y = clip_y / clip_w
+
+    # Screen Coordinates
+    # Common formula:
+    # ScreenX = (ScreenWidth / 2 * NDCX) + (NDCX + ScreenWidth / 2) - this seems a bit off.
+    # Standard formula:
+    # ScreenX = (NDCX + 1.0) * ScreenWidth / 2.0
+    # ScreenY = (1.0 - NDCY) * ScreenHeight / 2.0 (Y is often inverted)
+
+    screen_x = (screen_width / 2.0) + (ndc_x * screen_width / 2.0)
+    screen_y = (screen_height / 2.0) - (ndc_y * screen_height / 2.0) # Y is inverted in screen space
+
+    return structs.Vector(x=screen_x, y=screen_y, z=0) # z component is not typically used for 2D screen pos
 
 def calculate_fov(local_player: Entity, target_entity: Entity) -> float:
     return 0.0 # Placeholder return

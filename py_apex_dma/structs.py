@@ -139,6 +139,27 @@ class PlayerData(ctypes.Structure):
         ("name", ctypes.c_char * 33)
     ]
 
+    def to_dict(self) -> dict:
+        return {
+            "dist": self.dist,
+            "entity_team": self.entity_team,
+            "boxMiddle": self.boxMiddle,
+            "h_y": self.h_y,
+            "width": self.width,
+            "height": self.height,
+            "b_x": self.b_x,
+            "b_y": self.b_y,
+            "knocked": self.knocked,
+            "visible": self.visible,
+            "health": self.health,
+            "shield": self.shield,
+            "maxshield": self.maxshield,
+            "armortype": self.armortype,
+            "player_xp_level": self.player_xp_level,
+            # Decode name from bytes to string for JSON serialization
+            "name": self.name.decode(errors='ignore') if isinstance(self.name, bytes) else str(self.name),
+        }
+
 class SpectatorData(ctypes.Structure):
 	_fields_ = [
 		("is_spec", ctypes.c_bool),

@@ -1,127 +1,72 @@
 import ctypes
 import threading
-from .structs import ProcessStatus # Assuming ProcessStatus is in structs.py
+from .structs import ProcessStatus
+from . import memflow_ffi_bindings as mf # Import the FFI bindings
 
-# These will be replaced by actual FFI types/handles later
-# For now, they are placeholders for the Python Memory class structure.
-class MemflowConnector: # Placeholder for a memflow connector object
-    def __init__(self, name, args):
-        self.name = name
-        self.args = args
-        self.instance = ctypes.c_void_p(None) # Placeholder for actual connector
-        print(f"MemflowConnector: Initialized (placeholder) for {name} with {args}")
+# Removed placeholder classes MemflowConnector, MemflowOsInstance, MemflowProcess
 
-    def is_valid(self):
-        return self.instance.value is not None
-
-    def release(self):
-        if self.is_valid():
-            print(f"MemflowConnector: Released (placeholder) {self.name}")
-            self.instance = ctypes.c_void_p(None)
-
-class MemflowOsInstance: # Placeholder for a memflow OS instance
-    def __init__(self, connector: MemflowConnector, name, args):
-        self.connector = connector
-        self.name = name
-        self.args = args
-        self.instance = ctypes.c_void_p(None) # Placeholder
-        if connector.is_valid():
-            print(f"MemflowOsInstance: Initialized (placeholder) for {name} with {args} using {connector.name}")
-            # Simulate successful OS instance creation
-            self.instance = ctypes.c_void_p(12345) # Dummy non-null pointer
-        else:
-            print(f"MemflowOsInstance: Failed to initialize (placeholder) - connector invalid")
-
-
-    def is_valid(self):
-        return self.instance.value is not None
-
-    def release(self):
-        if self.is_valid():
-            print(f"MemflowOsInstance: Released (placeholder) {self.name}")
-            self.instance = ctypes.c_void_p(None)
-        if self.connector:
-            self.connector.release() # OsInstance often owns the connector
-
-class MemflowProcess: # Placeholder for memflow process object (IntoProcessInstance)
-    def __init__(self, os_instance: MemflowOsInstance, name_or_pid):
-        self.os_instance = os_instance
-        self.name_or_pid = name_or_pid
-        self.hProcess = ctypes.c_void_p(None) # Placeholder for IntoProcessInstance<>
-        self.baseaddr = 0
-        self.pid = 0
-        self.name = ""
-
-        if os_instance.is_valid():
-            print(f"MemflowProcess: Trying to find process {name_or_pid} (placeholder)")
-            # Simulate finding a process
-            self.hProcess = ctypes.c_void_p(67890) # Dummy non-null pointer
-            self.baseaddr = 0x10000000 # Dummy base address
-            self.pid = 1234 if isinstance(name_or_pid, int) else 5678
-            self.name = name_or_pid if isinstance(name_or_pid, str) else "process.exe"
-            print(f"MemflowProcess: Found process {self.name} (PID: {self.pid}) at base {hex(self.baseaddr)} (placeholder)")
-        else:
-            print(f"MemflowProcess: Failed to initialize (placeholder) - OS instance invalid")
-
-
-    def is_valid(self):
-        return self.hProcess.value is not None
-
-    def read_raw_into(self, address, buffer_ptr, size):
-        if not self.is_valid():
-            return -1 # Error
-        print(f"MemflowProcess: Reading {size} bytes from {hex(address)} (placeholder)")
-        # Simulate reading some dummy data if needed for testing, e.g. ctypes.memset(buffer_ptr, 0xAB, size)
-        return 0 # Success
-
-    def write_raw(self, address, buffer_ptr, size):
-        if not self.is_valid():
-            return -1 # Error
-        print(f"MemflowProcess: Writing {size} bytes to {hex(address)} (placeholder)")
-        return 0 # Success
-
-    def release(self):
-        if self.is_valid():
-            print(f"MemflowProcess: Released process {self.name_or_pid} (placeholder)")
-            self.hProcess = ctypes.c_void_p(None)
-        # OS instance is typically managed separately or by a higher-level object
-
-# This matches the C++ Process struct which holds hProcess and baseaddr
+# This ProcessData class will now hold actual FFI ProcessInstance_p
 class ProcessData:
     def __init__(self):
-        self.hProcess: MemflowProcess = None # Will hold the memflow process object
-        self.baseaddr: int = 0
-        self.pid: int = 0
+        self.hProcess: mf.ProcessInstance_p = None # Actual FFI process instance
+        self.info: mf.ProcessInfo = None # Store ProcessInfo for baseaddr, pid, name
+        self.baseaddr: mf.Address = 0
+        self.pid: mf.Pid = 0
         self.name: str = ""
 
     def is_valid(self):
-        return self.hProcess is not None and self.hProcess.is_valid()
+        return self.hProcess is not None and self.hProcess.value is not None
+
+    def update_from_info(self, proc_info_ptr: ctypes.POINTER(mf.ProcessInfo)):
+        if proc_info_ptr and proc_info_ptr.contents:
+            self.info = proc_info_ptr.contents
+            # The base address in ProcessInfo is typically 'address' field,
+            # which is the address of the process object in kernel space, NOT the module base.
+            # Module base address (image base) needs to be found by iterating modules or from specific OS calls.
+            # For now, let's assume DTB might be related or a placeholder.
+            # In memflow, primary module base is often found via `main_module_info()` on ProcessInstance
+            # For now, baseaddr will be 0 until we implement module iteration.
+            self.baseaddr = 0 # Placeholder - this needs to be module base
+            self.pid = self.info.pid
+            if self.info.name:
+                self.name = self.info.name.decode('utf-8', 'ignore')
+            print(f"ProcessData: Updated from ProcessInfo. PID: {self.pid}, Name: {self.name}, KernelAddr: {hex(self.info.address)}")
+
 
 class Memory:
     def __init__(self):
+        self._bindings = mf # Store the bindings module
         self._proc = ProcessData()
         self._status = ProcessStatus.NOT_FOUND
-        self._lock = threading.Lock()
-        # self.lastCorrectDtbPhysicalAddress = 0 # Not directly used in Python version yet
+        self._lock = threading.Lock() # Thread safety for operations
 
-        # Placeholders for actual memflow library and objects
-        # These would be initialized by mf_inventory_scan(), etc.
-        self._inventory = ctypes.c_void_p(None) # Placeholder for Inventory*
-        self._connector = None # Will hold MemflowConnector
-        self._os_instance = None # Will hold MemflowOsInstance
+        self._inventory: mf.Inventory_p = None
+        self._connector: mf.ConnectorInstance_p = None
+        self._os_instance: mf.OsInstance_p = None
 
-        # Simulate initializing inventory (will be FFI call)
-        print("Memory: Initializing memflow inventory (placeholder)")
-        self._inventory = ctypes.c_void_p(1) # Dummy non-null inventory
+        try:
+            if self._bindings.memflow_lib: # Check if library was loaded
+                self._bindings.mf_log_init(self._bindings.LevelFilter_Info) # Example log level
+                self._inventory = self._bindings.mf_inventory_scan()
+                if not self._inventory:
+                    print("Memory Error: Failed to scan memflow inventory.")
+                    # Potentially raise an error or set a permanent error state
+                else:
+                    print("Memory: Memflow inventory scanned successfully.")
+            else:
+                print("Memory Error: Memflow library not loaded. Memory operations will fail.")
+        except Exception as e:
+            print(f"Memory Error: Exception during memflow initialization: {e}")
+            self._inventory = None # Ensure inventory is None on error
 
     def __del__(self):
-        self.close_proc()
-        if self._inventory:
-            print("Memory: Releasing memflow inventory (placeholder)")
-            self._inventory = ctypes.c_void_p(None)
+        self.close_proc() # Frees connector, OS, process instances
+        if self._inventory and self._bindings.memflow_lib:
+            print("Memory: Releasing memflow inventory.")
+            self._bindings.mf_inventory_free(self._inventory)
+            self._inventory = None
 
-
-    def get_proc_baseaddr(self) -> int:
+    def get_proc_baseaddr(self) -> int: # Return type should match Address (Python int)
         with self._lock:
             return self._proc.baseaddr if self._proc.is_valid() else 0
 
@@ -154,164 +99,266 @@ class Memory:
 
     def open_proc(self, name: str) -> bool:
         with self._lock:
-            if self._proc.is_valid() and self._proc.name == name:
-                print(f"Memory.open_proc: Process {name} already open and valid.")
-                return True
+            if self._proc.is_valid() and self._proc.name == name: # TODO: Check if name matches current process name
+                # print(f"Memory.open_proc: Process {name} already open and valid.")
+                return True # Already open to the correct process
 
             self.close_proc() # Close any existing process first
 
-            print(f"Memory.open_proc: Attempting to open process {name} (placeholder)")
-
-            # Simplified memflow initialization sequence (placeholders)
-            # 1. Create Connector (e.g., KVM, QEMU, Physical Memory)
-            #    This would come from config or be fixed for this tool
-            connector_name = "kvm" # Example, this should be configurable or auto-detected
-            connector_args = ""
-            self._connector = MemflowConnector(connector_name, connector_args)
-
-            if not self._connector.is_valid():
-                print(f"Memory.open_proc: Failed to create connector {connector_name} (placeholder)")
+            if not self._inventory or not self._bindings.memflow_lib:
+                print("Memory.open_proc: Memflow inventory not available or library not loaded.")
                 self._status = ProcessStatus.NOT_FOUND
                 return False
 
-            # 2. Create OS Layer (e.g., Windows, Linux)
-            os_name = "win32" # Example, should be auto-detected or configured
-            os_args = ""
-            self._os_instance = MemflowOsInstance(self._connector, os_name, os_args)
+            print(f"Memory.open_proc: Attempting to open process '{name}' via memflow...")
 
-            if not self._os_instance.is_valid():
-                print(f"Memory.open_proc: Failed to create OS instance {os_name} (placeholder)")
+            # 1. Create Connector (e.g., "kvm", "qemu_procfs", "pcileech")
+            #    These should ideally come from configuration or auto-detection.
+            #    For now, let's try a common one like "kvm" or "qemu_procfs" if on Linux,
+            #    or allow it to be specified. Using a placeholder name for now.
+            #    A real implementation would likely try a list of known connectors.
+            connector_name = "kvm" # Example: This should be configurable
+            connector_args_c = None # No specific args for kvm by default, pass NULL
+
+            # If using Physical Memory connector like "pcileech", args might be needed.
+            # connector_name = "pcileech"
+            # connector_args = "fpga" # Example argument
+            # connector_args_c = connector_args.encode('utf-8')
+
+
+            connector_out = mf.ConnectorInstance_p()
+            ret = self._bindings.mf_inventory_create_connector(
+                self._inventory,
+                connector_name.encode('utf-8'),
+                connector_args_c, # Pass None or actual args
+                ctypes.byref(connector_out)
+            )
+
+            if ret != 0 or not connector_out: # 0 is success for most memflow C API calls
+                print(f"Memory.open_proc: Failed to create connector '{connector_name}'. Status: {ret}")
                 self._status = ProcessStatus.NOT_FOUND
-                if self._connector: self._connector.release()
                 return False
+            self._connector = connector_out
+            print(f"Memory.open_proc: Connector '{connector_name}' created successfully.")
+
+            # 2. Create OS Layer (e.g., "win32", "linux")
+            os_name = "win32" # Example: This should be auto-detected or configurable
+            os_args_c = None    # No specific args usually
+
+            os_out = mf.OsInstance_p()
+            ret = self._bindings.mf_inventory_create_os(
+                self._inventory,
+                os_name.encode('utf-8'),
+                os_args_c,
+                self._connector, # Pass the created connector
+                ctypes.byref(os_out)
+            )
+
+            if ret != 0 or not os_out:
+                print(f"Memory.open_proc: Failed to create OS instance '{os_name}'. Status: {ret}")
+                self.close_proc() # Clean up connector
+                return False
+            self._os_instance = os_out
+            print(f"Memory.open_proc: OS instance '{os_name}' created successfully.")
 
             # 3. Get Process by name
-            self._proc.hProcess = MemflowProcess(self._os_instance, name)
+            process_info_out = mf.ProcessInfo()
+            name_slice = self._bindings.str_to_c_slice_ref(name)
 
-            if self._proc.hProcess.is_valid():
-                self._proc.baseaddr = self._proc.hProcess.baseaddr
-                self._proc.pid = self._proc.hProcess.pid
-                self._proc.name = self._proc.hProcess.name
-                self._status = ProcessStatus.FOUND_READY
-                print(f"Memory.open_proc: Successfully opened process {name}, PID: {self._proc.pid}, Base: {hex(self._proc.baseaddr)}")
-                return True
-            else:
-                print(f"Memory.open_proc: Failed to find/open process {name} via memflow (placeholder)")
-                self._status = ProcessStatus.NOT_FOUND
-                # Clean up OS and connector if process not found
-                if self._os_instance: self._os_instance.release()
-                self._os_instance = None
-                if self._connector: self._connector.release()
-                self._connector = None
+            ret = self._bindings.mf_osinstance_process_by_name(
+                self._os_instance,
+                name_slice, # Process name as CSliceRef_u8
+                ctypes.byref(process_info_out)
+            )
+
+            if ret != 0:
+                print(f"Memory.open_proc: Failed to find process by name '{name}'. Status: {ret}")
+                self.close_proc() # Clean up os and connector
                 return False
+
+            # 4. Attach to the process (get a ProcessInstance)
+            process_out = mf.ProcessInstance_p()
+            ret = self._bindings.mf_osinstance_into_process_by_info(
+                self._os_instance,
+                process_info_out, # Pass the ProcessInfo struct by value
+                ctypes.byref(process_out)
+            )
+
+            if ret != 0 or not process_out:
+                print(f"Memory.open_proc: Failed to attach to process '{name}'. Status: {ret}")
+                self.close_proc()
+                return False
+
+            self._proc.hProcess = process_out
+
+            # Get full ProcessInfo from the ProcessInstance (might contain more details like proper base)
+            # The ProcessInfo from by_name might be minimal.
+            # The one from ProcessInstance is usually more complete for the attached process.
+            final_proc_info_ptr = self._bindings.mf_processinstance_info(self._proc.hProcess)
+            if final_proc_info_ptr:
+                self._proc.update_from_info(final_proc_info_ptr)
+                # IMPORTANT: The base address for reads/writes is usually the module base of r5apex.exe,
+                # not process_info_out.address (which is kernel virtual address of process object).
+                # We need to implement module iteration to find the actual base address.
+                # For now, self._proc.baseaddr will be 0 or incorrect.
+                # This needs to be fixed for Read/Write to work correctly.
+                # TODO: Implement module iteration to find main module base address.
+                # For now, we'll assume for testing that reads might be from absolute addresses if known,
+                # or that a temporary fixed base is used. This is a CRITICAL point.
+
+                # Attempt to get the primary module base address
+                primary_module_info = mf.ModuleInfo()
+                ret_mod = self._bindings.mf_processinstance_primary_module(
+                    self._proc.hProcess,
+                    ctypes.byref(primary_module_info)
+                )
+                if ret_mod == 0 and primary_module_info.base != 0:
+                    self._proc.baseaddr = primary_module_info.base
+                    print(f"Memory.open_proc: Primary module for '{self._proc.name}' found. Base: {hex(self._proc.baseaddr)}, Size: {hex(primary_module_info.size)}")
+                    if primary_module_info.name:
+                         print(f"Memory.open_proc: Primary module name: {primary_module_info.name.decode('utf-8', 'ignore')}")
+                else:
+                    print(f"WARNING: Failed to get primary module info for '{self._proc.name}'. Status: {ret_mod}. Reads relative to base will fail.")
+                    self._proc.baseaddr = mf.Address(0) # Ensure it's 0 if not found
+
+                self._status = ProcessStatus.FOUND_READY
+                print(f"Memory.open_proc: Successfully attached to process '{self._proc.name}', PID: {self._proc.pid}, Kernel Addr: {hex(self.info.address if self.info else 0)}") # Access self.info after ensuring it's set
+                print(f"Memory.open_proc: Process Base (Primary Module) Address set to: {hex(self._proc.baseaddr)}")
+                return True
+            else: # Failed to get final_proc_info_ptr
+                print(f"Memory.open_proc: Failed to get ProcessInfo from process instance for '{name}'.")
+                self.close_proc()
+                return False
+
 
     def close_proc(self):
         with self._lock:
-            if self._proc.is_valid():
-                print(f"Memory.close_proc: Closing process {self._proc.name} (placeholder)")
-                self._proc.hProcess.release()
-
+            if self._proc.hProcess and self._bindings.memflow_lib:
+                print(f"Memory.close_proc: Releasing process instance for '{self._proc.name}'")
+                self._bindings.mf_processinstance_drop(self._proc.hProcess)
             self._proc = ProcessData() # Reset process data
-            self._status = ProcessStatus.NOT_FOUND
 
-            if self._os_instance:
-                self._os_instance.release()
+            if self._os_instance and self._bindings.memflow_lib:
+                print("Memory.close_proc: Releasing OS instance.")
+                self._bindings.mf_os_drop(self._os_instance)
                 self._os_instance = None
 
-            if self._connector: # Connector is released when OS instance is released if OS owned it
-                # self._connector.release() # Typically owned by OsInstance or higher level manager
+            if self._connector and self._bindings.memflow_lib:
+                print("Memory.close_proc: Releasing Connector instance.")
+                self._bindings.mf_connector_drop(self._connector)
                 self._connector = None
 
-            print("Memory.close_proc: Process resources released (placeholder).")
+            self._status = ProcessStatus.NOT_FOUND
+            # print("Memory.close_proc: Process resources released.")
 
 
     def Read(self, address: int, ctype_obj) -> bool:
         '''
         Reads data from memory into a provided ctypes object.
+        address: The absolute memory address to read from.
         ctype_obj: An instance of a ctypes.Structure or a ctypes basic type (e.g., ctypes.c_uint64()).
+                   This object will be updated in place.
         '''
         with self._lock:
-            if not self._proc.is_valid():
-                #print("Memory.Read: Process not open or invalid.")
+            if not self._proc.is_valid() or not self._bindings.memflow_lib:
+                # print(f"Memory.Read: Process not open/invalid or memflow not loaded. Addr: {hex(address)}")
                 return False
 
             size = ctypes.sizeof(ctype_obj)
-            # Create a buffer (char*) from the ctypes object to pass to read_raw_into
-            # For single objects, we pass a pointer to the object itself.
-            ptr_to_obj = ctypes.byref(ctype_obj)
+            # Create a mutable buffer of bytes
+            buffer = (ctypes.c_uint8 * size)()
 
-            # print(f"Memory.Read: Reading {size} bytes from {hex(address)} into {type(ctype_obj).__name__} (placeholder)")
-            # In actual memflow: result = self._proc.hProcess.read_raw_into(address, ptr_to_obj, size)
-            result = self._proc.hProcess.read_raw_into(address, ptr_to_obj, size)
-            if result == 0: # Success in memflow FFI
-                # Data is now in ctype_obj
+            # Create CSliceMut_u8 for the FFI call
+            # The data pointer of CSliceMut_u8 should point to our Python-managed buffer
+            c_slice = mf.CSliceMut_u8(data=ctypes.cast(buffer, ctypes.POINTER(ctypes.c_uint8)), len=size)
+
+            # Addresses for memflow are absolute. If self._proc.baseaddr is used, ensure 'address' is an offset.
+            # For now, 'address' is assumed absolute.
+            # To read relative to module base: read_addr = self._proc.baseaddr + address
+            read_addr = mf.Address(address)
+
+            result = self._bindings.mf_processinstance_read_raw_into(self._proc.hProcess, read_addr, c_slice)
+
+            if result == 0: # Success
+                # Copy data from our temporary buffer to the user-provided ctype_obj
+                ctypes.memmove(ctypes.byref(ctype_obj), buffer, size)
                 return True
             else:
-                # print(f"Memory.Read: Failed to read from {hex(address)} (Error code: {result})")
+                # print(f"Memory.Read: Failed to read {size} bytes from {hex(address)}. Error code: {result}")
                 return False
 
     def ReadArray(self, address: int, ctype_array) -> bool:
         '''
         Reads data from memory into a provided ctypes array.
+        address: The absolute memory address to read from.
         ctype_array: An instance of a ctypes array (e.g., (ctypes.c_uint8 * 10)()).
+                     This array will be updated in place.
         '''
         with self._lock:
-            if not self._proc.is_valid():
-                #print("Memory.ReadArray: Process not open or invalid.")
+            if not self._proc.is_valid() or not self._bindings.memflow_lib:
                 return False
 
             size = ctypes.sizeof(ctype_array)
-            # For arrays, ctype_array itself can be cast to a char* or void* equivalent
-            ptr_to_array = ctypes.cast(ctype_array, ctypes.c_void_p)
+            # Ctype arrays can be directly cast to POINTER(c_uint8) for CSliceMut_u8
+            # No intermediate buffer needed as ctype_array is already a contiguous memory block.
+            c_slice = mf.CSliceMut_u8(data=ctypes.cast(ctype_array, ctypes.POINTER(ctypes.c_uint8)), len=size)
 
-            # print(f"Memory.ReadArray: Reading {size} bytes from {hex(address)} into array (placeholder)")
-            result = self._proc.hProcess.read_raw_into(address, ptr_to_array, size)
+            read_addr = mf.Address(address)
+            result = self._bindings.mf_processinstance_read_raw_into(self._proc.hProcess, read_addr, c_slice)
+
             if result == 0:
                 return True
             else:
-                # print(f"Memory.ReadArray: Failed to read array from {hex(address)} (Error code: {result})")
+                # print(f"Memory.ReadArray: Failed to read array of {size} bytes from {hex(address)}. Error: {result}")
                 return False
 
     def Write(self, address: int, ctype_obj) -> bool:
         '''
         Writes data from a ctypes object to memory.
+        address: The absolute memory address to write to.
         ctype_obj: An instance of a ctypes.Structure or a ctypes basic type containing the data to write.
         '''
         with self._lock:
-            if not self._proc.is_valid():
-                #print("Memory.Write: Process not open or invalid.")
+            if not self._proc.is_valid() or not self._bindings.memflow_lib:
                 return False
 
             size = ctypes.sizeof(ctype_obj)
-            ptr_to_obj = ctypes.byref(ctype_obj)
+            # For writing, the data comes directly from the ctype_obj.
+            # We need a pointer to the object's data for CSliceRef_u8.
+            data_ptr = ctypes.cast(ctypes.byref(ctype_obj), ctypes.POINTER(ctypes.c_uint8))
+            c_slice = mf.CSliceRef_u8(data=data_ptr, len=size)
 
-            # print(f"Memory.Write: Writing {size} bytes to {hex(address)} from {type(ctype_obj).__name__} (placeholder)")
-            result = self._proc.hProcess.write_raw(address, ptr_to_obj, size)
+            write_addr = mf.Address(address)
+            result = self._bindings.mf_processinstance_write_raw(self._proc.hProcess, write_addr, c_slice)
+
             if result == 0:
                 return True
             else:
-                # print(f"Memory.Write: Failed to write to {hex(address)} (Error code: {result})")
+                # print(f"Memory.Write: Failed to write {size} bytes to {hex(address)}. Error: {result}")
                 return False
 
     def WriteArray(self, address: int, ctype_array) -> bool:
         '''
         Writes data from a ctypes array to memory.
+        address: The absolute memory address to write to.
         ctype_array: An instance of a ctypes array containing the data to write.
         '''
         with self._lock:
-            if not self._proc.is_valid():
-                #print("Memory.WriteArray: Process not open or invalid.")
+            if not self._proc.is_valid() or not self._bindings.memflow_lib:
                 return False
 
             size = ctypes.sizeof(ctype_array)
-            ptr_to_array = ctypes.cast(ctype_array, ctypes.c_void_p)
+            # Ctype arrays can be directly cast for the data pointer.
+            data_ptr = ctypes.cast(ctype_array, ctypes.POINTER(ctypes.c_uint8))
+            c_slice = mf.CSliceRef_u8(data=data_ptr, len=size)
 
-            # print(f"Memory.WriteArray: Writing {size} bytes to {hex(address)} from array (placeholder)")
-            result = self._proc.hProcess.write_raw(address, ptr_to_array, size)
+            write_addr = mf.Address(address)
+            result = self._bindings.mf_processinstance_write_raw(self._proc.hProcess, write_addr, c_slice)
+
             if result == 0:
                 return True
             else:
-                # print(f"Memory.WriteArray: Failed to write array to {hex(address)} (Error code: {result})")
+                # print(f"Memory.WriteArray: Failed to write array of {size} bytes to {hex(address)}. Error: {result}")
                 return False
 
     def ScanPointer(self, ptr_address: int, offsets: list[int]) -> int:
