@@ -52,64 +52,74 @@ class PhysicalAddress(ctypes.Structure):
     ]
 
 
-# ProcessState (enum from memflow.h)
-PROCESS_STATE_NEW = 0       # Unused
-PROCESS_STATE_ALIVE = 1     # Process is alive and well
-PROCESS_STATE_DEAD = 2      # Process is dead and about to be cleaned up
-PROCESS_STATE_CLEANED_UP = 3 # Process is dead and cleaned up by the os
+# --- Memflow Error Codes (subset, from memflow/src/error.rs typically) ---
+# Generic success code for many C API functions
+MF_SUCCESS = 0
+# General error codes (usually negative)
+MF_ERROR_GENERIC = -1
+MF_ERROR_INVALID_PARAM = -2
+MF_ERROR_NOT_FOUND = -3
+MF_ERROR_MEMFLOW_NATIVE = -100 # Placeholder for errors originating from native memflow_core
 
-# ArchitectureIdent (enum from memflow.h)
-ARCH_UNKNOWN = 0
-ARCH_X86 = 1       # x86 16-bit
-ARCH_X64 = 2       # x86_64 64-bit
-ARCH_ARM32 = 3     # ARM 32-bit
-ARCH_AARCH64 = 4   # ARM 64-bit
+# ProcessState_Tag (enum from memflow.h)
+PROCESS_STATE_TAG_NEW = 0
+PROCESS_STATE_TAG_ALIVE = 1
+PROCESS_STATE_TAG_DEAD = 2
+PROCESS_STATE_TAG_CLEANED_UP = 3
+
+# ArchitectureIdent_Tag (enum from memflow.h)
+ARCH_TAG_UNKNOWN = 0
+ARCH_TAG_X86 = 1
+ARCH_TAG_X64 = 2
+ARCH_TAG_ARM32 = 3
+ARCH_TAG_AARCH64 = 4
 
 # Simplified Architecture struct (from ArchitectureIdent in memflow.h)
-class Architecture(ctypes.Structure):
+# For Python, we'll primarily use the tag and may not need to map the union members.
+class ArchitectureIdent(ctypes.Structure):
     _fields_ = [
-        ("tag", ctypes.c_int), # Corresponds to ArchitectureIdent enum
-        # Placeholder for union members, e.g. for x64:
-        # ("x64_selector_gs", ctypes.c_uint16),
-        # ("x64_selector_fs", ctypes.c_uint16)
+        ("tag", ctypes.c_int), # Corresponds to ArchitectureIdent_Tag enum
+        # Union members like `x64`, `x86`, `aarch64` are omitted for Python simplicity.
+        # We can infer architecture from the tag.
     ]
 
+# Simplified ProcessState struct (from memflow.h)
 class ProcessState(ctypes.Structure):
     _fields_ = [
-        ("tag", ctypes.c_int), # Corresponds to ProcessState enum
-        ("exit_code", ctypes.c_int32) # Relevant if tag is PROCESS_STATE_DEAD
+        ("tag", ctypes.c_int), # Corresponds to ProcessState_Tag enum
+        ("exit_code", ctypes.c_int32) # Relevant if tag is PROCESS_STATE_TAG_DEAD
     ]
 
-# ProcessInfo - More complete, but still simplified for Python.
-# Full mapping of OS-specific parts (like WindowsEprocessInfo) is extensive.
+# ProcessInfo - Refined to include key fields for identification and memory layout.
+# OS-specific parts are still largely omitted for cross-platform simplicity in Python.
 class ProcessInfo(ctypes.Structure):
     _fields_ = [
-        ("address", Address),      # Address of the process structure in kernel memory
+        ("address", Address),      # Kernel Address of the process object (e.g. EPROCESS)
         ("pid", Pid),              # Process ID
-        ("state", ProcessState),   # Process state (tag + exit_code)
-        ("name", ctypes.c_char_p), # Name of the process (string owned by memflow)
-        ("path", ctypes.c_char_p), # Path to the process binary (string owned by memflow)
-        ("command_line", ctypes.c_char_p), # Command line (string owned by memflow)
-        ("sys_arch", Architecture),# System architecture on which the process is running
-        ("proc_arch", Architecture),# Process architecture (e.g. for WoW64 processes)
-        ("dtb1", Address),         # Primary page table (CR3 / TTBR0/1)
-        ("dtb2", Address),         # Secondary page table (Kernel CR3 / TTBR0_EL1 for KPTI)
-        # OS-specific ProcessInfo members are omitted for simplicity.
-        # E.g., on Windows: section_base, ethread, teb_wow64 etc.
-        # E.g., on Linux: real_uid, effective_uid etc.
+        ("state", ProcessState),   # Process state (includes tag and exit_code)
+        ("name", ctypes.c_char_p), # Name of the process (UTF-8, owned by memflow)
+        ("path", ctypes.c_char_p), # Path to the process binary (UTF-8, owned by memflow)
+        ("command_line", ctypes.c_char_p), # Command line (UTF-8, owned by memflow)
+        ("sys_arch", ArchitectureIdent),# System architecture
+        ("proc_arch", ArchitectureIdent),# Process architecture (e.g., for WoW64)
+        ("dtb1", Address),         # Primary Page Table (CR3 on x86/x64, TTBR0/1 on ARM)
+        ("dtb2", Address),         # Secondary Page Table (Kernel CR3 for KPTI, TTBR0_EL1)
+        # Other fields like sections_base, EPROCESS/KPROCESS specific fields, TEB, PEB etc.
+        # are part of OS-specific extensions in the C API (e.g., WindowsProcessInfo).
+        # Accessing them would require casting or more complex struct definitions.
     ]
 
-# ModuleInfo (simplified from memflow.h)
+# ModuleInfo - Refined for key fields.
 class ModuleInfo(ctypes.Structure):
     _fields_ = [
-        ("address", Address),      # Address of the module structure in kernel memory (if applicable)
-        ("parent_process", Address), # Parent process for kernel modules, Address::INVALID for usermode
-        ("base", Address),         # Base address of the module
-        ("size", umem),            # Size of the module
-        ("name", ctypes.c_char_p), # Name of the module (string owned by memflow)
-        ("path", ctypes.c_char_p), # Path to the module (string owned by memflow)
-        ("arch", Architecture),    # Architecture of the module
-        # Other fields like 'exports', 'mem_type' omitted for simplicity
+        ("address", Address),      # Address of the module structure (e.g. LDR_DATA_TABLE_ENTRY)
+        ("parent_process", Address), # Address::INVALID for user-mode modules
+        ("base", Address),         # Base address of the loaded module in process memory
+        ("size", umem),            # Size of the module in memory
+        ("name", ctypes.c_char_p), # Name of the module (UTF-8, owned by memflow)
+        ("path", ctypes.c_char_p), # Full path to the module file (UTF-8, owned by memflow)
+        ("arch", ArchitectureIdent),# Architecture of the module
+        # Other fields like 'exports', 'mem_type', 'module_entry_point' are omitted.
     ]
 
 

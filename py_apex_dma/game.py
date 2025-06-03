@@ -1,7 +1,7 @@
 import ctypes
-import math # Added math import
+import math
 from .memory import Memory
-from .offsets import GAME_OFFSETS
+# from .offsets import GAME_OFFSETS # GAME_OFFSETS will be passed as an argument where needed
 from . import structs
 
 # Global Glow Settings (mirrored from apex_dma.cpp defaults)
@@ -308,8 +308,95 @@ class Entity:
         #     # Example: bone_data_address = bone_matrix_ptr.value + (bone_id * sizeof(BoneMatrixEntry))
         #     # if self.mem.Read(bone_data_address, bone_data):
         #     #    return structs.Vector(bone_data.x, bone_data.y, bone_data.z) # This is simplified
-        print(f"Entity.get_bone_position({bone_id}) called - Placeholder")
-        return structs.Vector(0,0,0) # Placeholder return
+        # print(f"Entity.get_bone_position({bone_id}) called - Placeholder")
+        # return structs.Vector(0,0,0) # Placeholder return
+        if not (self.ptr and self.mem and game_offsets):
+            return None
+
+        bone_array_base_ptr_val = ctypes.c_uint64()
+        if not self.mem.Read(self.ptr + game_offsets["OFFSET_BONES"], bone_array_base_ptr_val):
+            return None
+
+        bone_array_base_ptr = bone_array_base_ptr_val.value
+        if bone_array_base_ptr == 0:
+            return None
+
+        BONE_DATA_STRIDE = 0x30  # Common stride for bone data
+        bone_data_addr = bone_array_base_ptr + (bone_id * BONE_DATA_STRIDE)
+
+        bone_struct = structs.Bone() # structs.Bone has x, y, z fields at correct offsets
+
+        if self.mem.Read(bone_data_addr, bone_struct):
+            # The x,y,z in structs.Bone are world coordinates directly (based on typical game struct layouts)
+            # No further transformation with entity origin needed here usually, as bone matrices are world space.
+            return structs.Vector(x=bone_struct.x, y=bone_struct.y, z=bone_struct.z)
+
+        return None
+
+    def get_view_offset(self, game_offsets: dict) -> structs.Vector | None:
+        view_offset_vec = structs.Vector()
+        if self.ptr and self.mem and game_offsets:
+            if self.mem.Read(self.ptr + game_offsets["OFFSET_VIEW_OFFSET"], view_offset_vec):
+                return view_offset_vec
+        return structs.Vector(0,0,0) # Return zero vector or None on failure
+
+    def set_view_angles(self, angles: structs.QAngle, game_offsets: dict) -> bool:
+        if self.ptr and self.mem and game_offsets:
+            return self.mem.Write(self.ptr + game_offsets["OFFSET_VIEWANGLES"], angles)
+        return False
+
+    def get_recoil(self, game_offsets: dict) -> structs.QAngle | None:
+        if not (self.ptr and self.mem and game_offsets):
+            return None
+        recoil_angles = structs.QAngle()
+        if self.mem.Read(self.ptr + game_offsets["OFFSET_AIMPUNCH"], recoil_angles):
+            return recoil_angles
+        return None
+
+    def is_player(self, game_offsets: dict) -> bool:
+        """
+        Heuristic to determine if the entity is a player.
+        Checks for positive health and a plausible team ID.
+        Excludes entities identified as dummies.
+        """
+        if not self.ptr or not self.mem:
+            return False
+
+        health = self.get_health() # Uses existing method
+        team_id = self.get_team_id() # Uses existing method
+
+        # Basic heuristic: positive health and a team_id that's not 0 (often reserved).
+        # Real players usually have team_id > 0. Max team_id can vary, 60 is a common upper limit.
+        # A more robust check might involve reading a class ID or specific flags if known.
+        is_plausible_player = health > 0 and team_id != 0
+
+        if not is_plausible_player:
+            return False
+
+        # Exclude if it's explicitly a dummy
+        if self.is_dummy(game_offsets):
+            return False
+
+        # Further refinement could be checking name for "player" if that's a convention,
+        # but can be unreliable. Relying on health, team, and not being a dummy is a common start.
+        return True
+
+    def is_dummy(self, game_offsets: dict) -> bool:
+        """
+        Heuristic to determine if the entity is a dummy/NPC based on its name.
+        """
+        if not self.ptr or not self.mem:
+            return False
+
+        # Name reading is expensive, do it last if other checks pass.
+        # For is_dummy, name is the primary indicator.
+        name_str = self.get_name_from_sign_name() # Uses existing method
+
+        if name_str and name_str != "NameError_SignName": # Check if name was successfully read
+            name_lower = name_str.lower()
+            if "dummy" in name_lower or "npc_dummie" in name_lower:
+                return True
+        return False
 
 
 class WeaponXEntity:
@@ -351,7 +438,62 @@ class WeaponXEntity:
 
 # Placeholder functions - will be defined in later steps
 def get_entity(entity_ptr: int, mem: Memory, g_base: int) -> Entity:
-    return Entity(entity_ptr, mem, g_base) # Updated placeholder to use constructor
+    return Entity(entity_ptr, mem, g_base)
+
+# --- Helper Math Functions ---
+def normalize_angle(angle: float) -> float:
+    """Normalize an angle to the range [-180, 180) or [-pi, pi)."""
+    # Assuming degrees for now, common in game hacking contexts for angles
+    while angle <= -180.0: angle += 360.0
+    while angle > 180.0: angle -= 360.0
+    return angle
+
+def normalize_angles(angles: structs.QAngle) -> structs.QAngle:
+    """Normalizes QAngle components. Pitch is clamped."""
+    angles.x = normalize_angle(angles.x)
+    angles.y = normalize_angle(angles.y)
+
+    # Clamp pitch to avoid looking too far up or down
+    if angles.x > 89.0: angles.x = 89.0
+    if angles.x < -89.0: angles.x = -89.0
+
+    angles.z = 0.0 # Usually roll is not set or needed for view angles
+    return angles
+
+def vector_subtract(v1: structs.Vector, v2: structs.Vector) -> structs.Vector:
+    return structs.Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z)
+
+def vector_length(v: structs.Vector) -> float:
+    return math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z)
+
+def calculate_angles_from_direction(src_pos: structs.Vector, dest_pos: structs.Vector) -> structs.QAngle:
+    delta = vector_subtract(dest_pos, src_pos)
+    if vector_length(delta) == 0: # Avoid division by zero if positions are identical
+        return structs.QAngle(0,0,0)
+
+    hyp = vector_length(structs.Vector(x=delta.x, y=delta.y, z=0)) # Length in XY plane (horizontal distance)
+
+    yaw = math.atan2(delta.y, delta.x) * (180.0 / math.pi)
+    pitch = math.atan2(-delta.z, hyp) * (180.0 / math.pi)
+
+    return normalize_angles(structs.QAngle(x=pitch, y=yaw, z=0.0))
+
+def calculate_fov_distance(current_angles: structs.QAngle, target_angles: structs.QAngle) -> float:
+    """Calculates the FOV 'distance' between two sets of angles."""
+    # Normalize angles before calculating delta to ensure smallest angle difference
+    # This is important for yaw, which can wrap around 360.
+    norm_current_y = normalize_angle(current_angles.y)
+    norm_target_y = normalize_angle(target_angles.y)
+
+    delta_yaw = normalize_angle(norm_target_y - norm_current_y)
+
+    # Pitch usually doesn't need this complex normalization if clamped to +/- 89
+    delta_pitch = normalize_angle(target_angles.x - current_angles.x)
+
+    return math.sqrt(delta_yaw*delta_yaw + delta_pitch*delta_pitch)
+
+
+# --- Main Game Logic Functions ---
 
 def world_to_screen(world_pos: structs.Vector, view_matrix_data: structs.MatrixData, screen_width: int, screen_height: int) -> structs.Vector | None:
     """
@@ -399,17 +541,78 @@ def world_to_screen(world_pos: structs.Vector, view_matrix_data: structs.MatrixD
 
     return structs.Vector(x=screen_x, y=screen_y, z=0) # z component is not typically used for 2D screen pos
 
-def calculate_fov(local_player: Entity, target_entity: Entity) -> float:
-    return 0.0 # Placeholder return
+def calculate_fov(local_player: Entity, target_entity: Entity, game_offsets: dict) -> float: # Added game_offsets
+    # This is a simplified FOV calculation based on current view vs target direction
+    # A more common use of "FOV" in cheats is the angular distance from crosshair to target.
+    if not local_player or not target_entity:
+        return 360.0 # Max FOV if inputs are bad
 
-def calculate_best_bone_aim(local_player: Entity, target_entity_ptr: int, max_fov: float) -> structs.QAngle:
-    return structs.QAngle(0,0,0) # Placeholder return
+    local_cam_pos = vector_subtract(local_player.get_position(), local_player.get_view_offset(game_offsets)) # Assuming subtraction for this example
+    # Alternative: local_cam_pos = structs.Vector(local_player.get_position().x + local_view_offset.x, ...)
+
+    # For simplicity, let's use the target's origin. For bone-specific FOV, use bone position.
+    target_pos = target_entity.get_position()
+    if not target_pos: return 360.0
+
+    desired_angles_to_target = calculate_angles_from_direction(local_cam_pos, target_pos)
+    current_view_angles = local_player.get_view_angles()
+
+    if not current_view_angles: return 360.0
+
+    return calculate_fov_distance(current_view_angles, desired_angles_to_target)
+
+
+def calculate_best_bone_aim(local_player: Entity, target_entity: Entity, max_fov_degrees: float, aim_bone_id: int, game_offsets: dict) -> structs.QAngle | None:
+    if not local_player or not target_entity:
+        return None
+
+    local_view_offset = local_player.get_view_offset(game_offsets)
+    if not local_view_offset: return None # Ensure view_offset is valid
+
+    # Common way to get camera position: player origin + view_offset (head height)
+    # Check specific game implementation; sometimes it's subtraction if view_offset is from a different reference.
+    # Assuming addition here as it's more standard for view_offset representing height from origin.
+    local_cam_pos = structs.Vector(
+        local_player.get_position().x + local_view_offset.x,
+        local_player.get_position().y + local_view_offset.y,
+        local_player.get_position().z + local_view_offset.z
+    )
+
+    target_bone_pos = target_entity.get_bone_position(aim_bone_id, game_offsets)
+    if not target_bone_pos:
+        # print(f"AimDebug: Failed to get bone {aim_bone_id} for entity {target_entity.get_ptr()}")
+        return None
+
+    desired_angles = calculate_angles_from_direction(local_cam_pos, target_bone_pos)
+
+    current_angles = local_player.get_view_angles()
+    if not current_angles:
+        # print("AimDebug: Failed to get local player current view angles.")
+        return None
+
+    fov = calculate_fov_distance(current_angles, desired_angles)
+
+    # print(f"AimDebug: Target Ptr: {hex(target_entity.get_ptr())}, Bone: {aim_bone_id}, DesiredAngles: ({desired_angles.x:.2f}, {desired_angles.y:.2f}), FOV: {fov:.2f}")
+
+    if fov <= max_fov_degrees:
+        return normalize_angles(desired_angles) # Return the calculated angles if within FOV
+
+    return None
+
 
 if __name__ == '__main__':
     # This section can be used for basic testing of game.py components later
-    print("py_apex_dma/game.py created with imports and placeholders.")
-    # Example: Access an offset to ensure GAME_OFFSETS is imported
-    # print(f"Offset for HEALTH: {hex(GAME_OFFSETS.get('OFFSET_HEALTH', 0))}")
+    print("py_apex_dma/game.py updated with new Entity methods and math helpers.")
+
+    # Example Test (requires mock Memory and structs)
+    # class MockMemory:
+    #     def Read(self, addr, ctype_obj): print(f"MockRead: {hex(addr)} into {type(ctype_obj)}"); return True
+    #     def Write(self, addr, ctype_obj): print(f"MockWrite: {hex(addr)} from {type(ctype_obj)}"); return True
+    # mock_mem = MockMemory()
+    # mock_offsets = {"OFFSET_VIEW_OFFSET": 0x10, "OFFSET_BONES": 0x20, "OFFSET_VIEWANGLES": 0x30, "OFFSET_AIMPUNCH": 0x40}
+    # test_entity = Entity(0x1000, mock_mem)
+    # test_entity.get_view_offset(mock_offsets)
+    # test_entity.get_bone_position(0, mock_offsets) # BONE_HEAD
     pass
 
 
