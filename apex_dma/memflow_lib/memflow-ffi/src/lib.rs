@@ -31,7 +31,7 @@ pub struct CMemflowOsInstance {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn inventory_create_connector(
+pub unsafe extern "C" fn mf_inventory_create_connector(
     inventory: *mut Inventory,
     name: *const c_char,
     conn_args: *const c_char,
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn inventory_create_connector(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn inventory_create_os(
+pub unsafe extern "C" fn mf_inventory_create_os(
     inventory: *mut Inventory,
     name: *const c_char,
     conn: *mut CMemflowConnectorInstance,
@@ -107,15 +107,42 @@ pub unsafe extern "C" fn inventory_create_os(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn free_connector_instance(conn: *mut CMemflowConnectorInstance) {
+pub unsafe extern "C" fn mf_connector_drop(conn: *mut CMemflowConnectorInstance) {
     if !conn.is_null() {
+        // First, drop the inner RustConnector
+        if !(*conn).inner.is_null() {
+            let _ = Box::from_raw((*conn).inner);
+        }
+        // Then, drop the CMemflowConnectorInstance wrapper
         let _ = Box::from_raw(conn);
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn free_os_instance(os: *mut CMemflowOsInstance) {
+pub unsafe extern "C" fn mf_os_drop(os: *mut CMemflowOsInstance) {
     if !os.is_null() {
+        // First, drop the inner RustOs
+        if !(*os).inner.is_null() {
+            let _ = Box::from_raw((*os).inner);
+        }
+        // Then, drop the CMemflowOsInstance wrapper
         let _ = Box::from_raw(os);
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mf_inventory_scan() -> *mut Inventory {
+    // Based on compiler feedback, Inventory::scan() returns Inventory directly.
+    // This implies errors might cause a panic, or need to be checked differently.
+    // For now, let's align with the compiler.
+    // We can add panic handling later if necessary for FFI robustness.
+    let inventory: Inventory = Inventory::scan();
+    Box::into_raw(Box::new(inventory))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mf_inventory_free(inventory: *mut Inventory) {
+    if !inventory.is_null() {
+        let _ = Box::from_raw(inventory);
     }
 }
