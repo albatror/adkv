@@ -25,13 +25,19 @@
 
 typedef struct visuals
 {
-	bool box = true;
-	bool line = true;
+	bool box = false;
+	bool line = false;
+	//bool xp_level = false;
 	bool distance = true;
 	bool healthbar = true;
 	bool shieldbar = true;
 	bool name = true;
+	bool skeleton = false;
 }visuals;
+
+struct GColor {
+	float r, g, b;
+};
 
 class Overlay
 {
@@ -44,6 +50,7 @@ public:
 	void RenderInfo();
 	void RenderMenu();
 	void RenderEsp();
+	//void RenderSpectator();
 	void ClickThrough(bool v);
 	void DrawLine(ImVec2 a, ImVec2 b, ImColor color, float width);
 	void DrawBox(ImColor color, float x, float y, float w, float h);
@@ -51,6 +58,8 @@ public:
 	void RectFilled(float x0, float y0, float x1, float y1, ImColor color, float rounding, int rounding_corners_flags);
 	void ProgressBar(float x, float y, float w, float h, int value, int v_max);
 	void String(ImVec2 pos, ImColor color, const char* text);
+	//seer
+	void DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health);
 private:
 	bool running;
 	HWND overlayHWND;
