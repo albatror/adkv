@@ -161,42 +161,43 @@ std::array<float, 3> highlightParameter;
 ///////////
 
 //////////////////////////////////////////
-//works
-// Inside SetPlayerGlow function
-void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
+void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index, float dist)
 {
-	if (player_glow >= 1)
+	if (player_glow)
 	{
+		if (dist < max_dist)
+		{
 			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
-				float currentEntityTime = 5000.f;
-				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
-					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
-					{
-						contextId = 5;
-						settingIndex = 80;
-						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
-					}
-					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
-					{
-						contextId = 6;
-						settingIndex = 81;
-						highlightParameter = { glowrviz, glowgviz, glowbviz };
-					}
-					else
-					{
-						contextId = 7;
-						settingIndex = 82;
-						highlightParameter = { glowr, glowg, glowb };
-					}
-					Target.enableGlow();
+				if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
+				{
+					contextId = 5;
+					settingIndex = 80;
+					highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
 				}
+				else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+				{
+					contextId = 6;
+					settingIndex = 81;
+					highlightParameter = { glowrviz, glowgviz, glowbviz };
+				}
+				else
+				{
+					contextId = 7;
+					settingIndex = 82;
+					highlightParameter = { glowr, glowg, glowb };
+				}
+				Target.enableGlow();
 			}
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////
-		else if((player_glow == 0) && Target.isGlowing())
+		}
+		else if (Target.isGlowing())
 		{
 			Target.disableGlow();
 		}
+	}
+	else if (Target.isGlowing())
+	{
+		Target.disableGlow();
+	}
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -210,17 +211,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 
 	if (obs)
 	{
-		/*if(obs == LPlayer.ptr)
-		{
-			if (entity_team == team_player)
-			{
-				tmp_all_spec++;
-			}
-			else
-			{
-				tmp_spec++;
-			}
-		}*/
 		tmp_spec++;
 		return;
 	}
@@ -239,13 +229,20 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			aimentity = tmp_aimentity = lastaimentity = 0;
 			aimentity_index = tmp_aimentity_index = lastaimentity_index = -1;
 		}
+
+		if (target.isGlowing())
+			target.disableGlow();
+
 		return;
 	}
 
 	Vector EntityPosition = target.getPosition();
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
-		if (dist > max_dist)
+
+	SetPlayerGlow(LPlayer, target, index, dist);
+
+	if (dist > max_dist)
 		return;
 
 	if(!firing_range && !onevone)
@@ -285,9 +282,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			tmp_aimentity_index = index;
 		}
 	}
-	////
-	SetPlayerGlow(LPlayer, target, index);
-	////
+
 	lastvis_aim[index] = target.lastVisTime();
 }
 
@@ -586,15 +581,6 @@ if (isGrappling && grappleAttached == 1) {
 						continue;
 					}
 
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.disableGlow();
-					}
-
 					ProcessPlayer(LPlayer, Target, entitylist, c);
 					c++;
 				}
@@ -644,22 +630,6 @@ if (isGrappling && grappleAttached == 1) {
 //////////////////
 
 					ProcessPlayer(LPlayer, Target, entitylist, i);
-
-					int entity_team = Target.getTeamId();
-					if (entity_team == team_player && !onevone)
-					{
-						continue;
-					}
-
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.enableGlow();
-						//Target.disableGlow();
-					}
 				}
 			}
 
@@ -959,9 +929,11 @@ Entity LPlayer = getEntity(LocalPlayer);
 				}
 
 				next = true;
-				while(next && g_Base != 0 && c_Base != 0 && esp)
+				int timeout = 0;
+				while(next && g_Base != 0 && c_Base != 0 && esp && timeout < 500)
 				{
 					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					timeout++;
 				}
 			}
 		}
@@ -1348,11 +1320,17 @@ while (vars_t)
             client_mem.Write<bool>(next_addr, true); //next
 
             bool next_val = false;
+            int timeout = 0;
             do
             {
                 client_mem.Read<bool>(next_addr, next_val);
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            } while (next_val && g_Base != 0 && c_Base != 0);
+                timeout++;
+            } while (next_val && g_Base != 0 && c_Base != 0 && timeout < 500);
+
+            if (timeout >= 500) {
+                client_mem.Write<bool>(next_addr, false);
+            }
 
             next = false;
         }

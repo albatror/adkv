@@ -276,7 +276,7 @@ float Entity::GetYaw()
 
 bool Entity::isGlowing()
 {
-	return *(int*)(buffer + OFFSET_GLOW_ENABLE) == 7;
+	return *(int*)(buffer + OFFSET_GLOW_ENABLE) != 0;
 }
 
 bool Entity::isZooming()
@@ -328,10 +328,8 @@ bool Entity::isZooming()
 
 void Entity::disableGlow()
 {
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_T1, 0);
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_T2, 0);
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 2);
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 5);
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 0);
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 0);
 }
 
 void Entity::SetViewAngles(SVector angles)

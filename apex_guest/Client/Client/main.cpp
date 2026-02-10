@@ -284,15 +284,12 @@ void Overlay::RenderEsp()
 						max_fov = min_max_fov + (fovDiff * lerpFactor);
 						cfsize = max_fov;
 						smooth = min_smooth + (smoothDiff * lerpFactor);
-						aim_key = aim_key2 = true;
 					}
 					else
 					{
 						max_fov = 3.80f;
 						cfsize = max_fov;
 						smooth = 140.00f;
-						aim_key = true;
-						aim_key2 = false;
 					}
 
 					//if(v.line)
@@ -511,19 +508,15 @@ int main(int argc, char** argv)
 
 		memset(spectator_list, 0, sizeof(spectator_list));
 
-		if (IsKeyDown(VK_F1) && k_f1 == 0)
+		if (IsKeyDown(VK_F1) && !k_f1)
 		{
-			k_f1 = 1;
+			k_f1 = true;
 			esp = !esp;
-			// aim = 2;
-			player_glow = !player_glow;
-			k_f6 = 1;
-			//item_glow = !item_glow;
+			player_glow = esp;
 		}
-		else if (!IsKeyDown(VK_F1) && k_f1 == 1)
+		else if (!IsKeyDown(VK_F1) && k_f1)
 		{
-			k_f1 = 0;
-			k_f6 = 0;
+			k_f1 = false;
 		}
 
 		if (IsKeyDown(VK_F5) && k_f5 == 0)
