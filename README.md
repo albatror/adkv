@@ -49,6 +49,7 @@ FEATURES :
  - Work in BoderLess and FullScreen
  - work with DirectX 12
  - Added "Lock On Target" feature. This feature prevents the aimbot from switching targets mid-fight, focusing on the first enemy targeted as long as the aim button is held. Can be choose in Overlay menu.
+ - Added Offsets Dumper (Full dump and update offsets.ini)
  - Added a visual DOT to know if you're connected on the server (GREEN DOT) or disconnected (RED DOT)
  - Added the BruteForce and optimization CR3/DTB fix by MisterY
  - Press F1 (To Activate GloW, ESP Seer Health/Shield and Aimbot based on default conf)
