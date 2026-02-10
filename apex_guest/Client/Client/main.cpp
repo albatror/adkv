@@ -47,6 +47,7 @@ bool next = false; //read write
 
 uint64_t add[20];
 
+bool k_f1 = 0;
 bool k_f5 = 0;
 bool k_f6 = 0;
 bool k_f8 = 0;
@@ -172,6 +173,17 @@ int main(int argc, char** argv)
 		if (IsKeyDown(VK_F4))
 		{
 			active = false;
+		}
+
+		if (IsKeyDown(VK_F1) && k_f1 == 0)
+		{
+			k_f1 = 1;
+			esp = !esp;
+			player_glow = esp;
+		}
+		else if (!IsKeyDown(VK_F1) && k_f1 == 1)
+		{
+			k_f1 = 0;
 		}
 
 		if (IsKeyDown(VK_F5) && k_f5 == 0)

@@ -536,14 +536,14 @@ static void set_vars(uint64_t add_addr)
 	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, bone_addr);
 	uint64_t thirdperson_addr = 0;
 	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, thirdperson_addr);
-	uint64_t shooting_addr = 0;
-	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, shooting_addr);
-	uint64_t chargerifle_addr = 0;
-	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, chargerifle_addr);
 	uint64_t spectators_addr = 0;
-	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, spectators_addr);
+	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, spectators_addr);
 	uint64_t allied_spectators_addr = 0;
-	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, allied_spectators_addr);
+	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, allied_spectators_addr);
+	uint64_t chargerifle_addr = 0;
+	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, chargerifle_addr);
+	uint64_t shooting_addr = 0;
+	client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, shooting_addr);
 
 	uint32_t check = 0;
 	client_mem.Read<uint32_t>(check_addr, check);
