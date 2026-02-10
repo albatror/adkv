@@ -47,7 +47,7 @@ Overall, memflow is the most robust, efficient and flexible solution out there f
 
 ## Getting started
 
-Make sure that your rustc version is at least `1.70.0` or newer.
+Make sure that your rustc version is at least `1.74.0` or newer.
 
 memflow uses a plugin based approach and is capable of loading different physical memory backends (so-called [`connectors`](#connectors)) at runtime. On top of the physical memory backends memflow is also capable of loading plugins for interfacing with a specific target OS at runtime.
 
@@ -71,7 +71,7 @@ Additionally, connectors can be placed in any directory of the environment PATH 
 For more information about how to get started with memflow please head over to the YouTube series produced by [h33p](https://github.com/h33p/):
 
 - [memflow basics](https://www.youtube.com/playlist?list=PLrC4R7zDrxB3RSJQk9ahmXNCw8m3pdP6z)
-- [memflow applied](https://www.youtube.com/watch?v=xJXkRMy71dc&list=PLrC4R7zDrxB17iWCy9eEdCaluCR3Bkn8q)
+- [memflow applied](https://www.youtube.com/watch?v=xJXkRMy71dc&list=PLrC4R7zDrxB17iWCy9eEdCaluCR3Bkn8q) (*the series is intended for memflow 0.1 so most of the code might actually need changes*)
 
 ## Running Examples
 
@@ -114,7 +114,7 @@ If you decide to build the latest documentation you can do it by issuing:
 
 ## Compilation support
 
-memflow currently requires at least rustc version `1.70.0` or newer.
+memflow currently requires at least rustc version `1.74.0` or newer.
 
 | target        | build              | tests              | benches            | compiles on stable |
 |---------------|--------------------|--------------------|--------------------|--------------------|
@@ -124,7 +124,7 @@ memflow currently requires at least rustc version `1.70.0` or newer.
 | linux aarch64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | linux i686    | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | linux armv7   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| no-std        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| no-std        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 
 ## Target support
 
@@ -156,6 +156,7 @@ Officialy supported projects:
 Additional projects from the community:
 - [.NET wrapper for memflow-ffi](https://github.com/uberhalit/memflow.NET) by [uberhalit](https://github.com/uberhalit)
 - [rhai integration](https://github.com/dankope/rhai-memflow) by [emesare](https://github.com/emesare)
+- [connectors that exploit vulnerable windows drivers](https://github.com/a2x/memflow-vdm) by [a2x](https://github.com/a2x)
 
 ## Acknowledgements
 - [CasualX](https://github.com/casualx/) for his wonderful pelite crate

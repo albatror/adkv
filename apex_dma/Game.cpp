@@ -1,11 +1,27 @@
+#include <array>
 #include "prediction.h"
+#include <cassert>
+#include <ostream>
+#include <iostream>
+
 
 extern Memory apex_mem;
 
 extern bool firing_range;
 float smooth = 12.0f;
-bool aim_no_recoil = true;
+extern bool aim_no_recoil;
 int bone = 2;
+//
+bool bone_auto = true;
+extern float max_dist;
+//
+extern float glowr;
+extern float glowg;
+extern float glowb;
+
+extern int glowtype;
+extern int glowtype2;
+extern int glowtype3;
 
 // https://github.com/Gerosity/zap-client/blob/master/Core/Player.hpp#L161
 bool Entity::Observing(uint64_t localptr)
@@ -17,14 +33,17 @@ bool Entity::Observing(uint64_t localptr)
 	apex_mem.Read<int>(ptr + 0x38, PlayerData);
 
 	int SpecIndex;
-	apex_mem.Read<int>(SpectatorList + PlayerData * 8 + 0x964, SpecIndex);
+	apex_mem.Read<int>(SpectatorList + PlayerData * 8 + OFFSET_OBSERVER_ARRAY, SpecIndex);
 
 	uint64_t SpectatorAddr;
 	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + ((SpecIndex & 0xFFFF) << 5), SpectatorAddr);
 
 	if (SpectatorAddr == localptr)
-		return true;
-	return false;
+	{
+        return true;
+    }
+
+    return false;
 }
 
 //https://github.com/CasualX/apexbot/blob/master/src/state.cpp#L104
@@ -46,24 +65,48 @@ void get_class_name(uint64_t entity_ptr, char* out_str)
 	apex_mem.ReadArray<char>(client_class.pNetworkName, out_str, 32);
 }
 
-void charge_rifle_hack(uint64_t entity_ptr)
+//////////////////////////////////
+void InState::update(uint32_t address)
 {
 	extern uint64_t g_Base;
-	extern bool shooting;
-	WeaponXEntity curweap = WeaponXEntity();
-	curweap.update(entity_ptr);
-	float BulletSpeed = curweap.get_projectile_speed();
-	int ammo = curweap.get_ammo();
+	apex_mem.Read(g_Base + address, button);
+	state = (button.state & 1) != 0;
+}
 
-	if (ammo != 0 && BulletSpeed == 1 && shooting)
+void InState::post(uint32_t address)
+{
+	extern uint64_t g_Base;
+	// If active get the most recent state of the button
+	if (force && apex_mem.Read(g_Base + address, button))
 	{
-		apex_mem.Write<float>(g_Base + OFFSET_TIMESCALE + 0x68, std::numeric_limits<float>::min());
-	}
-	else
-	{
-		apex_mem.Write<float>(g_Base + OFFSET_TIMESCALE + 0x68, 1.f);
+		// Get the desired state of the button
+		int state;
+		if (press && !release) {
+			state = 5;
+		}
+		else if (!press && release) {
+			state = 4;
+		}
+		else {
+			state = button.down[0] == 0 && button.down[1] == 0 ? 4 : 5;
+		}
+		// Gently tell the game to that nobody will be harmed if they just do as told
+		if (button.state != state) {
+			apex_mem.Write(g_Base + address + 8, state);
+		}
 	}
 }
+
+//////////////////////////////////
+
+//////////////////////////////////
+uint32_t button_state[4];
+
+bool isPressed(uint32_t button_code)
+{
+	return (button_state[static_cast<uint32_t>(button_code) >> 5] & (1 << (static_cast<uint32_t>(button_code) & 0x1f))) != 0;
+}
+//////////////////////////////////
 
 int Entity::getTeamId()
 {
@@ -78,6 +121,16 @@ int Entity::getHealth()
 int Entity::getShield()
 {
 	return *(int*)(buffer + OFFSET_SHIELD);
+}
+
+int Entity::getMaxShield()
+{
+	return *(int*)(buffer + OFFSET_MAXSHIELD);
+}
+
+int Entity::getArmortype()
+{
+	return *(int*)(buffer + OFFSET_ARMORTYPE);
 }
 
 Vector Entity::getAbsVelocity()
@@ -113,10 +166,32 @@ bool Entity::isAlive()
 	return *(int*)(buffer + OFFSET_LIFE_STATE) == 0;
 }
 
+/////////////////////////////////
+bool Entity::isOnGround()
+{
+	uint32_t flags;
+	apex_mem.Read(ptr + OFFSET_FLAGS, flags);
+
+	return (flags & 0x1) != 0;
+}
+
+bool Entity::isInSkydive()
+{
+	return *(int*)(buffer + OFFSET_SKYDIVE_STATE) > 0;
+}
+/////////////////////////////////
+
 float Entity::lastVisTime()
 {
   return *(float*)(buffer + OFFSET_VISIBLE_TIME);
 }
+
+///////////////////////////////
+float Entity::lastCrossHairTime()
+{
+	return *(float*)(buffer + OFFSET_CROSSHAIR_LAST);
+}
+///////////////////////////////
 
 Vector Entity::getBonePosition(int id)
 {
@@ -209,20 +284,54 @@ bool Entity::isZooming()
 	return *(int*)(buffer + OFFSET_ZOOMING) == 1;
 }
 
-void Entity::enableGlow()
-{
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_T1, 16256);
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_T2, 1193322764);
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 7);
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 2);
-}
+/////////////////////////
+/////////////////////////
+
+/////////////////////////
+    extern uint64_t g_Base;
+    extern int settingIndex;
+    extern int contextId;
+    extern std::array<float, 3> highlightParameter;
+    //custom glow colo RGB
+    unsigned char outsidevalue = 125;
+    extern unsigned char insidevalue;
+    extern unsigned char insidevalueItem;
+    extern unsigned char outlinesize;
+
+    void Entity::enableGlow()
+    {
+
+		//static const int contextId = 0;
+		//int settingIndex = 50;
+		std::array<unsigned char, 4> highlightFunctionBits = {
+			insidevalue,   // InsideFunction
+			outsidevalue, // OutlineFunction: HIGHLIGHT_OUTLINE_OBJECTIVE
+			outlinesize,  // OutlineRadius: size * 255 / 8
+			64   // (EntityVisible << 6) | State & 0x3F | (AfterPostProcess << 7)
+		};
+
+		apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, contextId);
+		long highlightSettingsPtr;
+		apex_mem.Read<long>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
+		apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 2);
+		apex_mem.Write<typeof(highlightFunctionBits)>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * contextId + 0x0, highlightFunctionBits);
+		apex_mem.Write<typeof(highlightParameter)>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * contextId + 0x4, highlightParameter);
+		//apex_mem.Write<float>(ptr + 0x264, 8.0E+4);
+
+		//apex_mem.Write(g_Base + OFFSET_GLOW_FIX, 1);
+		apex_mem.Write<float>(ptr + GLOW_DISTANCE, 88888);
+
+
+
+    }
+///////////////////////////
 
 void Entity::disableGlow()
 {
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_T1, 0);
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_T2, 0);
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 2);
-	apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 5);
+	//apex_mem.Write<int>(ptr + OFFSET_GLOW_T1, 0);
+	//apex_mem.Write<int>(ptr + OFFSET_GLOW_T2, 0);
+	//apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 2);
+	//apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 5);
 }
 
 void Entity::SetViewAngles(SVector angles)
@@ -247,39 +356,81 @@ QAngle Entity::GetRecoil()
 
 void Entity::get_name(uint64_t g_Base, uint64_t index, char* name)
 {
-	index *= 0x10;
+     int name_index;
+    apex_mem.Read<int>(ptr + 0x38, name_index);
     uint64_t name_ptr = 0;
-    apex_mem.Read<uint64_t>(g_Base + OFFSET_NAME_LIST + index, name_ptr);
+    apex_mem.Read<uint64_t>(g_Base + OFFSET_NAME_LIST + ((name_index - 1) * 24), name_ptr);
 	apex_mem.ReadArray<char>(name_ptr, name, 32);
 }
 
-bool Item::isItem()
-{
-	char class_name[33] = {};
-	get_class_name(ptr, class_name);
+////test////
+    int Entity::read_xp_level() {
 
-	return strncmp(class_name, "CPropSurvival", 13) == 0;
-}
 
-bool Item::isGlowing()
-{
-	return *(int*)(buffer + OFFSET_ITEM_GLOW) == 1363184265;
-}
+      int xp = 0;
+      apex_mem.Read<int>(ptr + OFFSET_m_xp, xp);
 
-void Item::enableGlow()
-{
-	apex_mem.Write<int>(ptr + OFFSET_ITEM_GLOW, 1363184265);
-}
+      static int levels[] = {2750,   6650,   11400,  17000,  23350,  30450,  38300,
+                             46450,  55050,  64100,  73600,  83550,  93950,  104800,
+                             116100, 127850, 140050, 152400, 164900, 177550, 190350,
+                             203300, 216400, 229650, 243050, 256600, 270300, 284150,
+                             298150, 312300, 326600, 341050, 355650, 370400, 385300,
+                             400350, 415550, 430900, 446400, 462050, 477850, 493800,
+                             509900, 526150, 542550, 559100, 575800, 592650, 609650,
+                             626800, 644100, 661550, 679150, 696900, 714800};
 
-void Item::disableGlow()
-{
-	apex_mem.Write<int>(ptr + OFFSET_ITEM_GLOW, 1411417991);
-}
+      if (xp < 0)
+        return 0;
+      if (xp < 100)
+        return 1;
 
-Vector Item::getPosition()
-{
-	return *(Vector*)(buffer + OFFSET_ORIGIN);
-}
+      int level = 56;
+      int arraySize = sizeof(levels) / sizeof(levels[0]);
+
+      for (int i = 0; i < arraySize; i++) {
+        if (xp < levels[i]) {
+          return i + 1;
+        }
+      }
+      // Debugging statement to log the XP being read
+      //std::cout << "XP read: " << xp << std::endl;
+      return level + ((xp - levels[arraySize - 1] + 1) / 18000) + 1;
+    }
+
+//Deathboxes
+//bool Item::isBox()
+//{
+//	char class_name[33] = {};
+//	get_class_name(ptr, class_name);
+//
+//	return strncmp(class_name, "CDeathBoxProp", 13) == 0;
+//}
+//Traps
+//bool Item::isTrap()
+//{
+//	char class_name[33] = {};
+//	get_class_name(ptr, class_name);
+//
+//	return strncmp(class_name, "caustic_trap", 13) == 0;
+//}
+
+//bool Item::isItem()
+//{
+//	char class_name[33] = {};
+//	get_class_name(ptr, class_name);
+//
+//	return strncmp(class_name, "CPropSurvival", 13) == 0;
+//}
+
+//bool Item::isGlowing()
+//{
+//	return *(int*)(buffer + OFFSET_ITEM_GLOW) == 1363184265;
+//}
+
+//Vector Item::getPosition()
+//{
+//	return *(Vector*)(buffer + OFFSET_ORIGIN);
+//}
 
 float CalculateFov(Entity& from, Entity& target)
 {
@@ -309,6 +460,9 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov)
 	}
 	
 	Vector LocalCamera = from.GetCamPos();
+	//
+	float distanceToTarget;
+	//
 	Vector TargetBonePosition = target.getBonePositionByHitbox(bone);
 	QAngle CalculatedAngles = QAngle(0, 0, 0);
 	
@@ -323,6 +477,23 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov)
 		max_fov *= zoom_fov/90.0f;
 	}
 
+  // Find best bone
+  if (bone_auto) {
+    float NearestBoneDistance = max_dist;
+    for (int i = 0; i < 4; i++) {
+      Vector currentBonePosition = target.getBonePositionByHitbox(i);
+      float DistanceFromCrosshair =
+          (currentBonePosition - LocalCamera).Length();
+      if (DistanceFromCrosshair < NearestBoneDistance) {
+        TargetBonePosition = currentBonePosition;
+        distanceToTarget = DistanceFromCrosshair;
+        NearestBoneDistance = DistanceFromCrosshair;
+      }
+    }
+  } else {
+    TargetBonePosition = target.getBonePositionByHitbox(bone);
+    distanceToTarget = (TargetBonePosition - LocalCamera).Length();
+  }
 	/*
 	//simple aim prediction
 	if (BulletSpeed > 1.f)
@@ -376,16 +547,21 @@ Entity getEntity(uintptr_t ptr)
 	Entity entity = Entity();
 	entity.ptr = ptr;
 	apex_mem.ReadArray<uint8_t>(ptr, entity.buffer, sizeof(entity.buffer));
-	return entity;
-}
+	//return entity;
+	if (entity.isPlayer()) { // Use the isPlayer() function to initialize is_player
+        entity.is_player = true;
+	//entity.player_xp_level = entity.read_xp_level();
+	//entity.player_level();
+    }
+    return entity;}
 
-Item getItem(uintptr_t ptr)
-{
-	Item entity = Item();
-	entity.ptr = ptr;
-	apex_mem.ReadArray<uint8_t>(ptr, entity.buffer, sizeof(entity.buffer));
-	return entity;
-}
+//Item getItem(uintptr_t ptr)
+//{
+//	Item entity = Item();
+//	entity.ptr = ptr;
+//	apex_mem.ReadArray<uint8_t>(ptr, entity.buffer, sizeof(entity.buffer));
+//	return entity;
+//}
 
 bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHeight, Vector& to)
 {
@@ -393,23 +569,24 @@ bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHei
 
 	if (w < 0.01f) return false;
 
-	to.x = m_vMatrix[0] * from.x + m_vMatrix[1] * from.y + m_vMatrix[2] * from.z + m_vMatrix[3];
-	to.y = m_vMatrix[4] * from.x + m_vMatrix[5] * from.y + m_vMatrix[6] * from.z + m_vMatrix[7];
+	float x = m_vMatrix[0] * from.x + m_vMatrix[1] * from.y + m_vMatrix[2] * from.z + m_vMatrix[3];
+	float y = m_vMatrix[4] * from.x + m_vMatrix[5] * from.y + m_vMatrix[6] * from.z + m_vMatrix[7];
 
 	float invw = 1.0f / w;
-	to.x *= invw;
-	to.y *= invw;
+	x *= invw;
+	y *= invw;
 
-	float x = targetWidth / 2;
-	float y = targetHeight / 2;
+	float screenX = targetWidth / 2;
+	float screenY = targetHeight / 2;
 
-	x += 0.5 * to.x * targetWidth + 0.5;
-	y -= 0.5 * to.y * targetHeight + 0.5;
+	screenX += 0.5 * x * targetWidth + 0.5;
+	screenY -= 0.5 * y * targetHeight + 0.5;
 
-	to.x = x;
-	to.y = y;
+	to.x = screenX;
+	to.y = screenY;
 	to.z = 0;
-	return true;
+
+	return (to.x >= 0 && to.x <= targetWidth && to.y >= 0 && to.y <= targetHeight);
 }
 
 void WeaponXEntity::update(uint64_t LocalPlayer)
@@ -434,6 +611,9 @@ void WeaponXEntity::update(uint64_t LocalPlayer)
     apex_mem.Read<int>(wep_entity + OFFSET_AMMO, ammo);
 }
 
+//////////////////////
+//////////////////////
+
 float WeaponXEntity::get_projectile_speed()
 {
 	return projectile_speed;
@@ -453,3 +633,5 @@ int WeaponXEntity::get_ammo()
 {
 	return ammo;
 }
+
+//const char *WeaponXEntity::get_name_str() { return name_str; }

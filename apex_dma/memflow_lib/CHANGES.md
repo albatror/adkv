@@ -2,12 +2,26 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.2.3
+- Changed minimum supported rust version to 1.74.0
+- Global C/CPP functions are now prefixed with `mf_` to easier distuingish them from other third-party library functions
+- Added lossy Macho parsing via https://github.com/m4b/goblin
+- Replaced old string read functions with `read_utf8` and `read_utf8_lossy` functions.
+- Fixed version pinning of cglue causing abi version mismatches.
+
+## 0.2.1
+- Added aarch64 16k page support
+- Added a seperate `CachedView` as a new page cache on top of `MemoryView`
+
+## 0.2.0
+- Updated ABI version to `1`
+
 ## 0.2.0-beta11
 - Added dtb1 and dtb2 fields to ProcessInfo structure
 - Added a function to the process trait which allows overriding dtb1/dtb2 with a custom value
 
 ## 0.2.0-beta10
-- Removed all 'Inner' types and replaced them with GAT - this also shifts memflow to a minimum rust version of 1.70.0
+- Removed all 'Inner' types and replaced them with GAT - this also shifts memflow to a minimum rust version of 1.74.0
 - Improved cache configuration when using plugins (usage: --connector kvm:::cache=true,cache_size=1kb,cache_time=10,cache_page_size=1000 where size and page_size is specified in hex)
 - Added DelayedPhysicalMemory middleware (usage: --connector kvm:::delay=200 where delay is specified in microseconds)
 - Added PhysicalMemoryMetrics middleware (usage: --connector kvm:::metrics=true)

@@ -80,7 +80,7 @@ void Memory::check_proc()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
-	if (inventory_create_connector(inv, connector_name, "", conn.get()))
+	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -91,10 +91,10 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	}
 
 	kernel = std::make_unique<OsInstance<>>();
-	if (inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
+	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		connector_drop(conn.get());
+		mf_connector_drop(conn.get());
 		kernel.reset();
 		return false;
 	}
@@ -175,16 +175,17 @@ void Memory::open_proc(const char *name)
 	if (!conn)
 	{
 		conn = std::make_unique<ConnectorInstance<>>();
-		Inventory *inv = inventory_scan();
+		Inventory *inv = mf_inventory_scan();
+		mf_inventory_add_dir(inv, ".");
 
+		printf("Init with kvm connector...\n");
+		if (!kernel_init(inv, "kvm"))
+		{
 		printf("Init with qemu connector...\n");
 		if (!kernel_init(inv, "qemu"))
-		{
-			printf("Init with kvm connector...\n");
-			if (!kernel_init(inv, "kvm"))
 			{
 				printf("Quitting\n");
-				inventory_free(inv);
+				mf_inventory_free(inv);
 				exit(1);
 			}
 		}
@@ -192,11 +193,11 @@ void Memory::open_proc(const char *name)
 		printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
 	}
 
+
 	if (lastCorrectDtbPhysicalAddress && bruteforceDtb(0x0, 0x100000))
 	{
 		return;
 	}
-
 	close_proc();
 
 	ProcessInfo info;
@@ -205,8 +206,11 @@ void Memory::open_proc(const char *name)
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
+		//lastCorrectDtbPhysicalAddress = 0;
 		return;
 	}
+	//
+	//close_proc();
 
 	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
 	{
@@ -264,4 +268,50 @@ uint64_t Memory::ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int
 	}
 
 	return lvl;
+}
+
+bool Memory::Dump(const char *filename)
+{
+	if (status != process_status::FOUND_READY)
+		return false;
+
+	printf("Dumping memory to %s...\n", filename);
+
+	uint32_t e_lfanew = 0;
+	if (!Read<uint32_t>(proc.baseaddr + 0x3C, e_lfanew))
+		return false;
+
+	uint32_t SizeOfImage = 0;
+	if (!Read<uint32_t>(proc.baseaddr + e_lfanew + 0x50, SizeOfImage))
+		return false;
+
+	printf("Size of image: %x\n", SizeOfImage);
+
+	if (SizeOfImage == 0 || SizeOfImage > 0x10000000) // 256MB limit for safety
+		return false;
+
+	char *buffer = (char *)malloc(SizeOfImage);
+	if (!buffer)
+		return false;
+
+	// Read in chunks of 1MB
+	uint32_t chunkSize = 1024 * 1024;
+	for (uint32_t offset = 0; offset < SizeOfImage; offset += chunkSize)
+	{
+		uint32_t currentChunk = (SizeOfImage - offset < chunkSize) ? SizeOfImage - offset : chunkSize;
+		ReadArray<char>(proc.baseaddr + offset, buffer + offset, currentChunk);
+	}
+
+	FILE *f = fopen(filename, "wb");
+	if (f)
+	{
+		fwrite(buffer, 1, SizeOfImage, f);
+		fclose(f);
+		free(buffer);
+		printf("Dump complete.\n");
+		return true;
+	}
+
+	free(buffer);
+	return false;
 }
