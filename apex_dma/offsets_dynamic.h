@@ -2,6 +2,8 @@
 #define OFFSETS_DYNAMIC_H
 
 #include <stdint.h>
+#include <map>
+#include <string>
 
 struct DynamicOffsets {
     uint64_t EntityList;
@@ -79,5 +81,6 @@ struct DynamicOffsets {
 extern DynamicOffsets offsets;
 
 bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, const char* buttons_file);
+void update_offsets_header(const char* filename, const std::map<std::string, uint64_t>& all_data);
 
 #endif

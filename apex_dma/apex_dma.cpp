@@ -1368,6 +1368,9 @@ int main(int argc, char *argv[])
 {
 	mf_log_init(LevelFilter::LevelFilter_Info);
 
+	// Load previously saved offsets if they exist
+	load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
+
 	if(geteuid() != 0)
 	{
 		printf("Error: %s is not running as root\n", argv[0]);

@@ -5,6 +5,10 @@
 #include <map>
 #include <iostream>
 #include <sstream>
+#include <vector>
+#include <regex>
+#include <ctime>
+#include <iomanip>
 
 DynamicOffsets offsets = {0};
 
@@ -87,5 +91,109 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
     if (con_data.count("[ConVars]host_map")) offsets.HostMap = con_data["[ConVars]host_map"] + 0x58;
 
     printf("Offsets updated from INI files.\n");
+
+    std::map<std::string, uint64_t> all_data = off_data;
+    all_data.insert(con_data.begin(), con_data.end());
+    all_data.insert(but_data.begin(), but_data.end());
+    update_offsets_header("offsets.h", all_data);
+
     return true;
+}
+
+static std::string normalize_key(std::string key) {
+    // Remove dot after ]
+    size_t pos = key.find("].");
+    if (pos != std::string::npos) {
+        key.erase(pos + 1, 1);
+    }
+    // Change [Miscellaneous] to [.Miscellaneous]
+    if (key.substr(0, 15) == "[Miscellaneous]") {
+        key.insert(1, ".");
+    }
+    return key;
+}
+
+void update_offsets_header(const char* filename, const std::map<std::string, uint64_t>& all_data) {
+    std::ifstream infile(filename);
+    if (!infile.is_open()) {
+        infile.open("../offsets.h");
+        if (!infile.is_open()) return;
+        filename = "../offsets.h";
+    }
+
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(infile, line)) {
+        lines.push_back(line);
+    }
+    infile.close();
+
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::stringstream ss;
+    ss << std::put_time(&tm, "%Y/%m/%d");
+    std::string current_date = ss.str();
+
+    bool changed = false;
+    std::regex hex_regex("0x[0-9a-fA-F]+");
+    std::regex date_regex("[0-9]{4}/[0-9]{2}/[0-9]{2}");
+
+    for (auto& l : lines) {
+        size_t comment_pos = l.find("//[");
+        if (comment_pos == std::string::npos) continue;
+
+        size_t key_start = comment_pos + 2;
+        size_t key_end = l.find("]", key_start);
+        if (key_end == std::string::npos) continue;
+
+        std::string key_part = l.substr(key_start, key_end - key_start + 1);
+        size_t signifier_start = key_end + 1;
+        size_t space_pos = l.find(" ", signifier_start);
+        std::string signifier = l.substr(signifier_start, space_pos == std::string::npos ? std::string::npos : space_pos - signifier_start);
+
+        std::string full_key = key_part + signifier;
+        std::string norm_key = normalize_key(full_key);
+
+        uint64_t new_val = 0;
+        bool found = false;
+
+        if (all_data.count(full_key)) {
+            new_val = all_data.at(full_key);
+            found = true;
+        } else if (all_data.count(norm_key)) {
+            new_val = all_data.at(norm_key);
+            found = true;
+        } else if (all_data.count("[.Miscellaneous]" + signifier)) {
+            new_val = all_data.at("[.Miscellaneous]" + signifier);
+            found = true;
+        }
+
+        if (found) {
+            size_t colon_pos = l.find(":", 0);
+            if (colon_pos != std::string::npos && colon_pos < comment_pos) {
+                std::string prefix = l.substr(0, colon_pos + 1);
+                std::string suffix = l.substr(colon_pos + 1);
+                std::stringstream new_hex;
+                new_hex << "0x" << std::hex << new_val;
+                l = prefix + std::regex_replace(suffix, hex_regex, new_hex.str(), std::regex_constants::format_first_only);
+            } else {
+                std::stringstream new_hex;
+                new_hex << "0x" << std::hex << new_val;
+                l = std::regex_replace(l, hex_regex, new_hex.str(), std::regex_constants::format_first_only);
+            }
+
+            l = std::regex_replace(l, date_regex, current_date);
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        std::ofstream outfile(filename);
+        if (outfile.is_open()) {
+            for (const auto& l : lines) {
+                outfile << l << "\n";
+            }
+            printf("Updated %s with new offsets.\n", filename);
+        }
+    }
 }
