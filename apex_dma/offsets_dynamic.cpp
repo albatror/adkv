@@ -5,6 +5,10 @@
 #include <map>
 #include <iostream>
 #include <sstream>
+#include <regex>
+#include <vector>
+#include <ctime>
+#include <iomanip>
 
 DynamicOffsets offsets = {0};
 
@@ -88,4 +92,123 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
 
     printf("Offsets updated from INI files.\n");
     return true;
+}
+
+void update_offsets_files(const char* offsets_file, const char* convars_file, const char* buttons_file) {
+    std::map<std::string, uint64_t> new_offsets;
+    auto load_to_map = [&](const char* filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) return;
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+            std::stringstream ss(line);
+            std::string key, val_str;
+            if (ss >> key >> val_str) {
+                std::string norm_key = key;
+                if (norm_key.size() > 2 && norm_key[0] == '[' && norm_key[1] == '.') {
+                    norm_key.erase(1, 1);
+                }
+                try {
+                    new_offsets[norm_key] = std::stoull(val_str, nullptr, 16);
+                } catch (...) {}
+            }
+        }
+    };
+    load_to_map(offsets_file);
+    load_to_map(convars_file);
+    load_to_map(buttons_file);
+
+    if (new_offsets.empty()) {
+        printf("No offsets found in extracted INI files to update.\n");
+        return;
+    }
+
+    auto t = std::time(nullptr);
+    struct tm tm;
+    localtime_r(&t, &tm);
+    char date_buf[64];
+    std::strftime(date_buf, sizeof(date_buf), "%Y/%m/%d", &tm);
+    std::string current_date = date_buf;
+
+    // 1. Update offsets.ini
+    {
+        std::ifstream ini_in("offsets.ini");
+        if (ini_in.is_open()) {
+            std::vector<std::string> lines;
+            std::string line, current_section;
+            while (std::getline(ini_in, line)) {
+                std::string trimmed = line;
+                trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+                trimmed.erase(trimmed.find_last_not_of(" \t") + 1);
+                if (!trimmed.empty() && trimmed[0] == '[' && trimmed.back() == ']') {
+                    current_section = trimmed;
+                } else if (!current_section.empty() && line.find('=') != std::string::npos) {
+                    size_t eq_pos = line.find('=');
+                    std::string key = line.substr(0, eq_pos);
+                    // trim key
+                    size_t first = key.find_first_not_of(" \t");
+                    if (first != std::string::npos) {
+                        size_t last = key.find_last_not_of(" \t");
+                        key = key.substr(first, (last - first + 1));
+                    }
+                    std::string full_key = current_section + key;
+                    if (new_offsets.count(full_key)) {
+                        std::stringstream ss;
+                        ss << key << "=0x" << std::hex << new_offsets[full_key];
+                        line = ss.str();
+                    }
+                }
+                lines.push_back(line);
+            }
+            ini_in.close();
+            std::ofstream ini_out("offsets.ini");
+            for (const auto& l : lines) ini_out << l << "\n";
+            printf("Updated offsets.ini\n");
+        }
+    }
+
+    // 2. Update offsets.h
+    {
+        std::ifstream h_in("offsets.h");
+        if (h_in.is_open()) {
+            std::vector<std::string> lines;
+            std::string line;
+            while (std::getline(h_in, line)) {
+                if (line.find("#define") != std::string::npos && line.find("//") != std::string::npos) {
+                    size_t comment_pos = line.find("//");
+                    std::string comment = line.substr(comment_pos);
+                    size_t b1 = comment.find('[');
+                    size_t b2 = comment.find(']');
+                    if (b1 != std::string::npos && b2 != std::string::npos) {
+                        std::string section = comment.substr(b1, b2 - b1 + 1);
+                        std::string rest = comment.substr(b2 + 1);
+                        if (!rest.empty() && rest[0] == '.') rest.erase(0, 1);
+                        std::string key;
+                        std::stringstream ss_rest(rest);
+                        if (ss_rest >> key) {
+                            size_t end_key = key.find_first_of(" \t+*-");
+                            if (end_key != std::string::npos) key = key.substr(0, end_key);
+
+                            std::string full_key = section + key;
+                            if (new_offsets.count(full_key)) {
+                                std::regex hex_regex("0x[0-9a-fA-F]+");
+                                std::stringstream new_val;
+                                new_val << "0x" << std::hex << new_offsets[full_key];
+                                line = std::regex_replace(line, hex_regex, new_val.str(), std::regex_constants::format_first_only);
+
+                                std::regex date_regex("\\d{4}/\\d{2}/\\d{2}");
+                                line = std::regex_replace(line, date_regex, current_date);
+                            }
+                        }
+                    }
+                }
+                lines.push_back(line);
+            }
+            h_in.close();
+            std::ofstream h_out("offsets.h");
+            for (const auto& l : lines) h_out << l << "\n";
+            printf("Updated offsets.h\n");
+        }
+    }
 }
