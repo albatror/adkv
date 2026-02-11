@@ -105,13 +105,28 @@ void update_offsets_files(const char* offsets_file, const char* convars_file, co
             std::stringstream ss(line);
             std::string key, val_str;
             if (ss >> key >> val_str) {
+                uint64_t val = 0;
+                try { val = std::stoull(val_str, nullptr, 16); } catch (...) { continue; }
+
                 std::string norm_key = key;
                 if (norm_key.size() > 2 && norm_key[0] == '[' && norm_key[1] == '.') {
                     norm_key.erase(1, 1);
                 }
-                try {
-                    new_offsets[norm_key] = std::stoull(val_str, nullptr, 16);
-                } catch (...) {}
+                new_offsets[norm_key] = val;
+
+                // Handle common variations to match offsets.ini and offsets.h
+                if (norm_key.find("[Buttons]+") == 0) {
+                    new_offsets["[Buttons]in_" + norm_key.substr(9)] = val;
+                }
+
+                // Miscellaneous aliases
+                if (norm_key.find("[Miscellaneous]") == 0) {
+                    std::string sub = norm_key.substr(15);
+                    if (sub == "camera_origin") new_offsets["[Miscellaneous]CPlayer!camera_origin"] = val;
+                    if (sub == "camera_angles") new_offsets["[Miscellaneous]CPlayer!camera_angles"] = val;
+                    if (sub == "m_pStudioHdr") new_offsets["[Miscellaneous]CBaseAnimating!m_pStudioHdr"] = val;
+                    if (sub == "lastVisibleTime_-2") new_offsets["[Miscellaneous]CPlayer!lastVisibleTime"] = val;
+                }
             }
         }
     };
