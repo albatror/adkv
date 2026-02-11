@@ -1,6 +1,6 @@
 #include "offsets_dynamic.h"
 
-#define GameVersion v3.0.1.29 //[Miscellaneous].GameVersion updated 2025/01/08
+#define GameVersion v0.3.24 //[Miscellaneous].GameVersion updated 2026/02/11
 #define OFFSET_ENTITYLIST 0x644bf38 //[Miscellaneous].cl_entitylist updated 2026/02/11
 #define OFFSET_LOCAL_ENT 0x282c198 //[Miscellaneous].LocalPlayer updated 2026/02/11
 #define OFFSET_LOCAL_ENTITY_HANDLE 0x2017c68 //[Miscellaneous].LocalEntityHandle updated 2026/02/07
