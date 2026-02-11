@@ -75,8 +75,8 @@
 #define OFFSET_RENDER 0x3f360f0 //[Miscellaneous].ViewRender updated 2026/02/07
  
 #define OFFSET_WEAPON 0x19c4 //[RecvTable.DT_BaseCombatCharacter].m_latestPrimaryWeapons updated 2026/02/11
-#define OFFSET_BULLET_SPEED 0x2860 //0x19d8 + 0x04ec //0x1eb4 + 0x19d0 //[Miscellaneous].CWeaponX!m_flProjectileSpeed updated 2026/02/07
-#define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x8 //0x19d8 + 0x04f4 //0x1ebc + 0x19d0 //[Miscellaneous].CWeaponX!m_flProjectileScale updated 2026/02/07
+#define OFFSET_BULLET_SPEED 0x2860 //[Miscellaneous].CWeaponX!m_flProjectileSpeed updated 2026/02/07
+#define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x8 //[Miscellaneous].CWeaponX!m_flProjectileScale updated 2026/02/07
 #define OFFSET_ZOOM_FOV 0x1650 + 0xb8 //[RecvTable.DT_WeaponX].m_playerData + m_curZoomFOV updated 2025/02/25
 #define OFFSET_AMMO 0x15e0 //[RecvTable.DT_PropSurvival].m_ammoInClip updated 2026/02/11
  
@@ -88,11 +88,11 @@
  
 //#define OFFSET_GLOW_T1 0x292 //16256 = enabled, 0 = disabled
 //#define OFFSET_GLOW_T2 0x30c //1193322764 = enabled, 0 = disabled
-#define OFFSET_GLOW_ENABLE 0x0299 - 0x1 //0x299 //0x27c //0x28c ?//[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x1 updated 2026/02/11
-#define OFFSET_GLOW_THROUGH_WALLS 0x26c - 0x21 ////[RecvTable.DT_HighlightSettings.m_highlightGenericContexts - 0x21 updated 2024/07/23
+#define OFFSET_GLOW_ENABLE 0x0299 - 0x1 //0x299 //[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x1 updated 2026/02/11
+#define OFFSET_GLOW_THROUGH_WALLS 0x26c - 0x21 //[RecvTable.DT_HighlightSettings.m_highlightGenericContexts - 0x21 updated 2024/07/23
  
 #define OFFSET_TIME_BASE 0x2158 //[DataMap.DT_Player].m_currentFramePlayer.timeBase updated 2025/02/12
-#define GLOW_START_TIME 0x02c4 //0x02c8 + 0x30 //m_playerFloatLookStartTime=0x02c4 //updated 01/10/2024 DataMap.C_PlayerLocalData
+#define GLOW_START_TIME 0x02c4 //m_playerFloatLookStartTime updated 01/10/2024
 #define OFFSET_HIGHLIGHTSERVERACTIVESTATES 0x29C //[DT_HighlightSettings].m_highlightServerActiveStates updated 2024/06/26
 
 #define OFFSET_GLOW_FIX 0x278 //0x268 //updated 2025/02/25
