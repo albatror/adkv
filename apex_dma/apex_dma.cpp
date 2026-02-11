@@ -1368,9 +1368,6 @@ int main(int argc, char *argv[])
 {
 	mf_log_init(LevelFilter::LevelFilter_Info);
 
-	// Load previously saved offsets if they exist
-	load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
-
 	if(geteuid() != 0)
 	{
 		printf("Error: %s is not running as root\n", argv[0]);
@@ -1378,8 +1375,12 @@ int main(int argc, char *argv[])
 	}
 
 	const char* cl_proc = "Client.exe";
-	const char* ap_proc = "r5apex_dx12.exe";
+	const char* ap_proc1 = "r5apex_dx12.exe";
+	const char* ap_proc2 = "r5apex.exe";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
+
+	// Load previously saved offsets if they exist
+	load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
 
 	//Client "add" offset
 	uint64_t add_off = 0X0000000;
@@ -1418,7 +1419,9 @@ int main(int argc, char *argv[])
 				printf("Searching for apex process...\n");
 			}
 
-			apex_mem.open_proc(ap_proc);
+			apex_mem.open_proc(ap_proc1);
+			if (apex_mem.get_proc_status() != process_status::FOUND_READY)
+				apex_mem.open_proc(ap_proc2);
 
 			if (apex_mem.get_proc_status() == process_status::FOUND_READY)
 			{
