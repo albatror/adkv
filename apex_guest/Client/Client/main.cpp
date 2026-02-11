@@ -243,6 +243,11 @@ void Overlay::RenderEsp()
 			ImGui::SetNextWindowSize(ImVec2((float)getWidth(), (float)getHeight()));
 			ImGui::Begin(XorStr("##esp"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
+			float target_max_fov = 3.80f;
+			float target_smooth = 140.00f;
+			int best_player_idx = -1;
+			float best_crosshair_dist = 999999.0f;
+
 			for (int i = 0; i < 100; i++)
 			{
 				if (players[i].health > 0)
@@ -264,35 +269,16 @@ void Overlay::RenderEsp()
 						}
 					}
 
-					// Assuming players[i].dist represents the distance of the player
-
-					// Define the maximum distance you want to consider (previously referred to as max_distance)
-					//float max_dist = 80.0f * 40.0f; // Adjust this value as per your requirement
-
-					// Optimize calculations by caching division
-					float distRatio = players[i].dist / max_dist;
-					float distanceFactor = 1.0f - distRatio;
-					float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
-
-					// Pre-calculate the multipliers
-					float fovDiff = max_max_fov - min_max_fov;
-					float smoothDiff = max_smooth - min_smooth;
-
-					// Combine calculations
+					// DDS (Distance Dependent Smoothing) logic
 					if (players[i].dist < DDS) {
-						float lerpFactor = easedDistanceFactor;
-						max_fov = min_max_fov + (fovDiff * lerpFactor);
-						cfsize = max_fov;
-						smooth = min_smooth + (smoothDiff * lerpFactor);
-						aim_key = aim_key2 = true;
-					}
-					else
-					{
-						max_fov = 3.80f;
-						cfsize = max_fov;
-						smooth = 140.00f;
-						aim_key = true;
-						aim_key2 = false;
+						float dx = players[i].b_x - (getWidth() / 2.0f);
+						float dy = players[i].b_y - (getHeight() / 2.0f);
+						float dist_to_crosshair = sqrt(dx * dx + dy * dy);
+
+						if (dist_to_crosshair < best_crosshair_dist) {
+							best_crosshair_dist = dist_to_crosshair;
+							best_player_idx = i;
+						}
 					}
 
 					//if(v.line)
@@ -371,6 +357,43 @@ void Overlay::RenderEsp()
 
 				}
 			}
+
+			static int locked_player_idx = -1;
+			if (IsKeyDown(aim_key) || IsKeyDown(aim_key2)) {
+				if (locked_player_idx != -1 && players[locked_player_idx].health > 0 && players[locked_player_idx].dist < DDS) {
+					best_player_idx = locked_player_idx;
+				}
+			}
+			else {
+				locked_player_idx = -1;
+			}
+
+			if (best_player_idx != -1) {
+				locked_player_idx = best_player_idx;
+				float distRatio = players[best_player_idx].dist / max_dist;
+				float distanceFactor = 1.0f - distRatio;
+				float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
+
+				float fovDiff = max_max_fov - min_max_fov;
+				float smoothDiff = max_smooth - min_smooth;
+
+				float lerpFactor = easedDistanceFactor;
+				target_max_fov = min_max_fov + (fovDiff * lerpFactor);
+				target_smooth = min_smooth + (smoothDiff * lerpFactor);
+
+				aim_key = VK_LBUTTON;
+				aim_key2 = VK_RBUTTON;
+			}
+			else {
+				target_max_fov = 3.80f;
+				target_smooth = 140.00f;
+				aim_key = VK_LBUTTON;
+				aim_key2 = 0;
+			}
+
+			max_fov = target_max_fov;
+			cfsize = max_fov;
+			smooth = target_smooth;
 
 			ImGui::End();
 		}
