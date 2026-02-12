@@ -20,11 +20,8 @@ Memory client_mem;
 bool firing_range = false;
 bool active = true;
 uintptr_t aimentity = 0;
-int aimentity_index = -1;
 uintptr_t tmp_aimentity = 0;
-int tmp_aimentity_index = -1;
 uintptr_t lastaimentity = 0;
-int lastaimentity_index = -1;
 float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
 int team_player = 0;
@@ -38,7 +35,6 @@ bool skeleton = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool aiming = false;
-bool lock_on_target = false;
 
 extern float smooth;
 //added stuff
@@ -73,7 +69,7 @@ bool updateInsideValue_t = false;
 unsigned char insidevalue = 6;  //0 = no fill, 14 = full fill
 //Outline size
 unsigned char outlinesize = 32; // 0-255
-//Not Visable
+//Not Visable 
 float glowr = 1; //Red 0-255, higher is brighter color.
 float glowg = 0; //Green 0-255, higher is brighter color.
 float glowb = 0; //Blue 0-255, higher is brighter color.
@@ -109,11 +105,11 @@ int map = 0;
 int screen_width = 2560;
 int screen_height = 1440;
 
-// Déclarations au niveau global (ou dans votre classe si besoin)
+// DÃ©clarations au niveau global (ou dans votre classe si besoin)
 
-int tapstrafe = 0;  // Initialisé à 0, commence le comptage
+int tapstrafe = 0;  // InitialisÃ© Ã  0, commence le comptage
 
-bool forward_hold = false;  // Initialisé à faux, pas de clé maintenue au début
+bool forward_hold = false;  // InitialisÃ© Ã  faux, pas de clÃ© maintenue au dÃ©but
 
 typedef struct player
 {
@@ -165,34 +161,34 @@ std::array<float, 3> highlightParameter;
 // Inside SetPlayerGlow function
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
-	if (player_glow >= 1)
-	{
-			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
-				float currentEntityTime = 5000.f;
-				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
-					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
-					{
-						contextId = 5;
-						settingIndex = 80;
-						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
-					}
-					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
-					{
-						contextId = 6;
-						settingIndex = 81;
-						highlightParameter = { glowrviz, glowgviz, glowbviz };
-					}
-					else
-					{
-						contextId = 7;
-						settingIndex = 82;
-						highlightParameter = { glowr, glowg, glowb };
-					}
-					Target.enableGlow();
-				}
-			}
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////
+    	if (player_glow >= 1)
+    	{
+    			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
+    				float currentEntityTime = 5000.f;
+    				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
+    					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
+    					{
+    						contextId = 5;
+    						settingIndex = 80;
+    						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
+    					}
+    					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+    					{
+    						contextId = 6;
+    						settingIndex = 81;
+    						highlightParameter = { glowrviz, glowgviz, glowbviz };
+    					}
+    					else 
+    					{
+    						contextId = 7;
+    						settingIndex = 82;
+    						highlightParameter = { glowr, glowg, glowb };
+    					}
+    					Target.enableGlow();
+    				}
+    			}
+    	}
+    	//////////////////////////////////////////////////////////////////////////////////////////////////
 		else if((player_glow == 0) && Target.isGlowing())
 		{
 			Target.disableGlow();
@@ -224,7 +220,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		tmp_spec++;
 		return;
 	}
-
+	
 	if (!target.isAlive())
 	{
 		if (target.Observing(LPlayer.ptr))
@@ -233,11 +229,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 				tmp_all_spec++;
 			else
 				tmp_spec++;
-		}
-		if (target.ptr == aimentity)
-		{
-			aimentity = tmp_aimentity = lastaimentity = 0;
-			aimentity_index = tmp_aimentity_index = lastaimentity_index = -1;
 		}
 		return;
 	}
@@ -251,27 +242,23 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	if(!firing_range && !onevone)
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
-
-	bool visible = (target.lastVisTime() > lastvis_aim[index]);
-
+	
 	if(aim==2)
 	{
-		if (visible)
+		if ((target.lastVisTime() > lastvis_aim[index]))
 		{
 			float fov = CalculateFov(LPlayer, target);
 			if (fov < max)
 			{
 				max = fov;
 				tmp_aimentity = target.ptr;
-				tmp_aimentity_index = index;
 			}
 		}
 		else
 		{
-			if(aimentity == target.ptr && !lock_on_target)
+			if(aimentity == target.ptr)
 			{
 				aimentity = tmp_aimentity = lastaimentity = 0;
-				aimentity_index = tmp_aimentity_index = lastaimentity_index = -1;
 			}
 		}
 	}
@@ -282,7 +269,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		{
 			max = fov;
 			tmp_aimentity = target.ptr;
-			tmp_aimentity_index = index;
 		}
 	}
 	////
@@ -308,9 +294,9 @@ void updateInsideValue()
 		printf("glowrnot: %f\n", glowr);
 		printf("glowgnot: %f\n", glowg);
 		printf("glowbnot: %f\n", glowb);
-
+		
 		//printf("%i\n", insidevalueItem);
-
+		
 	}
 	updateInsideValue_t = false;
 } */
@@ -342,24 +328,24 @@ void DoActions()
 			uint64_t MapName_ptr = 0;
 			apex_mem.Read<uint64_t>(g_Base + OFFSET_HOST_MAP, MapName_ptr);
 			apex_mem.ReadArray<char>(MapName_ptr, MapName, 200);
-
+					
 			//printf("%s\n", MapName);
-			if (strcmp(MapName, "mp_rr_tropic_island_mu1_storm") == 0)
+			if (strcmp(MapName, "mp_rr_tropic_island_mu1_storm") == 0) 
 			{
 				map = 1;
-			}
-			else if (strcmp(MapName, "mp_rr_canyonlands_mu") == 0)
+			} 
+			else if (strcmp(MapName, "mp_rr_canyonlands_mu") == 0) 
 			{
 				map = 2;
 			}
-			else if (strcmp(MapName, "mp_rr_desertlands_hu") == 0)
+			else if (strcmp(MapName, "mp_rr_desertlands_hu") == 0) 
 			{
 				map = 3;
 			}
-			else if (strcmp(MapName, "mp_rr_olympus") == 0)
+			else if (strcmp(MapName, "mp_rr_olympus") == 0) 
 			{
 				map = 4;
-			}
+			} 
 			else  if (strcmp(MapName, "mp_rr_divided_moon") == 0)
 			{
 				map = 5;
@@ -368,7 +354,7 @@ void DoActions()
 			{
 				map = 0;
 			}
-
+			
 ///////////////
 			std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
@@ -401,7 +387,7 @@ Entity LPlayer = getEntity(LocalPlayer);
     {
         int inForward;
         success = apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD, inForward);
-        if (success && inForward == 0)
+        if (success && inForward == 0)  
         {
             wallJumpNow = 1;
             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
@@ -452,24 +438,24 @@ Entity LPlayer = getEntity(LocalPlayer);
        static float startjumpTime = 0;
        static bool startSg = false;
        static float traversalProgressTmp = 0.0;
-
+        
        float worldtime;
        if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, worldtime)) {
-         // error handling
+         // error handling 
        }
-
+        
        float traversalStartTime;
        if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_STARTTIME, traversalStartTime)) {
          // error handling
        }
-
+        
        float traversalProgress;
        if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversalProgress)) {
          // error handling
        }
-
+        
        auto HangOnWall = -(traversalStartTime - worldtime);
-
+        
        // Adjust thresholds and delays based on frame rate
        float wallHangThreshold = 0.1f;
        float wallHangMax = 1.5f;
@@ -477,40 +463,40 @@ Entity LPlayer = getEntity(LocalPlayer);
        float jumpPressLoopTime = 0.011f;
        int duckActionDelay = 50;
        int jumpResetDelay = 800;
-
+        
        // Check if SPACEBAR is pressed and held
        if (SuperKey) {
            if (HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
              apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
            }
-
+            
            if (traversalProgress > traversalProgressThreshold && !startSg && HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
              // Start SG
-             startjumpTime = worldtime;
+             startjumpTime = worldtime; 
              startSg = true;
            }
-
+            
            if (startSg) {
              // Press button
              apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-
+            
              float currentTime;
              while (true) {
                if (apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, currentTime)) {
                  if (currentTime - startjumpTime < jumpPressLoopTime) {
                    // Keep looping
                  } else {
-                   break;
+                   break; 
                  }
                }
              }
-
+             
              // Execute actions during SG
              apex_mem.Write<int>(g_Base + OFFSET_IN_DUCK + 0x8, 6);
              std::this_thread::sleep_for(std::chrono::milliseconds(duckActionDelay));
              apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
              std::this_thread::sleep_for(std::chrono::milliseconds(jumpResetDelay));
-
+            
              startSg = false;
            }
        }
@@ -530,7 +516,7 @@ apex_mem.Read<int>(LocalPlayer + OFFSET_GRAPPLE + OFFSET_GRAPPLEATTACHED, grappl
 if (isGrappling && grappleAttached == 1) {
 
   // Boost by jumping
-  apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+  apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5); 
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
   apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
 
@@ -547,7 +533,7 @@ if (isGrappling && grappleAttached == 1) {
 //bhop///
 //if (bhop_enable) {
 //apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1));
+//std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
 //apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
 //std::this_thread::sleep_for(std::chrono::milliseconds(1));
 //}
@@ -562,7 +548,6 @@ if (isGrappling && grappleAttached == 1) {
 
 			max = 999.0f;
 			tmp_aimentity = 0;
-			tmp_aimentity_index = -1;
 			tmp_spec = 0;
 			tmp_all_spec = 0;
 
@@ -614,31 +599,31 @@ if (isGrappling && grappleAttached == 1) {
 					{
 						continue;
 					}
-
+					
 //////////////////
 					float localyaw = LPlayer.GetYaw();
 					float targetyaw = Target.GetYaw();
 					if (!Target.isAlive() && localyaw == targetyaw) { // If this player is a spectator
 					char temp_name[34];  // Assuming MAX_NAME_LENGTH + 1 for null terminator
 					Target.get_name(g_Base, i - 1, &temp_name[0]);
+					
+					//Target.get_name(data_buf.name);					
 
-					//Target.get_name(data_buf.name);
-
-					if (temp_name[0]) { // Check if the player has a name (i.e., hasn't quit)
-					strcpy(spectator_list[i].name, temp_name);
-					spectator_list[i].is_spec = true;
+    					if (temp_name[0]) { // Check if the player has a name (i.e., hasn't quit)
+        				strcpy(spectator_list[i].name, temp_name);
+        				spectator_list[i].is_spec = true;
+    					} else {
+        				spectator_list[i].is_spec = false; // Player has quit
+        				strcpy(spectator_list[i].name, ""); // Clear the name
+    					}
 					} else {
-					spectator_list[i].is_spec = false; // Player has quit
-					strcpy(spectator_list[i].name, ""); // Clear the name
-					}
-					} else {
-					spectator_list[i].is_spec = false;
-					strcpy(spectator_list[i].name, ""); // Clear the name if not a spectator
+    					spectator_list[i].is_spec = false;
+    					strcpy(spectator_list[i].name, ""); // Clear the name if not a spectator
 					}
 
 					// Print spectator list
 					//if (strlen(spectator_list[i].name) > 0) {
-					//printf("Spectator name: %s\n", spectator_list[i].name);
+    					//printf("Spectator name: %s\n", spectator_list[i].name);
 					//std::cout << "Corresponding level: " << player_level << std::endl;
 					//}
 //////////////////
@@ -668,10 +653,8 @@ if (isGrappling && grappleAttached == 1) {
 
 			if (!lock){
 				aimentity = tmp_aimentity;
-				aimentity_index = tmp_aimentity_index;
 			}else{
 				aimentity = lastaimentity;
-				aimentity_index = lastaimentity_index;
 			}
 		}
 	}
@@ -741,7 +724,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 				apex_mem.Read<Matrix>(viewMatrix, m);
 
 				uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-
+				
 				memset(players, 0, sizeof(players));
 				if (firing_range)
 				{
@@ -792,10 +775,10 @@ Entity LPlayer = getEntity(LocalPlayer);
 						Vector EntityPosition = Target.getPosition();
 						float dist = LocalPlayerPosition.DistTo(EntityPosition);
 						if (dist > max_dist || dist < 50.0f)
-						{
+						{	
 							continue;
 						}
-
+						
 						Vector bs = Vector();
 						WorldToScreen(EntityPosition, m.matrix, screen_width, screen_height, bs);
 						if (bs.x > 0 && bs.y > 0)
@@ -810,7 +793,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							int shield = Target.getShield();
 							int maxshield = Target.getMaxShield();
 							int armortype = Target.getArmortype();
-							players[c] =
+							players[c] = 
 							{
 								dist,
 								entity_team,
@@ -851,7 +834,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							c++;
 						}
 					}
-				}
+				}	
 				else
 				{
 					for (int i = 0; i < toRead; i++)
@@ -862,14 +845,14 @@ Entity LPlayer = getEntity(LocalPlayer);
 						{
 							continue;
 						}
-
+						
 						if (LocalPlayer == centity)
 						{
 							continue;
 						}
 
 						Entity Target = getEntity(centity);
-
+						
 						if (!Target.isPlayer())
 						{
 							continue;
@@ -898,7 +881,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 						Vector EntityPosition = Target.getPosition();
 						float dist = LocalPlayerPosition.DistTo(EntityPosition);
 						if (dist > max_dist || dist < 50.0f)
-						{
+						{	
 							continue;
 						}
 
@@ -916,7 +899,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							int shield = Target.getShield();
 							int maxshield = Target.getMaxShield();
 							int armortype = Target.getArmortype();
-							players[i] =
+							players[i] = 
 							{
 								dist,
 								entity_team,
@@ -984,12 +967,10 @@ static void AimbotLoop()
 				{
 					lock = false;
 					lastaimentity = 0;
-					lastaimentity_index = -1;
 					continue;
 				}
 				lock = true;
 				lastaimentity = aimentity;
-				lastaimentity_index = aimentity_index;
 
 				uint64_t LocalPlayer = 0;
 				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
@@ -1006,14 +987,6 @@ Entity LPlayer = getEntity(LocalPlayer);
 					lock = false;
 					lastaimentity = 0;
 					continue;
-				}
-				if (aim == 2 && lock_on_target && lastaimentity_index != -1)
-				{
-					Entity target = getEntity(aimentity);
-					if (target.lastVisTime() <= lastvis_aim[lastaimentity_index])
-					{
-						continue;
-					}
 				}
 
 				// Add the following line to set the view angles
@@ -1035,7 +1008,7 @@ if(!client_mem.Read<uint64_t>(add_addr, check_addr)) {
   printf("Read failed!\n");
 }
 
-uint64_t aim_addr = 0;
+uint64_t aim_addr = 0;  
 printf("Reading aim address: %lx\n", add_addr + sizeof(uint64_t));
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t), aim_addr)) {
   printf("Read failed!\n");
@@ -1058,7 +1031,7 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr)) {
   printf("Read failed!\n");
 }
 
-uint64_t next_addr = 0;
+uint64_t next_addr = 0;  
 printf("Reading next address: %lx\n", add_addr + sizeof(uint64_t) * 5);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr)) {
   printf("Read failed!\n");
@@ -1106,7 +1079,7 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, smooth_addr)) {
 }
 
 uint64_t max_fov_addr = 0;
-printf("Reading max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 12);
+printf("Reading max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 12); 
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, max_fov_addr)) {
   printf("Read failed!\n");
 }
@@ -1123,7 +1096,7 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, spectators_addr)
   printf("Read failed!\n");
 }
 
-uint64_t allied_spectators_addr = 0;
+uint64_t allied_spectators_addr = 0;  
 printf("Reading allied_spectators address: %lx\n", add_addr + sizeof(uint64_t) * 15);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, allied_spectators_addr)) {
   printf("Read failed!\n");
@@ -1171,7 +1144,7 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowrknocked_add
   printf("Read failed!\n");
 }
 
-uint64_t glowgknocked_addr = 0;
+uint64_t glowgknocked_addr = 0;  
 printf("Reading glowgknocked address: %lx\n", add_addr + sizeof(uint64_t) * 23);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_addr)) {
   printf("Read failed!\n");
@@ -1180,19 +1153,19 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_add
 uint64_t glowbknocked_addr = 0;
 printf("Reading glowbknocked address: %lx\n", add_addr + sizeof(uint64_t) * 24);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, glowbknocked_addr)) {
-  printf("Read failed!\n");
+  printf("Read failed!\n"); 
 }
 
 uint64_t firing_range_addr = 0;
 printf("Reading firing_range address: %lx\n", add_addr + sizeof(uint64_t) * 25);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, firing_range_addr)) {
-  printf("Read failed!\n");
+  printf("Read failed!\n"); 
 }
 
 uint64_t shooting_addr = 0;
 printf("Reading shooting address: %lx\n", add_addr + sizeof(uint64_t) * 26);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr)) {
-  printf("Read failed!\n");
+  printf("Read failed!\n"); 
 }
 
 ////////
@@ -1335,11 +1308,6 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
-        uint64_t lock_on_target_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, lock_on_target_addr);
-        if (lock_on_target_addr)
-            client_mem.Read<bool>(lock_on_target_addr, lock_on_target);
-
         if (esp && next)
         {
             if (valid)
@@ -1375,11 +1343,11 @@ int main(int argc, char *argv[])
 	}
 
 	const char* cl_proc = "Client.exe";
-	const char* ap_proc = "r5apex_dx12.exe";
+	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0X0000000;
+	uint64_t add_off = 0x000000;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
@@ -1450,7 +1418,7 @@ int main(int argc, char *argv[])
 
 				vars_thr.~thread();
 			}
-
+			
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 			printf("Searching for client process...\n");
 
