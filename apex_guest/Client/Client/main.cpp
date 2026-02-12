@@ -43,6 +43,7 @@ int aim_key2 = VK_RBUTTON;
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
+bool dds_active = true;
 extern visuals v;
 int aim = 0; //read
 bool esp = false; //read
@@ -242,6 +243,11 @@ void Overlay::RenderEsp()
 			ImGui::SetNextWindowSize(ImVec2((float)getWidth(), (float)getHeight()));
 			ImGui::Begin(XorStr("##esp"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
+			int best_player_idx = -1;
+			float best_fov = 9999.0f;
+			float cx = (float)getWidth() / 2.0f;
+			float cy = (float)getHeight() / 2.0f;
+
 			for (int i = 0; i < 100; i++)
 			{
 				if (players[i].health > 0)
@@ -263,36 +269,12 @@ void Overlay::RenderEsp()
 						}
 					}
 
-					// Assuming players[i].dist represents the distance of the player
-
-					// Define the maximum distance you want to consider (previously referred to as max_distance)
-					//float max_dist = 80.0f * 40.0f; // Adjust this value as per your requirement
-
-					// Optimize calculations by caching division
-					float distRatio = players[i].dist / max_dist;
-					float distanceFactor = 1.0f - distRatio;
-					float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
-
-					// Pre-calculate the multipliers
-					float fovDiff = max_max_fov - min_max_fov;
-					float smoothDiff = max_smooth - min_smooth;
-
-					// Combine calculations
-					if (players[i].dist < DDS) {
-						float lerpFactor = easedDistanceFactor;
-						max_fov = min_max_fov + (fovDiff * lerpFactor);
-						cfsize = max_fov;
-						smooth = min_smooth + (smoothDiff * lerpFactor);
-						aim_key = VK_LBUTTON;
-						aim_key2 = VK_RBUTTON;
-					}
-					else
-					{
-						max_fov = 3.80f;
-						cfsize = max_fov;
-						smooth = 200.00f;
-						aim_key = VK_LBUTTON;
-						aim_key2 = 0;
+					float dx = players[i].b_x - cx;
+					float dy = (players[i].b_y + players[i].h_y) / 2.0f - cy;
+					float d = sqrt(dx * dx + dy * dy);
+					if (d < best_fov) {
+						best_fov = d;
+						best_player_idx = i;
 					}
 
 					//if(v.line)
@@ -370,6 +352,44 @@ void Overlay::RenderEsp()
 					}
 
 				}
+			}
+
+			static int locked_player_idx = -1;
+			if (!aiming) locked_player_idx = -1;
+
+			int active_idx = -1;
+			if (locked_player_idx != -1 && players[locked_player_idx].health > 0) {
+				active_idx = locked_player_idx;
+			}
+			else {
+				active_idx = best_player_idx;
+				if (aiming) locked_player_idx = best_player_idx;
+			}
+
+			if (active_idx != -1) {
+				float distRatio = players[active_idx].dist / max_dist;
+				float distanceFactor = 1.0f - distRatio;
+				float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
+				float fovDiff = max_max_fov - min_max_fov;
+				float smoothDiff = max_smooth - min_smooth;
+
+				if (players[active_idx].dist < DDS) {
+					max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
+					smooth = min_smooth + (smoothDiff * easedDistanceFactor);
+					dds_active = true;
+				}
+				else {
+					max_fov = 3.80f;
+					smooth = 200.00f;
+					dds_active = false;
+				}
+				cfsize = max_fov;
+			}
+			else {
+				max_fov = 3.80f;
+				smooth = 200.00f;
+				dds_active = true;
+				cfsize = max_fov;
 			}
 
 			ImGui::End();
@@ -632,7 +652,7 @@ int main(int argc, char** argv)
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		if (IsKeyDown(aim_key) || IsKeyDown(aim_key2))
+		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)))
 		{
 			aiming = true;
 			//randomBone();//RANDOMIZE BONE WHEN SHOOT
