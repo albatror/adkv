@@ -43,7 +43,7 @@ int aim_key2 = VK_RBUTTON;
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
-bool dds_active = true;
+bool dds_active = false;
 extern visuals v;
 int aim = 0; //read
 bool esp = false; //read
@@ -381,13 +381,13 @@ void Overlay::RenderEsp()
 				else {
 					max_fov = 3.80f;
 					smooth = 200.00f;
-					dds_active = true;
+					dds_active = false;
 				}
 			}
 			else {
 				max_fov = 3.80f;
 				smooth = 200.00f;
-				dds_active = true;
+				dds_active = false;
 			}
 			cfsize = max_fov;
 
