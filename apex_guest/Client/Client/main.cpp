@@ -375,22 +375,21 @@ void Overlay::RenderEsp()
 
 				if (players[active_idx].dist < DDS) {
 					max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
-					smooth = min_smooth + (smoothDiff * easedDistanceFactor);
+					smooth = max_smooth - (smoothDiff * easedDistanceFactor);
 					dds_active = true;
 				}
 				else {
 					max_fov = 3.80f;
 					smooth = 200.00f;
-					dds_active = false;
+					dds_active = true;
 				}
-				cfsize = max_fov;
 			}
 			else {
 				max_fov = 3.80f;
 				smooth = 200.00f;
 				dds_active = true;
-				cfsize = max_fov;
 			}
+			cfsize = max_fov;
 
 			ImGui::End();
 		}
