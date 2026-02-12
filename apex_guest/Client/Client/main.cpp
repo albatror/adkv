@@ -283,16 +283,16 @@ void Overlay::RenderEsp()
 						max_fov = min_max_fov + (fovDiff * lerpFactor);
 						cfsize = max_fov;
 						smooth = min_smooth + (smoothDiff * lerpFactor);
-						aim_key = true;
-						aim_key2 = true;
+						aim_key = VK_LBUTTON;
+						aim_key2 = VK_RBUTTON;
 					}
 					else
 					{
 						max_fov = 3.80f;
 						cfsize = max_fov;
 						smooth = 200.00f;
-						aim_key = true;
-						aim_key2 = false;
+						aim_key = VK_LBUTTON;
+						aim_key2 = 0;
 					}
 
 					//if(v.line)
@@ -641,6 +641,8 @@ int main(int argc, char** argv)
 		{
 			aiming = false;
 		}
+
+		shooting = IsKeyDown(VK_LBUTTON);
 
 	}
 	ready = false;
