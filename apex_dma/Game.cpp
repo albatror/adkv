@@ -441,7 +441,7 @@ float CalculateFov(Entity& from, Entity& target)
 	return Math::GetFov(ViewAngles, Angle);
 }
 
-QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov)
+QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing)
 {
 	Entity target = getEntity(t);
 	if(firing_range)
@@ -530,15 +530,10 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov)
 		CalculatedAngles-=SwayAngles-ViewAngles;
 	Math::NormalizeAngles(CalculatedAngles);
 	QAngle Delta = CalculatedAngles - ViewAngles;
-	double fov = Math::GetFov(SwayAngles, CalculatedAngles);
-	if (fov > max_fov)
-	{
-		return QAngle(0, 0, 0);
-	}
 
 	Math::NormalizeAngles(Delta);
 
-	QAngle SmoothedAngles = ViewAngles + Delta/smooth;
+	QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
 	return SmoothedAngles;
 }
 

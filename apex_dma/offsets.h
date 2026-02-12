@@ -84,7 +84,7 @@
 #define OFFSET_ITEM_ID 0x15e4 //[RecvTable.DT_PropSurvival].m_customScriptInt updated 2026/02/11
 #define OFFSET_MODELNAME 0x0030 //[DataMap.DT_BaseEntity].m_ModelName updated 2024/09/18
 #define OFFSET_M_CUSTOMSCRIPTINT OFFSET_ITEM_ID //[RecvTable.DT_PropSurvival].m_customScriptInt updated 2026/02/11
-#define OFFSET_YAW 0x2304 //[DataMap.DT_Player].m_currentFramePlayer.m_ammoPoolCount - 0x8 updated 2025/02/12
+#define OFFSET_YAW 0x231c - 0x8 //[DataMap.DT_Player].m_currentFramePlayer.m_ammoPoolCount - 0x8 updated 2025/02/12
  
 //#define OFFSET_GLOW_T1 0x292 //16256 = enabled, 0 = disabled
 //#define OFFSET_GLOW_T2 0x30c //1193322764 = enabled, 0 = disabled

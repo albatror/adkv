@@ -98,6 +98,7 @@ uint64_t c_Base;
 bool next = false;
 bool valid = false;
 bool lock = false;
+bool is_aimentity_visible = false;
 
 //map
 int map = 0;
@@ -243,11 +244,24 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
 	
+	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	float fov = CalculateFov(LPlayer, target);
+
+	if (target.ptr == aimentity)
+	{
+		is_aimentity_visible = visible;
+	}
+
+	if (shooting && aimentity != 0)
+	{
+		lastvis_aim[index] = target.lastVisTime();
+		return;
+	}
+
 	if(aim==2)
 	{
-		if ((target.lastVisTime() > lastvis_aim[index]))
+		if (visible && fov <= max_fov)
 		{
-			float fov = CalculateFov(LPlayer, target);
 			if (fov < max)
 			{
 				max = fov;
@@ -256,7 +270,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		}
 		else
 		{
-			if(aimentity == target.ptr)
+			if(aimentity == target.ptr && !shooting)
 			{
 				aimentity = tmp_aimentity = lastaimentity = 0;
 			}
@@ -264,11 +278,13 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		float fov = CalculateFov(LPlayer, target);
-		if (fov < max)
+		if (fov <= max_fov)
 		{
-			max = fov;
-			tmp_aimentity = target.ptr;
+			if (fov < max)
+			{
+				max = fov;
+				tmp_aimentity = target.ptr;
+			}
 		}
 	}
 	////
@@ -548,6 +564,13 @@ if (isGrappling && grappleAttached == 1) {
 
 			max = 999.0f;
 			tmp_aimentity = 0;
+			is_aimentity_visible = false;
+
+			// Read shooting state from game
+			kbutton_t in_attack_button;
+			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
+			shooting = (in_attack_button.state & 1) != 0;
+
 			tmp_spec = 0;
 			tmp_all_spec = 0;
 
@@ -954,6 +977,9 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 static void AimbotLoop()
 {
+	static uintptr_t last_locked_entity = 0;
+	static std::chrono::steady_clock::time_point lock_start_time;
+
 	aim_t = true;
 	while (aim_t)
 	{
@@ -967,29 +993,65 @@ static void AimbotLoop()
 				{
 					lock = false;
 					lastaimentity = 0;
+					last_locked_entity = 0;
 					continue;
 				}
+
+				Entity Target = getEntity(aimentity);
+				if (!Target.isAlive() || (Target.isKnocked() && !firing_range))
+				{
+					lock = false;
+					lastaimentity = 0;
+					last_locked_entity = 0;
+					aimentity = 0;
+					continue;
+				}
+
 				lock = true;
 				lastaimentity = aimentity;
+
+				if (aimentity != last_locked_entity) {
+					last_locked_entity = aimentity;
+					lock_start_time = std::chrono::steady_clock::now();
+				}
+
+				float current_smooth = smooth;
+				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
+				if (elapsed < 500) {
+					current_smooth = smooth * 2.0f;
+				}
 
 				uint64_t LocalPlayer = 0;
 				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
 
-// Ensure the local player entity is valid
 				if (LocalPlayer == 0)
 					continue;
 
-// Retrieve the local player entity object
-Entity LPlayer = getEntity(LocalPlayer);
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov);
-				if (Angles.x == 0 && Angles.y == 0)
+				Entity LPlayer = getEntity(LocalPlayer);
+
+				float fov = CalculateFov(LPlayer, Target);
+				if (fov > max_fov)
 				{
-					lock = false;
-					lastaimentity = 0;
+					if (!shooting) {
+						lock = false;
+						lastaimentity = 0;
+						last_locked_entity = 0;
+						aimentity = 0;
+					}
 					continue;
 				}
 
-				// Add the following line to set the view angles
+				if (aim == 2 && !is_aimentity_visible)
+				{
+					continue;
+				}
+
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				if (Angles.x == 0 && Angles.y == 0)
+				{
+					continue;
+				}
+
 				LPlayer.SetViewAngles(Angles);
 			}
 		}
@@ -1258,7 +1320,7 @@ while (vars_t)
         client_mem.Read<float>(glowgknocked_addr, glowgknocked);
         client_mem.Read<float>(glowbknocked_addr, glowbknocked);
         client_mem.Read<bool>(firing_range_addr, firing_range);
-        client_mem.Read<bool>(shooting_addr, shooting);
+        //client_mem.Read<bool>(shooting_addr, shooting);
         client_mem.Read<bool>(onevone_addr, onevone);
 
         uint64_t skeleton_addr = 0;
@@ -1347,7 +1409,7 @@ int main(int argc, char *argv[])
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x2959c0;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
