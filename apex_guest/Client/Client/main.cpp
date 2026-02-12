@@ -50,11 +50,10 @@ bool esp = false; //read
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool aiming = false; //read
-bool lock_on_target = false;
 uint64_t g_Base = 0; //write
 float max_dist = 120.0f * 40.0f;
 //float esp_distance = 300.0f * 40.0f;
-float smooth = 140.00f;
+float smooth = 200.00f;
 float max_fov = 3.80f;
 int bone = 2;
 // Declare constants for key detection
@@ -70,8 +69,8 @@ float min_max_fov = 4.00f;
 float max_max_fov = 25.00f;
 float min_cfsize = min_max_fov;
 float max_cfsize = max_max_fov;
-float min_smooth = 90.00f;
-float max_smooth = 120.00f;
+float min_smooth = 100.00f;
+float max_smooth = 150.00f;
 
 bool firing_range = false;
 bool shooting = false; //read
@@ -143,7 +142,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[35];//35
+uint64_t add[34];//34
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -284,13 +283,14 @@ void Overlay::RenderEsp()
 						max_fov = min_max_fov + (fovDiff * lerpFactor);
 						cfsize = max_fov;
 						smooth = min_smooth + (smoothDiff * lerpFactor);
-						aim_key = aim_key2 = true;
+						aim_key = true;
+						aim_key2 = true;
 					}
 					else
 					{
 						max_fov = 3.80f;
 						cfsize = max_fov;
-						smooth = 140.00f;
+						smooth = 200.00f;
 						aim_key = true;
 						aim_key2 = false;
 					}
@@ -420,7 +420,6 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
-	add[34] = (uintptr_t)&lock_on_target;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -504,7 +503,6 @@ int main(int argc, char** argv)
 				config >> max_max_fov;
 				config >> min_smooth;
 				config >> max_smooth;
-				config >> std::boolalpha >> lock_on_target;
 				config.close();
 			}
 		}
