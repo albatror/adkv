@@ -9,7 +9,6 @@ extern bool esp;
 //extern bool item_glow;
 extern bool player_glow;
 extern bool aim_no_recoil;
-extern bool lock_on_target;
 extern bool ready;
 extern bool use_nvidia;
 extern float max_dist;
@@ -170,7 +169,7 @@ void Overlay::RenderMenu()
 				{
 					aim = 1;
 				}
-				ImGui::Checkbox(XorStr("Lock on target"), &lock_on_target);
+
 			}
 			else
 			{
@@ -311,7 +310,6 @@ void Overlay::RenderMenu()
 					config << max_max_fov << "\n";
 					config << min_smooth << "\n";
 					config << max_smooth << "\n";
-					config << std::boolalpha << lock_on_target << "\n";
 					config.close();
 				}
 			}
@@ -366,7 +364,6 @@ void Overlay::RenderMenu()
 					config >> max_max_fov;
 					config >> min_smooth;
 					config >> max_smooth;
-					config >> std::boolalpha >> lock_on_target;
 					config.close();
 				}
 			}
