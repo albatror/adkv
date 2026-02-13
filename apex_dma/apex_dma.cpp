@@ -1305,8 +1305,8 @@ while (vars_t)
                 if (fake_uuid_check[0] == 0) {
                     printf("Real GPU UUID received: %s\n", real_uuid);
 
-                    // Generate fake UUID (using lowercase to match nvidia-smi)
-                    static const char* chars = "0123456789abcdef";
+                    // Generate fake UUID (using uppercase to match user requirement)
+                    static const char* chars = "0123456789ABCDEF";
                     std::string fake_uuid = "GPU-";
                     std::string fake_id = "";
                     std::random_device rd;

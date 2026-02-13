@@ -176,16 +176,18 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 		char guidName[256];
 		DWORD guidNameSize = sizeof(guidName);
 		for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, guidName, &guidNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; i++) {
-			snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\0000", guidName);
-			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
-				RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-				RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-				RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-				RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-				if (gpu_id[0] != 0) {
-					RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
+			for (int j = 0; j < 10; j++) {
+				snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\%04d", guidName, j);
+				if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
+					RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+					RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+					RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
+					RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
+					if (gpu_id[0] != 0) {
+						RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
+					}
+					RegCloseKey(hKey);
 				}
-				RegCloseKey(hKey);
 			}
 			guidNameSize = sizeof(guidName);
 		}
@@ -195,6 +197,8 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 	// 3. Software\NVIDIA Corporation
 	if (RegCreateKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
 		RegSetValueExA(hKey, "GpuUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+		RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+		RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 		RegCloseKey(hKey);
 	}
 
@@ -233,6 +237,7 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 	// 5. nvlddmkm Parameters
 	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm\\Parameters", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
 		RegSetValueExA(hKey, "GpuUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+		RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
 		RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 		RegCloseKey(hKey);
 	}
