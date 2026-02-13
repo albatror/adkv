@@ -63,6 +63,13 @@ bool onevone = false;
 //bool medbackpack = true;
 ///////////
 bool updateInsideValue_t = false;
+
+bool bhop = false;
+bool rapidfire = false;
+bool tapstrafe_enable = false;
+bool fastloot = false;
+bool autoloot = false;
+
 ///////////////////////////
 //Player Glow Color and Brightness.
 //inside fill
@@ -546,14 +553,75 @@ if (isGrappling && grappleAttached == 1) {
 
 //grapple END/////////////////////////////
 
-//bhop///
-//if (bhop_enable) {
-//apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-//apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-//}
-//bhop END/////////////////////////////
+// bhop
+if (bhop) {
+    if (LPlayer.isOnGround()) {
+        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+    } else {
+        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+    }
+}
+
+// rapidfire
+if (rapidfire && shooting) {
+    static int rf_count = 0;
+    rf_count++;
+    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, (rf_count % 2 == 0) ? 5 : 4);
+}
+
+// tapstrafe
+if (tapstrafe_enable && !LPlayer.isOnGround()) {
+    int in_moveleft = 0, in_moveright = 0;
+    apex_mem.Read<int>(g_Base + OFFSET_IN_MOVELEFT, in_moveleft);
+    apex_mem.Read<int>(g_Base + OFFSET_IN_MOVERIGHT, in_moveright);
+    if (in_moveleft || in_moveright) {
+        static int ts_count = 0;
+        ts_count++;
+        apex_mem.Write<int>(g_Base + OFFSET_IN_FORWARD + 0x8, (ts_count % 2 == 0) ? 5 : 4);
+    }
+}
+
+// loot scripts
+if (fastloot || autoloot) {
+    static int loot_tick = 0;
+    loot_tick++;
+    if (loot_tick % 10 == 0) { // Scan loot entities every 10 ticks (approx 300ms) to save CPU
+        for (int i = 100; i < 10000; i++) {
+            uintptr_t centity = 0;
+            apex_mem.Read<uintptr_t>(entitylist + ((uintptr_t)i << 5), centity);
+            if (centity == 0) continue;
+
+            char class_name[32];
+            get_class_name(centity, class_name);
+            if (strncmp(class_name, "CPropSurvival", 13) == 0) {
+                Vector item_pos;
+                apex_mem.Read<Vector>(centity + OFFSET_ORIGIN, item_pos);
+                float dist = LPlayer.getPosition().DistTo(item_pos);
+                if (dist < 150.0f) {
+                    bool in_use = false;
+                    kbutton_t use_button;
+                    apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_USE, use_button);
+                    in_use = (use_button.state & 1) != 0;
+
+                    bool filter = false;
+                    if (autoloot) {
+                        int item_id = 0;
+                        apex_mem.Read<int>(centity + OFFSET_ITEM_ID, item_id);
+                        // Shield Battery (4), Medkit (2), Shield Cell (3), Syringe (1), Phoenix Kit (5)
+                        if (item_id >= 1 && item_id <= 5) filter = true;
+                    }
+
+                    if ((fastloot && in_use) || filter) {
+                        static int loot_toggle = 0;
+                        loot_toggle++;
+                        apex_mem.Write<int>(g_Base + OFFSET_IN_USE + 0x8, (loot_toggle % 2 == 0) ? 5 : 4);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
 
 			uint64_t baseent = 0;
 			apex_mem.Read<uint64_t>(entitylist, baseent);
@@ -569,7 +637,8 @@ if (isGrappling && grappleAttached == 1) {
 			// Read shooting state from game
 			kbutton_t in_attack_button;
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
-			shooting = (in_attack_button.state & 1) != 0;
+			// Use down state to detect if user is holding the button, so rapidfire doesn't break stickiness
+			shooting = (in_attack_button.down[0] != 0 || in_attack_button.down[1] != 0);
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;
@@ -1369,6 +1438,31 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_addr);
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
+
+        uint64_t bhop_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, bhop_addr);
+        if (bhop_addr)
+            client_mem.Read<bool>(bhop_addr, bhop);
+
+        uint64_t rapidfire_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, rapidfire_addr);
+        if (rapidfire_addr)
+            client_mem.Read<bool>(rapidfire_addr, rapidfire);
+
+        uint64_t tapstrafe_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, tapstrafe_addr);
+        if (tapstrafe_addr)
+            client_mem.Read<bool>(tapstrafe_addr, tapstrafe_enable);
+
+        uint64_t fastloot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, fastloot_addr);
+        if (fastloot_addr)
+            client_mem.Read<bool>(fastloot_addr, fastloot);
+
+        uint64_t autoloot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 38, autoloot_addr);
+        if (autoloot_addr)
+            client_mem.Read<bool>(autoloot_addr, autoloot);
 
         if (esp && next)
         {

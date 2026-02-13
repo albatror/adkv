@@ -148,6 +148,14 @@ bool Entity::isPlayer()
 	return *(uint64_t*)(buffer + OFFSET_NAME) == 125780153691248;
 }
 
+bool Entity::isLoot()
+{
+	char class_name[33] = {};
+	get_class_name(ptr, class_name);
+
+	return strncmp(class_name, "CPropSurvival", 13) == 0;
+}
+
 bool Entity::isDummy()
 {
 	char class_name[33] = {};

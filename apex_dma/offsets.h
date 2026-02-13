@@ -56,6 +56,8 @@
 #define OFFSET_IN_ZOOM 0x03f39300 //[Buttons].in_zoom updated 2026/02/11
 #define OFFSET_IN_FORWARD 0x03f393b8 //[Buttons].in_forward updated 2026/02/11
 #define OFFSET_IN_BACKWARD 0x03f393e0 //[Buttons].in_backward updated 2026/02/11
+#define OFFSET_IN_MOVELEFT 0x03f393a8 //[Buttons].in_moveleft updated 2026/02/11
+#define OFFSET_IN_MOVERIGHT 0x03f393d0 //[Buttons].in_moveright updated 2026/02/11
  
 #define OFFSET_LIFE_STATE 0x0690 //[RecvTable.DT_Player].m_lifeState updated 2026/02/11
 #define OFFSET_BLEED_OUT_STATE 0x27c0 //[RecvTable.DT_Player].m_bleedoutState updated 2026/02/11

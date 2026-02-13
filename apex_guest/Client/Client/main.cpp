@@ -76,6 +76,12 @@ float max_smooth = 150.00f;
 bool firing_range = false;
 bool shooting = false; //read
 
+bool bhop = false;
+bool rapidfire = false;
+bool tapstrafe_enable = false;
+bool fastloot = false;
+bool autoloot = false;
+
 bool dump = false;
 bool update_offsets = false;
 
@@ -143,7 +149,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[39];//39
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -439,6 +445,11 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&bhop;
+	add[35] = (uintptr_t)&rapidfire;
+	add[36] = (uintptr_t)&tapstrafe_enable;
+	add[37] = (uintptr_t)&fastloot;
+	add[38] = (uintptr_t)&autoloot;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -522,6 +533,11 @@ int main(int argc, char** argv)
 				config >> max_max_fov;
 				config >> min_smooth;
 				config >> max_smooth;
+				config >> bhop;
+				config >> rapidfire;
+				config >> tapstrafe_enable;
+				config >> fastloot;
+				config >> autoloot;
 				config.close();
 			}
 		}

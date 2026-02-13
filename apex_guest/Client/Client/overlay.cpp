@@ -20,6 +20,12 @@ extern int allied_spectators;
 
 extern bool onevone;
 
+extern bool bhop;
+extern bool rapidfire;
+extern bool tapstrafe_enable;
+extern bool fastloot;
+extern bool autoloot;
+
 //extern float esp_distance;
 
 extern int index;
@@ -180,6 +186,15 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
 			ImGui::EndTabItem();
 		}
+		if (ImGui::BeginTabItem(XorStr("Scripts")))
+		{
+			ImGui::Checkbox(XorStr("Bunnyhop"), &bhop);
+			ImGui::Checkbox(XorStr("Rapidfire"), &rapidfire);
+			ImGui::Checkbox(XorStr("Tap Strafe"), &tapstrafe_enable);
+			ImGui::Checkbox(XorStr("Fast Loot"), &fastloot);
+			ImGui::Checkbox(XorStr("Auto Loot"), &autoloot);
+			ImGui::EndTabItem();
+		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
 		{
 			ImGui::Text(XorStr("Max distance:"));
@@ -310,6 +325,11 @@ void Overlay::RenderMenu()
 					config << max_max_fov << "\n";
 					config << min_smooth << "\n";
 					config << max_smooth << "\n";
+					config << bhop << "\n";
+					config << rapidfire << "\n";
+					config << tapstrafe_enable << "\n";
+					config << fastloot << "\n";
+					config << autoloot << "\n";
 					config.close();
 				}
 			}
@@ -364,6 +384,11 @@ void Overlay::RenderMenu()
 					config >> max_max_fov;
 					config >> min_smooth;
 					config >> max_smooth;
+					config >> bhop;
+					config >> rapidfire;
+					config >> tapstrafe_enable;
+					config >> fastloot;
+					config >> autoloot;
 					config.close();
 				}
 			}

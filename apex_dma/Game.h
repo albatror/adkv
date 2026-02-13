@@ -42,6 +42,7 @@ public:
 	Vector getPosition();
 	bool isDummy();
 	bool isPlayer();
+	bool isLoot();
 	bool isKnocked();
 	bool isAlive();
 /////////
