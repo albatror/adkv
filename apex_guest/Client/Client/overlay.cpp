@@ -17,6 +17,7 @@ extern float max_fov;
 extern float default_smooth;
 extern float default_fov;
 extern int bone;
+extern bool nospread;
 extern int spectators;
 extern int allied_spectators;
 
@@ -158,6 +159,9 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("ESP"), &esp);
 
 			ImGui::Checkbox(XorStr("AIM"), &aim_enable);
+
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("NoSpread"), &nospread);
 
 			if (aim_enable)
 			{
@@ -313,6 +317,7 @@ void Overlay::RenderMenu()
 					config << max_smooth << "\n";
 					config << min_cfsize << "\n";
 					config << max_cfsize << "\n";
+					config << std::boolalpha << nospread << "\n";
 					config.close();
 				}
 			}
@@ -360,6 +365,7 @@ void Overlay::RenderMenu()
 					config >> max_smooth;
 					config >> min_cfsize;
 					config >> max_cfsize;
+					config >> std::boolalpha >> nospread;
 					config.close();
 				}
 			}

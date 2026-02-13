@@ -74,6 +74,13 @@ struct DynamicOffsets {
     uint64_t Grapple;
     uint64_t GrappleAttached;
     uint64_t m_xp;
+    uint64_t PlayerData;
+    uint64_t MoveSpread;
+    uint64_t SpreadStartTime;
+    uint64_t SpreadStartFracHip;
+    uint64_t SpreadStartFracADS;
+    uint64_t KickSpreadHipfire;
+    uint64_t KickSpreadADS;
 };
 
 extern DynamicOffsets offsets;

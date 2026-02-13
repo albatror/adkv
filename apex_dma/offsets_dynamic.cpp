@@ -72,6 +72,14 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
     if (off_data.count("[RecvTable.DT_BaseAnimating]m_nForceBone")) offsets.Bones = off_data["[RecvTable.DT_BaseAnimating]m_nForceBone"] + 0x48;
     if (off_data.count("[DataMap.DT_Player]m_currentFrameLocalPlayer.m_vecPunchWeapon_Angle")) offsets.AimPunch = off_data["[DataMap.DT_Player]m_currentFrameLocalPlayer.m_vecPunchWeapon_Angle"];
 
+    if (off_data.count("[DataMap.CWeaponX]m_playerData")) offsets.PlayerData = off_data["[DataMap.CWeaponX]m_playerData"];
+    if (off_data.count("[RecvTable.DT_WeaponPlayerData]m_moveSpread")) offsets.MoveSpread = off_data["[RecvTable.DT_WeaponPlayerData]m_moveSpread"];
+    if (off_data.count("[RecvTable.DT_WeaponPlayerData]m_spreadStartTime")) offsets.SpreadStartTime = off_data["[RecvTable.DT_WeaponPlayerData]m_spreadStartTime"];
+    if (off_data.count("[RecvTable.DT_WeaponPlayerData]m_spreadStartFracHip")) offsets.SpreadStartFracHip = off_data["[RecvTable.DT_WeaponPlayerData]m_spreadStartFracHip"];
+    if (off_data.count("[RecvTable.DT_WeaponPlayerData]m_spreadStartFracADS")) offsets.SpreadStartFracADS = off_data["[RecvTable.DT_WeaponPlayerData]m_spreadStartFracADS"];
+    if (off_data.count("[RecvTable.DT_WeaponPlayerData]m_kickSpreadHipfire")) offsets.KickSpreadHipfire = off_data["[RecvTable.DT_WeaponPlayerData]m_kickSpreadHipfire"];
+    if (off_data.count("[RecvTable.DT_WeaponPlayerData]m_kickSpreadADS")) offsets.KickSpreadADS = off_data["[RecvTable.DT_WeaponPlayerData]m_kickSpreadADS"];
+
     // ViewAngles is tricky, often derived
     // if (off_data.count("[.Miscellaneous]ViewAngles")) offsets.ViewAngles = off_data["[.Miscellaneous]ViewAngles"];
 

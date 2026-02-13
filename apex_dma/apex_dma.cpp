@@ -35,6 +35,7 @@ bool skeleton = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool aiming = false;
+bool nospread = false;
 
 extern float smooth;
 //added stuff
@@ -669,6 +670,27 @@ if (isGrappling && grappleAttached == 1) {
 				}
 			}
 
+			if (nospread)
+			{
+				uint64_t wephandle = 0;
+				apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_WEAPON, wephandle);
+				wephandle &= 0xffff;
+				uint64_t wep_entity = 0;
+				apex_mem.Read<uint64_t>(entitylist + (wephandle << 5), wep_entity);
+
+				if (wep_entity != 0)
+				{
+					uint64_t pData = offsets.PlayerData ? offsets.PlayerData : OFFSET_PLAYER_DATA;
+					float zero = 0.0f;
+					apex_mem.Write<float>(wep_entity + pData + (offsets.MoveSpread ? offsets.MoveSpread : OFFSET_MOVESPREAD), zero);
+					apex_mem.Write<float>(wep_entity + pData + (offsets.SpreadStartTime ? offsets.SpreadStartTime : OFFSET_SPREADSTARTTIME), zero);
+					apex_mem.Write<float>(wep_entity + pData + (offsets.SpreadStartFracHip ? offsets.SpreadStartFracHip : OFFSET_SPREADSTARTFRACHIP), zero);
+					apex_mem.Write<float>(wep_entity + pData + (offsets.SpreadStartFracADS ? offsets.SpreadStartFracADS : OFFSET_SPREADSTARTFRACADS), zero);
+					apex_mem.Write<float>(wep_entity + pData + (offsets.KickSpreadHipfire ? offsets.KickSpreadHipfire : OFFSET_KICKSPREADHIPFIRE), zero);
+					apex_mem.Write<float>(wep_entity + pData + (offsets.KickSpreadADS ? offsets.KickSpreadADS : OFFSET_KICKSPREADADS), zero);
+				}
+			}
+
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
 
@@ -1228,6 +1250,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr)) 
   printf("Read failed!\n"); 
 }
 
+uint64_t nospread_addr = 0;
+printf("Reading nospread address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, nospread_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1320,6 +1348,8 @@ while (vars_t)
         client_mem.Read<bool>(firing_range_addr, firing_range);
         //client_mem.Read<bool>(shooting_addr, shooting);
         client_mem.Read<bool>(onevone_addr, onevone);
+        if (nospread_addr)
+            client_mem.Read<bool>(nospread_addr, nospread);
 
         uint64_t skeleton_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 31, skeleton_addr);

@@ -117,3 +117,11 @@
 #define OFFSET_GRAPPLEATTACHED      0x48 //[RecvTable.DT_GrappleData].m_grappleAttached updated 2026/02/07
 #define OFFSET_m_xp		    0x3824 //[RecvTable.DT_Player].m_xp updated 2026/02/11
 #define OFFSET_GRADE 0x0348 //[RecvTable.DT_BaseEntity].m_grade updated 2025/02/25
+
+#define OFFSET_PLAYER_DATA 0x1660 //[DataMap.CWeaponX].m_playerData updated 2026/02/11
+#define OFFSET_MOVESPREAD 0x0008 //[RecvTable.DT_WeaponPlayerData].m_moveSpread updated 2026/02/11
+#define OFFSET_SPREADSTARTTIME 0x000c //[RecvTable.DT_WeaponPlayerData].m_spreadStartTime updated 2026/02/11
+#define OFFSET_SPREADSTARTFRACHIP 0x0010 //[RecvTable.DT_WeaponPlayerData].m_spreadStartFracHip updated 2026/02/11
+#define OFFSET_SPREADSTARTFRACADS 0x0014 //[RecvTable.DT_WeaponPlayerData].m_spreadStartFracADS updated 2026/02/11
+#define OFFSET_KICKSPREADHIPFIRE 0x0018 //[RecvTable.DT_WeaponPlayerData].m_kickSpreadHipfire updated 2026/02/11
+#define OFFSET_KICKSPREADADS 0x001c //[RecvTable.DT_WeaponPlayerData].m_kickSpreadADS updated 2026/02/11

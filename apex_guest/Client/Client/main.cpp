@@ -77,6 +77,7 @@ float max_smooth = 150.00f;
 
 bool firing_range = false;
 bool shooting = false; //read
+bool nospread = false;
 
 bool dump = false;
 bool update_offsets = false;
@@ -145,7 +146,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[35];//35
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -441,6 +442,7 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&nospread;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -523,6 +525,7 @@ int main(int argc, char** argv)
 				config >> max_smooth;
 				config >> min_cfsize;
 				config >> max_cfsize;
+				config >> std::boolalpha >> nospread;
 				config.close();
 			}
 		}
