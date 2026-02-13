@@ -69,7 +69,7 @@ FEATURES :
 
 <img src="https://github.com/albatror/adkv/blob/master/demo/settingsS.png" style="display: block; margin: auto;" />
 <img src="https://github.com/albatror/adkv/blob/master/demo/settingsS2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/Demo2.png" style="display: block; margin: auto;" />
+<img src="https://github.com/albatror/adkv/blob/master/demo/settingsFirst.png" style="display: block; margin: auto;" />
 <img src="https://github.com/albatror/adkv/blob/master/demo/settings.png" style="display: block; margin: auto;" />
 <img src="https://github.com/albatror/adkv/blob/master/demo/settingsN2.png" style="display: block; margin: auto;" />
 <img src="https://github.com/albatror/adkv/blob/master/demo/ingame1.png" style="display: block; margin: auto;" />
