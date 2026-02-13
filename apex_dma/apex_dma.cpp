@@ -252,13 +252,11 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		is_aimentity_visible = visible;
 	}
 
-	if (shooting && aimentity != 0)
+	if (aimentity != 0 && lock)
 	{
-		lastvis_aim[index] = target.lastVisTime();
-		return;
+		// Stick to target
 	}
-
-	if(aim==2)
+	else if (aim == 2)
 	{
 		if (visible && fov <= max_fov)
 		{
@@ -270,7 +268,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		}
 		else
 		{
-			if(aimentity == target.ptr && !shooting)
+			if (aimentity == target.ptr && !shooting)
 			{
 				aimentity = tmp_aimentity = lastaimentity = 0;
 			}
