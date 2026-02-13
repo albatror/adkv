@@ -14,6 +14,8 @@ extern bool use_nvidia;
 extern float max_dist;
 extern float smooth;
 extern float max_fov;
+extern float default_smooth;
+extern float default_fov;
 extern int bone;
 extern int spectators;
 extern int allied_spectators;
@@ -52,6 +54,8 @@ extern float glowcolorknocked[3];
 //DDS
 extern float min_max_fov;
 extern float max_max_fov;
+extern float min_cfsize;
+extern float max_cfsize;
 extern float min_smooth;
 extern float max_smooth;
 
@@ -188,10 +192,10 @@ void Overlay::RenderMenu()
 			ImGui::Text("%d meters", (int)(max_dist / 40));
 
 			ImGui::Text(XorStr("Smooth aim value:"));
-			ImGui::SliderFloat(XorStr("##2"), &smooth, 12.0f, 250.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 250.0f, "%.2f");
 
 			ImGui::Text(XorStr("Max FOV:"));
-			ImGui::SliderFloat(XorStr("##3"), &max_fov, 3.80f, 250.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 250.0f, "%.2f");
 			
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
@@ -203,10 +207,16 @@ void Overlay::RenderMenu()
 			ImGui::Text("%d meters", (int)(DDS / 40));
 			//TEST CONFIG DDS
 			//ImGui::Text(XorStr("EBD:"));
-			ImGui::SliderFloat(XorStr("##min_max_fov"), &min_max_fov, 3.80f, 250.0f, "%.2f");
+			if (ImGui::SliderFloat(XorStr("##min_max_fov"), &min_max_fov, 3.80f, 250.0f, "%.2f"))
+			{
+				min_cfsize = min_max_fov;
+			}
 			ImGui::SameLine();
 			ImGui::Text("Min Fov");
-			ImGui::SliderFloat(XorStr("##max_max_fov"), &max_max_fov, 3.80f, 250.0f, "%.2f");
+			if (ImGui::SliderFloat(XorStr("##max_max_fov"), &max_max_fov, 3.80f, 250.0f, "%.2f"))
+			{
+				max_cfsize = max_max_fov;
+			}
 			ImGui::SameLine();
 			ImGui::Text("Max Fov");
 			ImGui::SliderFloat(XorStr("##min_smooth"), &min_smooth, 12.0f, 250.0f, "%.2f");
@@ -266,50 +276,43 @@ void Overlay::RenderMenu()
 				ofstream config("Settings.txt");
 				if (config.is_open())
 				{
-					//config << std::boolalpha << firing_range << "\n";
 					config << aim << "\n";
 					config << std::boolalpha << esp << "\n";
-					//config << std::boolalpha << item_glow << "\n";
 					config << std::boolalpha << player_glow << "\n";
-					//config << std::boolalpha << aim_no_recoil << "\n";
 					config << max_dist << "\n";
-					//config << smooth << "\n";
-					//config << max_fov << "\n";
-					//config << bone << "\n";
+					config << default_smooth << "\n";
+					config << default_fov << "\n";
 					config << v.healthbar << "\n";
 					config << v.shieldbar << "\n";
 					config << v.distance << "\n";
-					//config << v.player_level << "\n";
 					config << v.line << "\n";
 					config << v.skeleton << "\n";
-					//config << cfsize << "\n";
-					//config << DDS << "\n";
-					//config << aiming << "\n";
 					config << glowr << "\n";
 					config << glowg << "\n";
 					config << glowb << "\n";
 					config << glowcolor[0] << "\n";
 					config << glowcolor[1] << "\n";
 					config << glowcolor[2] << "\n";
-					//glow visable
 					config << glowrviz << "\n";
 					config << glowgviz << "\n";
 					config << glowbviz << "\n";
 					config << glowcolorviz[0] << "\n";
 					config << glowcolorviz[1] << "\n";
 					config << glowcolorviz[2] << "\n";
-					//glow knocked
 					config << glowrknocked << "\n";
 					config << glowgknocked << "\n";
 					config << glowbknocked << "\n";
 					config << glowcolorknocked[0] << "\n";
 					config << glowcolorknocked[1] << "\n";
 					config << glowcolorknocked[2] << "\n";
-					//config << std::boolalpha << onevone;
+					config << std::boolalpha << firing_range << "\n";
+					config << DDS << "\n";
 					config << min_max_fov << "\n";
 					config << max_max_fov << "\n";
 					config << min_smooth << "\n";
 					config << max_smooth << "\n";
+					config << min_cfsize << "\n";
+					config << max_cfsize << "\n";
 					config.close();
 				}
 			}
@@ -320,50 +323,43 @@ void Overlay::RenderMenu()
 				ifstream config("Settings.txt");
 				if (config.is_open())
 				{
-					//config >> std::boolalpha >> firing_range >> "\n";
 					config >> aim;
 					config >> std::boolalpha >> esp;
-					//config >> std::boolalpha >> item_glow;
 					config >> std::boolalpha >> player_glow;
-					//config >> std::boolalpha >> aim_no_recoil;
 					config >> max_dist;
-					//config >> smooth;
-					//config >> max_fov;
-					//config >> bone;
+					config >> default_smooth;
+					config >> default_fov;
 					config >> v.healthbar;
 					config >> v.shieldbar;
 					config >> v.distance;
-					//config >> v.player_level;
 					config >> v.line;
 					config >> v.skeleton;
-					//config >> cfsize;
-					//config >> DDS;
-					//config >> aiming;
 					config >> glowr;
 					config >> glowg;
 					config >> glowb;
 					config >> glowcolor[0];
 					config >> glowcolor[1];
 					config >> glowcolor[2];
-					//glow visable
 					config >> glowrviz;
 					config >> glowgviz;
 					config >> glowbviz;
 					config >> glowcolorviz[0];
 					config >> glowcolorviz[1];
 					config >> glowcolorviz[2];
-					//glow knocked
 					config >> glowrknocked;
 					config >> glowgknocked;
 					config >> glowbknocked;
 					config >> glowcolorknocked[0];
 					config >> glowcolorknocked[1];
 					config >> glowcolorknocked[2];
-					//config >> std::boolalpha >> onevone;
+					config >> std::boolalpha >> firing_range;
+					config >> DDS;
 					config >> min_max_fov;
 					config >> max_max_fov;
 					config >> min_smooth;
 					config >> max_smooth;
+					config >> min_cfsize;
+					config >> max_cfsize;
 					config.close();
 				}
 			}
@@ -399,10 +395,10 @@ void Overlay::RenderInfo()
 	//ImGui::TextColored(GREEN, "%.0f", esp_distance / 39.62); //meters
 	ImGui::Text(XorStr("SMT"));
 	ImGui::SameLine();
-	ImGui::SliderFloat(XorStr("##2"), &smooth, 12.0f, 250.0f, "%.2f");
+	ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 250.0f, "%.2f");
 	ImGui::Text(XorStr("FOV"));
 	ImGui::SameLine();
-	ImGui::SliderFloat(XorStr("##3"), &max_fov, 3.80f, 250.0f, "%.2f");
+	ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 250.0f, "%.2f");
 
 	// Get the end position of the FOV slider
 	ImVec2 fovSliderEnd = ImGui::GetItemRectMax();

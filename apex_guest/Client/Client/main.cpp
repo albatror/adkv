@@ -56,6 +56,8 @@ float max_dist = 120.0f * 40.0f;
 //float esp_distance = 300.0f * 40.0f;
 float smooth = 200.00f;
 float max_fov = 3.80f;
+float default_smooth = 200.00f;
+float default_fov = 3.80f;
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
@@ -379,14 +381,14 @@ void Overlay::RenderEsp()
 					dds_active = true;
 				}
 				else {
-					max_fov = 3.80f;
-					smooth = 200.00f;
+					max_fov = default_fov;
+					smooth = default_smooth;
 					dds_active = false;
 				}
 			}
 			else {
-				max_fov = 3.80f;
-				smooth = 200.00f;
+				max_fov = default_fov;
+				smooth = default_smooth;
 				dds_active = false;
 			}
 			cfsize = max_fov;
@@ -464,6 +466,13 @@ int main(int argc, char** argv)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
+		if (!esp) {
+			smooth = default_smooth;
+			max_fov = default_fov;
+			cfsize = max_fov;
+			dds_active = false;
+		}
+
 		screen_width = ov1.getWidth();
 		screen_height = ov1.getHeight();
 		if (IsKeyDown(VK_F4))
@@ -477,51 +486,43 @@ int main(int argc, char** argv)
 			std::ifstream config("Settings.txt");
 			if (config.is_open())
 			{
-				//config >> std::boolalpha >> firing_range;
 				config >> aim;
 				config >> std::boolalpha >> esp;
-				//config >> std::boolalpha >> item_glow;
 				config >> std::boolalpha >> player_glow;
-				//config >> std::boolalpha >> aim_no_recoil;
 				config >> max_dist;
-				//config >> smooth;
-				//config >> max_fov;
-				//config >> bone;
+				config >> default_smooth;
+				config >> default_fov;
 				config >> v.healthbar;
 				config >> v.shieldbar;
 				config >> v.distance;
-				//config >> v.player_level;
 				config >> v.line;
 				config >> v.skeleton;
-				//config >> cfsize;
-				//config >> DDS;
-				//config >> aiming;
 				config >> glowr;
 				config >> glowg;
 				config >> glowb;
 				config >> glowcolor[0];
 				config >> glowcolor[1];
 				config >> glowcolor[2];
-				//glow visable
 				config >> glowrviz;
 				config >> glowgviz;
 				config >> glowbviz;
 				config >> glowcolorviz[0];
 				config >> glowcolorviz[1];
 				config >> glowcolorviz[2];
-				//glow knocked
 				config >> glowrknocked;
 				config >> glowgknocked;
 				config >> glowbknocked;
 				config >> glowcolorknocked[0];
 				config >> glowcolorknocked[1];
 				config >> glowcolorknocked[2];
-				config >> firing_range;
-				//config >> onevone;
+				config >> std::boolalpha >> firing_range;
+				config >> DDS;
 				config >> min_max_fov;
 				config >> max_max_fov;
 				config >> min_smooth;
 				config >> max_smooth;
+				config >> min_cfsize;
+				config >> max_cfsize;
 				config.close();
 			}
 		}
