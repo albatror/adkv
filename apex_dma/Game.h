@@ -101,11 +101,13 @@ public:
 class WeaponXEntity
 {
 public:
+	uint64_t ptr;
 	void update(uint64_t LocalPlayer);
 	float get_projectile_speed();
 	float get_projectile_gravity();
 	float get_zoom_fov();
 	int get_ammo();
+	void apply_nospread();
 	//const char *get_name_str();
 	//void updateAmmo(uint64_t LocalPlayer);
 

@@ -595,6 +595,7 @@ void WeaponXEntity::update(uint64_t LocalPlayer)
 
 	uint64_t wep_entity = 0;
     apex_mem.Read<uint64_t>(entitylist + (wephandle << 5), wep_entity);
+	ptr = wep_entity;
 
 	projectile_speed = 0;
     apex_mem.Read<float>(wep_entity + OFFSET_BULLET_SPEED, projectile_speed);
@@ -627,6 +628,15 @@ float WeaponXEntity::get_zoom_fov()
 int WeaponXEntity::get_ammo()
 {
 	return ammo;
+}
+
+void WeaponXEntity::apply_nospread()
+{
+	if (ptr == 0) return;
+	apex_mem.Write<float>(ptr + OFFSET_MOVESPREAD, 0.0f);
+	apex_mem.Write<float>(ptr + OFFSET_SPREADSTARTTIME, 0.0f);
+	apex_mem.Write<float>(ptr + OFFSET_SPREADSTARTFRAGHIP, 0.0f);
+	apex_mem.Write<float>(ptr + OFFSET_SPREADSTARTFRAGADS, 0.0f);
 }
 
 //const char *WeaponXEntity::get_name_str() { return name_str; }

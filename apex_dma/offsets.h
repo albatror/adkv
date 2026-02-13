@@ -78,6 +78,10 @@
 #define OFFSET_BULLET_SPEED 0x2860 //[Miscellaneous].CWeaponX!m_flProjectileSpeed updated 2026/02/07
 #define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x8 //[Miscellaneous].CWeaponX!m_flProjectileScale updated 2026/02/07
 #define OFFSET_ZOOM_FOV 0x1650 + 0xb8 //[RecvTable.DT_WeaponX].m_playerData + m_curZoomFOV updated 2025/02/25
+#define OFFSET_MOVESPREAD 0x1650 + 0x0008
+#define OFFSET_SPREADSTARTTIME 0x1650 + 0x000c
+#define OFFSET_SPREADSTARTFRAGHIP 0x1650 + 0x0010
+#define OFFSET_SPREADSTARTFRAGADS 0x1650 + 0x0014
 #define OFFSET_AMMO 0x15e0 //[RecvTable.DT_PropSurvival].m_ammoInClip updated 2026/02/11
  
 //#define OFFSET_ITEM_GLOW 0x02f0 //m_highlightFunctionBits

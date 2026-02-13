@@ -6,6 +6,7 @@
 using namespace std;
 extern int aim;
 extern bool esp;
+extern bool nospread;
 //extern bool item_glow;
 extern bool player_glow;
 extern bool aim_no_recoil;
@@ -165,6 +166,8 @@ void Overlay::RenderMenu()
 				ImGui::Checkbox(XorStr("Visibility check"), &vis_check);
 				ImGui::SameLine();
 				ImGui::Checkbox(XorStr("No recoil/sway"), &aim_no_recoil);
+				ImGui::SameLine();
+				ImGui::Checkbox(XorStr("No spread"), &nospread);
 				if (vis_check)
 				{
 					aim = 2;
@@ -360,6 +363,7 @@ void Overlay::RenderMenu()
 					config >> max_smooth;
 					config >> min_cfsize;
 					config >> max_cfsize;
+					config >> std::boolalpha >> nospread;
 					config.close();
 				}
 			}

@@ -34,6 +34,7 @@ bool skeleton = false;
 //bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
+bool nospread = false;
 bool aiming = false;
 
 extern float smooth;
@@ -568,6 +569,12 @@ if (isGrappling && grappleAttached == 1) {
 			kbutton_t in_attack_button;
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
 			shooting = (in_attack_button.state & 1) != 0;
+
+			if (nospread) {
+				WeaponXEntity curweap = WeaponXEntity();
+				curweap.update(LocalPlayer);
+				curweap.apply_nospread();
+			}
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;
@@ -1305,6 +1312,12 @@ while (vars_t)
         client_mem.Read<float>(max_dist_addr, max_dist);
         client_mem.Read<bool>(player_glow_addr, player_glow);
         client_mem.Read<bool>(aim_no_recoil_addr, aim_no_recoil);
+
+        uint64_t nospread_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, nospread_addr);
+        if (nospread_addr)
+            client_mem.Read<bool>(nospread_addr, nospread);
+
         client_mem.Read<float>(smooth_addr, smooth);
         client_mem.Read<float>(max_fov_addr, max_fov);
         client_mem.Read<int>(bone_addr, bone);
