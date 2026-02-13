@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <chrono>
 #include <thread>
+#include <cstdio>
 //test
 #include <string>
 #include <vector>
@@ -38,7 +39,7 @@ typedef struct spectator {
 	char name[33] = { 0 };
 }spectator;
 
-uint32_t check = 0xABCD;
+volatile uint32_t check = 0xABCD;
 
 int aim_key = VK_LBUTTON;
 int aim_key2 = VK_RBUTTON;
@@ -78,8 +79,8 @@ float max_smooth = 150.00f;
 bool firing_range = false;
 bool shooting = false; //read
 
-bool dump = false;
-bool update_offsets = false;
+volatile bool dump = false;
+volatile bool update_offsets = false;
 
 //bool bone_auto = true;
 //int shoot_key = VK_LBUTTON;
@@ -123,15 +124,34 @@ int allied_spectators = 0; //write
 int screen_width = 2560;
 int screen_height = 1440;
 
-char real_gpu_uuid[64] = { 0 };
-char fake_gpu_uuid[64] = { 0 };
-char fake_gpu_id[64] = { 0 };
+volatile char real_gpu_uuid[64] = { 0 };
+volatile char fake_gpu_uuid[64] = { 0 };
+volatile char fake_gpu_id[64] = { 0 };
+
+void UuidToBytes(const char* uuid, BYTE* bytes) {
+	const char* p = uuid;
+	if (strncmp(p, "GPU-", 4) == 0) p += 4;
+	int i = 0;
+	while (*p && i < 16) {
+		if (*p == '-') {
+			p++;
+			continue;
+		}
+		unsigned int val;
+		if (sscanf(p, "%02x", &val) == 1) {
+			bytes[i++] = (BYTE)val;
+		}
+		p += 2;
+	}
+}
 
 void UpdateRegistry(const char* uuid, const char* gpu_id)
 {
 	HKEY hKey;
 	char subkey[512];
 	bool success = false;
+	BYTE uuid_bytes[16] = { 0 };
+	UuidToBytes(uuid, uuid_bytes);
 
 	// 1. Standard Display Adapter Class
 	for (int i = 0; i < 10; i++) {
@@ -140,6 +160,8 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 		{
 			RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
 			RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+			RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
+			RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 			if (gpu_id[0] != 0) {
 				RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
 			}
@@ -157,6 +179,8 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 			snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\0000", guidName);
 			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
 				RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+				RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
+				RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 				if (gpu_id[0] != 0) {
 					RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
 				}
@@ -185,12 +209,12 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 					char instName[256];
 					DWORD instNameSize = sizeof(instName);
 					for (DWORD j = 0; RegEnumKeyExA(hDevKey, j, instName, &instNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; j++) {
-						snprintf(subkey, sizeof(subkey), "Device Parameters");
 						HKEY hParamKey;
 						if (RegOpenKeyExA(hDevKey, instName, 0, KEY_READ, &hParamKey) == ERROR_SUCCESS) {
 							HKEY hFinalKey;
 							if (RegOpenKeyExA(hParamKey, "Device Parameters", 0, KEY_SET_VALUE, &hFinalKey) == ERROR_SUCCESS) {
 								RegSetValueExA(hFinalKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+								RegSetValueExA(hFinalKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 								RegCloseKey(hFinalKey);
 							}
 							RegCloseKey(hParamKey);
@@ -207,6 +231,7 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 
 	if (success) {
 		printf("GPU Spoofing applied: %s\n", uuid);
+		printf("You can now start the game. Server connection will resume when game is detected.\n");
 	} else {
 		printf("Partial or failed GPU spoofing.\n");
 	}
@@ -229,8 +254,8 @@ float glowgknocked = 100.0f;
 float glowbknocked = 100.0f;
 float glowcolorknocked[3] = { 000.0f, 000.0f, 000.0f };
 
-bool valid = false; //write
-bool next = false; //read write
+volatile bool valid = false; //write
+volatile bool next = false; //read write
 
 int index = 0;
 
@@ -490,10 +515,10 @@ void Overlay::RenderEsp()
 int main(int argc, char** argv)
 {
 	// Get real GPU UUID
-	std::string uuid = nvre::get_gpu_uuid();
-	if (!uuid.empty()) {
-		strncpy(real_gpu_uuid, uuid.c_str(), sizeof(real_gpu_uuid) - 1);
-		printf("Real GPU UUID: %s\n", real_gpu_uuid);
+	std::string uuid_str = nvre::get_gpu_uuid();
+	if (!uuid_str.empty()) {
+		strncpy((char*)real_gpu_uuid, uuid_str.c_str(), sizeof(real_gpu_uuid) - 1);
+		printf("Real GPU UUID: %s\n", (char*)real_gpu_uuid);
 	}
 
 	add[0] = (uintptr_t)&check;
@@ -564,7 +589,7 @@ int main(int argc, char** argv)
 		std::thread([&]() {
 			while (active) {
 				if (fake_gpu_uuid[0] != 0) {
-					UpdateRegistry(fake_gpu_uuid, fake_gpu_id);
+					UpdateRegistry((char*)fake_gpu_uuid, (char*)fake_gpu_id);
 					break;
 				}
 				std::this_thread::sleep_for(std::chrono::seconds(1));
