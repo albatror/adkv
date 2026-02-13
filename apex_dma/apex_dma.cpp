@@ -1288,12 +1288,57 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+		if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
 			printf("\nReady\n");
 		}
+
+        uint64_t real_gpu_uuid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, real_gpu_uuid_addr);
+        uint64_t fake_gpu_uuid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, fake_gpu_uuid_addr);
+        uint64_t fake_gpu_id_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, fake_gpu_id_addr);
+
+        if (real_gpu_uuid_addr && fake_gpu_uuid_addr && fake_gpu_id_addr) {
+            char real_uuid[64] = { 0 };
+            client_mem.ReadArray<char>(real_gpu_uuid_addr, real_uuid, 64);
+            if (real_uuid[0] != 0) {
+                char fake_uuid_check[64] = { 0 };
+                client_mem.ReadArray<char>(fake_gpu_uuid_addr, fake_uuid_check, 64);
+                if (fake_uuid_check[0] == 0) {
+                    printf("Real GPU UUID received: %s\n", real_uuid);
+
+                    // Generate fake UUID
+                    static const char* chars = "0123456789ABCDEF";
+                    std::string fake_uuid = "GPU-";
+                    std::string fake_id = "";
+                    std::random_device rd;
+                    std::mt19937 gen(rd());
+                    std::uniform_int_distribution<> dis(0, 15);
+
+                    for (int i = 0; i < 8; ++i) fake_uuid += chars[dis(gen)];
+                    fake_uuid += "-";
+                    for (int i = 0; i < 4; ++i) fake_uuid += chars[dis(gen)];
+                    fake_uuid += "-";
+                    for (int i = 0; i < 4; ++i) fake_uuid += chars[dis(gen)];
+                    fake_uuid += "-";
+                    for (int i = 0; i < 4; ++i) fake_uuid += chars[dis(gen)];
+                    fake_uuid += "-";
+                    for (int i = 0; i < 12; ++i) fake_uuid += chars[dis(gen)];
+
+                    // Generate fake GPU ID (NvidiaBoardId style - often 8 hex chars)
+                    for (int i = 0; i < 8; ++i) fake_id += chars[dis(gen)];
+
+                    printf("Generated fake GPU UUID: %s\n", fake_uuid.c_str());
+                    printf("Generated fake GPU ID: %s\n", fake_id.c_str());
+                    client_mem.WriteArray<char>(fake_gpu_uuid_addr, (char*)fake_uuid.c_str(), (size_t)fake_uuid.size() + 1);
+                    client_mem.WriteArray<char>(fake_gpu_id_addr, (char*)fake_id.c_str(), (size_t)fake_id.size() + 1);
+                }
+            }
+        }
 
     while (c_Base != 0 && g_Base != 0)
     {
@@ -1371,50 +1416,6 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
-        uint64_t real_gpu_uuid_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, real_gpu_uuid_addr);
-        uint64_t fake_gpu_uuid_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, fake_gpu_uuid_addr);
-        uint64_t fake_gpu_id_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, fake_gpu_id_addr);
-
-        if (real_gpu_uuid_addr && fake_gpu_uuid_addr && fake_gpu_id_addr) {
-            char real_uuid[64] = { 0 };
-            client_mem.ReadArray<char>(real_gpu_uuid_addr, real_uuid, 64);
-            if (real_uuid[0] != 0) {
-                char fake_uuid_check[64] = { 0 };
-                client_mem.ReadArray<char>(fake_gpu_uuid_addr, fake_uuid_check, 64);
-                if (fake_uuid_check[0] == 0) {
-                    printf("Real GPU UUID received: %s\n", real_uuid);
-
-                    // Generate fake UUID
-                    static const char* chars = "0123456789ABCDEF";
-                    std::string fake_uuid = "GPU-";
-                    std::string fake_id = "";
-                    std::random_device rd;
-                    std::mt19937 gen(rd());
-                    std::uniform_int_distribution<> dis(0, 15);
-
-                    for (int i = 0; i < 8; ++i) fake_uuid += chars[dis(gen)];
-                    fake_uuid += "-";
-                    for (int i = 0; i < 4; ++i) fake_uuid += chars[dis(gen)];
-                    fake_uuid += "-";
-                    for (int i = 0; i < 4; ++i) fake_uuid += chars[dis(gen)];
-                    fake_uuid += "-";
-                    for (int i = 0; i < 4; ++i) fake_uuid += chars[dis(gen)];
-                    fake_uuid += "-";
-                    for (int i = 0; i < 12; ++i) fake_uuid += chars[dis(gen)];
-
-                    // Generate fake GPU ID (NvidiaBoardId style - often 8 hex chars)
-                    for (int i = 0; i < 8; ++i) fake_id += chars[dis(gen)];
-
-                    printf("Generated fake GPU UUID: %s\n", fake_uuid.c_str());
-                    printf("Generated fake GPU ID: %s\n", fake_id.c_str());
-                    client_mem.WriteArray<char>(fake_gpu_uuid_addr, (char*)fake_uuid.c_str(), fake_uuid.size() + 1);
-                    client_mem.WriteArray<char>(fake_gpu_id_addr, (char*)fake_id.c_str(), fake_id.size() + 1);
-                }
-            }
-        }
 
         if (esp && next)
         {

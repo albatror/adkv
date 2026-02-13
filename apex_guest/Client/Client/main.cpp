@@ -130,34 +130,32 @@ char fake_gpu_id[64] = { 0 };
 void UpdateRegistry(const char* uuid, const char* gpu_id)
 {
 	HKEY hKey;
-	char subkey[256];
+	char subkey[512];
 	bool success = false;
 
-	// Iterate through 0000, 0001, 0002... to find active display adapters
+	// 1. Standard Display Adapter Class
 	for (int i = 0; i < 10; i++) {
 		snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%04d", i);
 		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS)
 		{
-			if (RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1)) == ERROR_SUCCESS) {
-				printf("Registry updated for %04d: %s\n", i, uuid);
-				success = true;
-			}
+			RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+			RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
 			if (gpu_id[0] != 0) {
 				RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
 			}
 			RegCloseKey(hKey);
+			success = true;
 		}
 	}
 
-	// Also spoof in Control\Video for older/alternative paths
+	// 2. Control\Video
 	HKEY hVideoKey;
 	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
 		char guidName[256];
 		DWORD guidNameSize = sizeof(guidName);
 		for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, guidName, &guidNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; i++) {
-			char videoSubkey[512];
-			snprintf(videoSubkey, sizeof(videoSubkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\0000", guidName);
-			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, videoSubkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
+			snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\0000", guidName);
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
 				RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
 				if (gpu_id[0] != 0) {
 					RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
@@ -169,8 +167,48 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 		RegCloseKey(hVideoKey);
 	}
 
-	if (!success) {
-		printf("Failed to open any registry key for spoofing.\n");
+	// 3. Software\NVIDIA Corporation
+	if (RegCreateKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
+		RegSetValueExA(hKey, "GpuUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+		RegCloseKey(hKey);
+	}
+
+	// 4. PCI Enum - Find NVIDIA GPUs
+	HKEY hPCIKey;
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\PCI", 0, KEY_READ, &hPCIKey) == ERROR_SUCCESS) {
+		char venName[256];
+		DWORD venNameSize = sizeof(venName);
+		for (DWORD i = 0; RegEnumKeyExA(hPCIKey, i, venName, &venNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; i++) {
+			if (strstr(venName, "VEN_10DE") != NULL) { // NVIDIA Vendor ID
+				HKEY hDevKey;
+				if (RegOpenKeyExA(hPCIKey, venName, 0, KEY_READ, &hDevKey) == ERROR_SUCCESS) {
+					char instName[256];
+					DWORD instNameSize = sizeof(instName);
+					for (DWORD j = 0; RegEnumKeyExA(hDevKey, j, instName, &instNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; j++) {
+						snprintf(subkey, sizeof(subkey), "Device Parameters");
+						HKEY hParamKey;
+						if (RegOpenKeyExA(hDevKey, instName, 0, KEY_READ, &hParamKey) == ERROR_SUCCESS) {
+							HKEY hFinalKey;
+							if (RegOpenKeyExA(hParamKey, "Device Parameters", 0, KEY_SET_VALUE, &hFinalKey) == ERROR_SUCCESS) {
+								RegSetValueExA(hFinalKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+								RegCloseKey(hFinalKey);
+							}
+							RegCloseKey(hParamKey);
+						}
+						instNameSize = sizeof(instName);
+					}
+					RegCloseKey(hDevKey);
+				}
+			}
+			venNameSize = sizeof(venName);
+		}
+		RegCloseKey(hPCIKey);
+	}
+
+	if (success) {
+		printf("GPU Spoofing applied: %s\n", uuid);
+	} else {
+		printf("Partial or failed GPU spoofing.\n");
 	}
 }
 
