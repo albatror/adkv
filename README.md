@@ -19,7 +19,7 @@ That's made to work on QEMU/KVM, so we dont talk about Linux Host, Windows VM, p
 - Now include libmemflow_kvm.so, libmemflow_qemu.so and libmemflow_win32.so in build folder after success build
 - Now include Skeleton ESP
 - Now include Offsets Dumper (Full dump and update offsets.ini)
-- [i]Now Fix small bugs during save and changes in settings from Overlay menu[/i]
+- Now Fix small bugs during save and changes in settings from Overlay menu
 
 INSTALL :
  - Download sources from there *.zip or git
