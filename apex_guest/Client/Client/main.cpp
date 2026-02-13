@@ -1,6 +1,4 @@
 #include "main.h"
-#include "nv_gpu.h"
-#include <random>
 #include <Windows.h>
 #include <chrono>
 #include <thread>
@@ -124,130 +122,8 @@ int allied_spectators = 0; //write
 int screen_width = 2560;
 int screen_height = 1440;
 
-volatile char real_gpu_uuid[64] = { 0 };
 volatile char fake_gpu_uuid[64] = { 0 };
 volatile char fake_gpu_id[64] = { 0 };
-
-void UuidToBytes(const char* uuid, BYTE* bytes) {
-	const char* p = uuid;
-	if (strncmp(p, "GPU-", 4) == 0) p += 4;
-	int i = 0;
-	while (*p && i < 16) {
-		if (*p == '-') {
-			p++;
-			continue;
-		}
-		unsigned int val;
-		if (sscanf(p, "%02x", &val) == 1) {
-			bytes[i++] = (BYTE)val;
-		}
-		p += 2;
-	}
-}
-
-void UpdateRegistry(const char* uuid, const char* gpu_id)
-{
-	HKEY hKey;
-	char subkey[512];
-	bool success = false;
-	BYTE uuid_bytes[16] = { 0 };
-	UuidToBytes(uuid, uuid_bytes);
-
-	// 1. Standard Display Adapter Class
-	for (int i = 0; i < 20; i++) {
-		snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%04d", i);
-		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS)
-		{
-			RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-			RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-			RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-			RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-			if (gpu_id[0] != 0) {
-				RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
-			}
-			RegCloseKey(hKey);
-			success = true;
-		}
-	}
-
-	// 2. Control\Video
-	HKEY hVideoKey;
-	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
-		char guidName[256];
-		DWORD guidNameSize = sizeof(guidName);
-		for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, guidName, &guidNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; i++) {
-			for (int j = 0; j < 10; j++) {
-				snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\%04d", guidName, j);
-				if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
-					RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-					RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-					RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-					RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-					if (gpu_id[0] != 0) {
-						RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
-					}
-					RegCloseKey(hKey);
-				}
-			}
-			guidNameSize = sizeof(guidName);
-		}
-		RegCloseKey(hVideoKey);
-	}
-
-	// 3. Software\NVIDIA Corporation
-	if (RegCreateKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
-		RegSetValueExA(hKey, "GpuUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-		RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-		RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-		RegCloseKey(hKey);
-	}
-
-	// 4. PCI Enum - Find NVIDIA GPUs
-	HKEY hPCIKey;
-	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\PCI", 0, KEY_READ, &hPCIKey) == ERROR_SUCCESS) {
-		char venName[256];
-		DWORD venNameSize = sizeof(venName);
-		for (DWORD i = 0; RegEnumKeyExA(hPCIKey, i, venName, &venNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; i++) {
-			if (strstr(venName, "VEN_10DE") != NULL) { // NVIDIA Vendor ID
-				HKEY hDevKey;
-				if (RegOpenKeyExA(hPCIKey, venName, 0, KEY_READ, &hDevKey) == ERROR_SUCCESS) {
-					char instName[256];
-					DWORD instNameSize = sizeof(instName);
-					for (DWORD j = 0; RegEnumKeyExA(hDevKey, j, instName, &instNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; j++) {
-						HKEY hParamKey;
-						if (RegOpenKeyExA(hDevKey, instName, 0, KEY_READ, &hParamKey) == ERROR_SUCCESS) {
-							HKEY hFinalKey;
-							if (RegOpenKeyExA(hParamKey, "Device Parameters", 0, KEY_SET_VALUE, &hFinalKey) == ERROR_SUCCESS) {
-								RegSetValueExA(hFinalKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-								RegSetValueExA(hFinalKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-								RegCloseKey(hFinalKey);
-							}
-							RegCloseKey(hParamKey);
-						}
-						instNameSize = sizeof(instName);
-					}
-					RegCloseKey(hDevKey);
-				}
-			}
-			venNameSize = sizeof(venName);
-		}
-		RegCloseKey(hPCIKey);
-	}
-
-	// 5. nvlddmkm Parameters
-	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm\\Parameters", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
-		RegSetValueExA(hKey, "GpuUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-		RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
-		RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
-		RegCloseKey(hKey);
-	}
-
-	if (success) {
-		printf("GPU Spoofing applied: %s\n", uuid);
-	} else {
-		printf("Partial or failed GPU spoofing.\n");
-	}
-}
 
 //Player Glow Color and Brightness
 float glowr = 100.0f; //Red Value
@@ -291,17 +167,6 @@ bool IsKeyDown(int vk)
 	return (GetAsyncKeyState(vk) & 0x8000) != 0;
 }
 
-bool IsAdmin() {
-	BOOL isAdmin = FALSE;
-	PSID adminGroup = NULL;
-	SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
-	if (AllocateAndInitializeSid(&ntAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID,
-		DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &adminGroup)) {
-		CheckTokenMembership(NULL, adminGroup, &isAdmin);
-		FreeSid(adminGroup);
-	}
-	return isAdmin;
-}
 
 player players[100];
 
@@ -538,18 +403,6 @@ void Overlay::RenderEsp()
 
 int main(int argc, char** argv)
 {
-	if (!IsAdmin()) {
-		printf("Error: This program must be run as Administrator for GPU spoofing.\n");
-		return 1;
-	}
-
-	// Get real GPU UUID
-	std::string uuid_str = nvre::get_gpu_uuid();
-	if (!uuid_str.empty()) {
-		strncpy((char*)real_gpu_uuid, uuid_str.c_str(), sizeof(real_gpu_uuid) - 1);
-		printf("Real GPU UUID: %s\n", (char*)real_gpu_uuid);
-	}
-
 	add[0] = (uintptr_t)&check;
 	add[1] = (uintptr_t)&aim;
 	add[2] = (uintptr_t)&esp;
@@ -591,7 +444,7 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
-	add[34] = (uintptr_t)&real_gpu_uuid[0];
+	add[34] = (uintptr_t)NULL;
 	add[35] = (uintptr_t)&fake_gpu_uuid[0];
 	add[36] = (uintptr_t)&fake_gpu_id[0];
 
@@ -600,7 +453,7 @@ int main(int argc, char** argv)
 	Overlay ov1 = Overlay();
 	ov1.Start();
 	printf(XorStr("Waiting for host process...\n"));
-	while (check == 0xABCD || fake_gpu_uuid[0] == 0)
+	while (check == 0xABCD)
 	{
 		if (IsKeyDown(VK_F4))
 		{
@@ -611,10 +464,8 @@ int main(int argc, char** argv)
 	}
 	if (active)
 	{
-		UpdateRegistry((char*)fake_gpu_uuid, (char*)fake_gpu_id);
 		ready = true;
 		printf(XorStr("Ready\n"));
-		printf("You can now start the game. Server connection will resume when game is detected.\n");
 	}
 		
 	while (active)

@@ -42,6 +42,7 @@ inline bool isMatch(const PBYTE addr, const PBYTE pat, const PBYTE msk)
 }
 
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern);
+bool kernel_init(Inventory *inv, const char *connector_name);
 
 typedef struct Process
 {
