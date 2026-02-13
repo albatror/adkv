@@ -1435,6 +1435,12 @@ void GpuSpoof()
 		mf_inventory_free(inv);
 	}
 
+	if (!kernel)
+	{
+		printf("Error: Kernel not initialized, spoofing aborted.\n");
+		return;
+	}
+
 	// Generate fake UUID
 	static const char *chars = "0123456789ABCDEF";
 	global_fake_uuid = "GPU-";
@@ -1470,10 +1476,13 @@ void GpuSpoof()
 
 	for (uint64_t pa = 0; pa < MAX_PHYADDR; pa += chunk_size)
 	{
+		if (pa % (1024ULL * 1024ULL * 1024ULL) == 0 && pa > 0)
+			printf("Scanning... %llu GB\n", (unsigned long long)(pa / (1024ULL * 1024ULL * 1024ULL)));
+
 		CSliceMut<uint8_t> slice((char *)buffer, chunk_size);
 		if (phys.read_raw_into(pa, slice) == 0)
 		{
-			for (size_t i = 0; i < chunk_size; i++)
+			for (size_t i = 0; i < chunk_size - 40; i++)
 			{
 				if (buffer[i] == 'G' && buffer[i + 1] == 'P' && buffer[i + 2] == 'U' && buffer[i + 3] == '-')
 				{
@@ -1499,7 +1508,7 @@ void GpuSpoof()
 					if (is_uuid)
 					{
 						real_uuid.assign((char *)&buffer[i], 40);
-						printf("Real GPU UUID found in guest memory: %s\n", real_uuid.c_str());
+						printf("Real GPU UUID found in guest memory at 0x%lx: %s\n", pa + i, real_uuid.c_str());
 						goto found;
 					}
 				}

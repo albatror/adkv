@@ -14,8 +14,8 @@ typedef unsigned long DWORD;
 typedef unsigned short WORD;
 typedef WORD *PWORD;
 
-static std::unique_ptr<ConnectorInstance<>> conn = nullptr;
-static std::unique_ptr<OsInstance<>> kernel = nullptr;
+extern std::unique_ptr<ConnectorInstance<>> conn;
+extern std::unique_ptr<OsInstance<>> kernel;
 
 // set MAX_PHYADDR to a reasonable value, larger values will take more time to traverse.
 constexpr uint64_t MAX_PHYADDR = 0xFFFFFFFFF;
