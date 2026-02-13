@@ -19,6 +19,7 @@ That's made to work on QEMU/KVM, so we dont talk about Linux Host, Windows VM, p
 - Now include libmemflow_kvm.so, libmemflow_qemu.so and libmemflow_win32.so in build folder after success build
 - Now include Skeleton ESP
 - Now include Offsets Dumper (Full dump and update offsets.ini)
+- [i]Now Fix small bugs during save and changes in settings from Overlay menu[/i]
 
 INSTALL :
  - Download sources from there *.zip or git
@@ -27,7 +28,7 @@ INSTALL :
  - Install memflow with the famous curl --proto '=https' --tlsv1.2 -sSf https://sh.memflow.io/ | sh (dont forget to add your USER)
  - execute : sudo modprobe memflow (at every start of the host - can be added with cron ..)
  - Compile with the build.sh to see if any errors.
- - When build is ok without errors, start Overlay (obfuscated) then Client (obfuscated)
+ - When build is ok without errors, start Overlay (obfuscated by yourself before using direct code not included or VMP/Themida..) then Client (obfuscated by yourself before using direct code not included or VMP/Themida..)
 
  - Take the offset in the console and copy it then close Client and Overlay by pressing F4
  - Open apex_dma.cpp with editor then find uint64_t add_off = 0X0000000; at the end and replace with the offset from Client console : uint64_t add_off = YOUR_OFFSET; (You have to do that the first time after install only)
@@ -51,12 +52,12 @@ FEATURES :
  - Added "Lock On Target" feature. This feature prevents the aimbot from switching targets mid-fight, focusing on the first enemy targeted as long as the aim button is held. Can be choose in Overlay menu.
  - Added Offsets Dumper (Full dump and update offsets.ini)
  - Added a visual DOT to know if you're connected on the server (GREEN DOT) or disconnected (RED DOT)
- - Added the BruteForce and optimization CR3/DTB fix by MisterY
+ - Added the BruteForce and optimization CR3/DTB fix by MisterY - Stable CR3 > Windows 22H2
  - Press F1 (To Activate GloW, ESP Seer Health/Shield and Aimbot based on default conf)
- - Dynamic FOV/AIM/SMOOTH [70m by default] Process Updated & Optimized 04/12/2024 - Settings added in overlay
- - AutoSuperGlide (nothing to do, it do for you :) ) !Someone tell me to check that, i will.
- - AutoWallJump updated (Slide then jump on a wall, dont touch anything else and it'll auto-walljump)
- - Offsets Dumper included - F9 to full dump offsets and F10 for update. Thanks & Crédits to to Apex-CV
+ - DDS : Dynamic FOV/AIM/SMOOTH [70m by default]
+ - AutoSuperGlide (nothing to do, it do for you :) ) [NEED TO BE REVIEWED].
+ - AutoWallJump updated (Slide then jump on a wall, dont touch anything else and it'll auto-walljump) [NEED TO BE REVIEWED]
+ - Offsets Dumper included - F9 to full dump offsets and F10 for update. Offsets will be in apex_dma/build/r5dumper. Thanks & Crédits to to Apex-CV
 
  * 1V1 (Temporay disable)
  * Training with dummies (Temporay disable)
