@@ -1,7 +1,9 @@
 #include "main.h"
+#include "nv_gpu.h"
 #include <random>
 #include <Windows.h>
-//#include <chrono>
+#include <chrono>
+#include <thread>
 //test
 #include <string>
 #include <vector>
@@ -121,6 +123,57 @@ int allied_spectators = 0; //write
 int screen_width = 2560;
 int screen_height = 1440;
 
+char real_gpu_uuid[64] = { 0 };
+char fake_gpu_uuid[64] = { 0 };
+char fake_gpu_id[64] = { 0 };
+
+void UpdateRegistry(const char* uuid, const char* gpu_id)
+{
+	HKEY hKey;
+	char subkey[256];
+	bool success = false;
+
+	// Iterate through 0000, 0001, 0002... to find active display adapters
+	for (int i = 0; i < 10; i++) {
+		snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%04d", i);
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS)
+		{
+			if (RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1)) == ERROR_SUCCESS) {
+				printf("Registry updated for %04d: %s\n", i, uuid);
+				success = true;
+			}
+			if (gpu_id[0] != 0) {
+				RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
+			}
+			RegCloseKey(hKey);
+		}
+	}
+
+	// Also spoof in Control\Video for older/alternative paths
+	HKEY hVideoKey;
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
+		char guidName[256];
+		DWORD guidNameSize = sizeof(guidName);
+		for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, guidName, &guidNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; i++) {
+			char videoSubkey[512];
+			snprintf(videoSubkey, sizeof(videoSubkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\0000", guidName);
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, videoSubkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
+				RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+				if (gpu_id[0] != 0) {
+					RegSetValueExA(hKey, "NvidiaBoardId", 0, REG_SZ, (const BYTE*)gpu_id, (DWORD)(strlen(gpu_id) + 1));
+				}
+				RegCloseKey(hKey);
+			}
+			guidNameSize = sizeof(guidName);
+		}
+		RegCloseKey(hVideoKey);
+	}
+
+	if (!success) {
+		printf("Failed to open any registry key for spoofing.\n");
+	}
+}
+
 //Player Glow Color and Brightness
 float glowr = 100.0f; //Red Value
 float glowg = 0.0f; //Green Value
@@ -143,7 +196,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[38];//38
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -398,6 +451,13 @@ void Overlay::RenderEsp()
 
 int main(int argc, char** argv)
 {
+	// Get real GPU UUID
+	std::string uuid = nvre::get_gpu_uuid();
+	if (!uuid.empty()) {
+		strncpy(real_gpu_uuid, uuid.c_str(), sizeof(real_gpu_uuid) - 1);
+		printf("Real GPU UUID: %s\n", real_gpu_uuid);
+	}
+
 	add[0] = (uintptr_t)&check;
 	add[1] = (uintptr_t)&aim;
 	add[2] = (uintptr_t)&esp;
@@ -439,6 +499,9 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&real_gpu_uuid[0];
+	add[35] = (uintptr_t)&fake_gpu_uuid[0];
+	add[36] = (uintptr_t)&fake_gpu_id[0];
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -458,6 +521,17 @@ int main(int argc, char** argv)
 	{
 		ready = true;
 		printf(XorStr("Ready\n"));
+
+		// Wait for fake UUID from server and apply it
+		std::thread([&]() {
+			while (active) {
+				if (fake_gpu_uuid[0] != 0) {
+					UpdateRegistry(fake_gpu_uuid, fake_gpu_id);
+					break;
+				}
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+		}).detach();
 	}
 		
 	while (active)
