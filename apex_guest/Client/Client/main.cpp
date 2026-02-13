@@ -154,7 +154,7 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 	UuidToBytes(uuid, uuid_bytes);
 
 	// 1. Standard Display Adapter Class
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 20; i++) {
 		snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%04d", i);
 		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS)
 		{
@@ -179,6 +179,7 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 			snprintf(subkey, sizeof(subkey), "SYSTEM\\CurrentControlSet\\Control\\Video\\%s\\0000", guidName);
 			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subkey, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
 				RegSetValueExA(hKey, "GPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+				RegSetValueExA(hKey, "NVIDIAGPUUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
 				RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 				RegSetValueExA(hKey, "GPUV_0000_NV_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
 				if (gpu_id[0] != 0) {
@@ -229,9 +230,15 @@ void UpdateRegistry(const char* uuid, const char* gpu_id)
 		RegCloseKey(hPCIKey);
 	}
 
+	// 5. nvlddmkm Parameters
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm\\Parameters", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
+		RegSetValueExA(hKey, "GpuUUID", 0, REG_SZ, (const BYTE*)uuid, (DWORD)(strlen(uuid) + 1));
+		RegSetValueExA(hKey, "NVIDIA_ProductUUID", 0, REG_BINARY, uuid_bytes, 16);
+		RegCloseKey(hKey);
+	}
+
 	if (success) {
 		printf("GPU Spoofing applied: %s\n", uuid);
-		printf("You can now start the game. Server connection will resume when game is detected.\n");
 	} else {
 		printf("Partial or failed GPU spoofing.\n");
 	}
@@ -277,6 +284,18 @@ bool k_f11 = 0;
 bool IsKeyDown(int vk)
 {
 	return (GetAsyncKeyState(vk) & 0x8000) != 0;
+}
+
+bool IsAdmin() {
+	BOOL isAdmin = FALSE;
+	PSID adminGroup = NULL;
+	SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
+	if (AllocateAndInitializeSid(&ntAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID,
+		DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &adminGroup)) {
+		CheckTokenMembership(NULL, adminGroup, &isAdmin);
+		FreeSid(adminGroup);
+	}
+	return isAdmin;
 }
 
 player players[100];
@@ -514,6 +533,11 @@ void Overlay::RenderEsp()
 
 int main(int argc, char** argv)
 {
+	if (!IsAdmin()) {
+		printf("Error: This program must be run as Administrator for GPU spoofing.\n");
+		return 1;
+	}
+
 	// Get real GPU UUID
 	std::string uuid_str = nvre::get_gpu_uuid();
 	if (!uuid_str.empty()) {
@@ -571,7 +595,7 @@ int main(int argc, char** argv)
 	Overlay ov1 = Overlay();
 	ov1.Start();
 	printf(XorStr("Waiting for host process...\n"));
-	while (check == 0xABCD)
+	while (check == 0xABCD || fake_gpu_uuid[0] == 0)
 	{
 		if (IsKeyDown(VK_F4))
 		{
@@ -582,19 +606,10 @@ int main(int argc, char** argv)
 	}
 	if (active)
 	{
+		UpdateRegistry((char*)fake_gpu_uuid, (char*)fake_gpu_id);
 		ready = true;
 		printf(XorStr("Ready\n"));
-
-		// Wait for fake UUID from server and apply it
-		std::thread([&]() {
-			while (active) {
-				if (fake_gpu_uuid[0] != 0) {
-					UpdateRegistry((char*)fake_gpu_uuid, (char*)fake_gpu_id);
-					break;
-				}
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
-		}).detach();
+		printf("You can now start the game. Server connection will resume when game is detected.\n");
 	}
 		
 	while (active)

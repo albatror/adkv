@@ -1288,12 +1288,6 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0)
-		{
-			client_mem.Write<uint32_t>(check_addr, 0);
-			new_client = false;
-			printf("\nReady\n");
-		}
 
         uint64_t real_gpu_uuid_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, real_gpu_uuid_addr);
@@ -1302,7 +1296,7 @@ while (vars_t)
         uint64_t fake_gpu_id_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, fake_gpu_id_addr);
 
-        if (real_gpu_uuid_addr && fake_gpu_uuid_addr && fake_gpu_id_addr) {
+        if (new_client && real_gpu_uuid_addr && fake_gpu_uuid_addr && fake_gpu_id_addr) {
             char real_uuid[64] = { 0 };
             client_mem.ReadArray<char>(real_gpu_uuid_addr, real_uuid, 64);
             if (real_uuid[0] != 0) {
@@ -1311,8 +1305,8 @@ while (vars_t)
                 if (fake_uuid_check[0] == 0) {
                     printf("Real GPU UUID received: %s\n", real_uuid);
 
-                    // Generate fake UUID
-                    static const char* chars = "0123456789ABCDEF";
+                    // Generate fake UUID (using lowercase to match nvidia-smi)
+                    static const char* chars = "0123456789abcdef";
                     std::string fake_uuid = "GPU-";
                     std::string fake_id = "";
                     std::random_device rd;
@@ -1336,6 +1330,11 @@ while (vars_t)
                     printf("Generated fake GPU ID: %s\n", fake_id.c_str());
                     client_mem.WriteArray<char>(fake_gpu_uuid_addr, (char*)fake_uuid.c_str(), (size_t)fake_uuid.size() + 1);
                     client_mem.WriteArray<char>(fake_gpu_id_addr, (char*)fake_id.c_str(), (size_t)fake_id.size() + 1);
+
+                    // Now that UUID is written, signal the client it can proceed
+                    client_mem.Write<uint32_t>(check_addr, 0);
+                    new_client = false;
+                    printf("\nReady\n");
                 }
             }
         }
@@ -1452,11 +1451,11 @@ int main(int argc, char *argv[])
 	}
 
 	const char* cl_proc = "Client.exe";
-	const char* ap_proc = "r5apex_dx12.ex";
+	const char* ap_proc = "r5apex_dx12.exe";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x29da80;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
