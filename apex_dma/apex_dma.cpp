@@ -81,6 +81,12 @@ float glowbviz = 0; //Blue 0-255, higher is brighter color.
 float glowrknocked = 0; //Red 0-255, higher is brighter color.
 float glowgknocked = 0; //Green 0-255, higher is brighter color.
 float glowbknocked = 1; //Blue 0-255, higher is brighter color.
+
+bool spectator_weapon_glow = false;
+float spec_glowr = 1.0f;
+float spec_glowg = 0.0f;
+float spec_glowb = 0.0f;
+
 //Item Configs
 //loot Fill
 //unsigned char lootfilled = 5;  //0 no fill, 14 100% fill
@@ -671,6 +677,18 @@ if (isGrappling && grappleAttached == 1) {
 
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
+
+			WeaponXEntity curweap = WeaponXEntity();
+			curweap.update(LocalPlayer);
+			if (spectator_weapon_glow && spectators > 0)
+			{
+				std::array<float, 3> spec_highlightParameter = { spec_glowr, spec_glowg, spec_glowb };
+				curweap.enableGlow(10, spec_highlightParameter);
+			}
+			else
+			{
+				curweap.disableGlow();
+			}
 
 			if (!lock){
 				aimentity = tmp_aimentity;
@@ -1317,6 +1335,27 @@ while (vars_t)
         client_mem.Read<float>(glowrknocked_addr, glowrknocked);
         client_mem.Read<float>(glowgknocked_addr, glowgknocked);
         client_mem.Read<float>(glowbknocked_addr, glowbknocked);
+
+        uint64_t spec_weapon_glow_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, spec_weapon_glow_addr);
+        if (spec_weapon_glow_addr)
+            client_mem.Read<bool>(spec_weapon_glow_addr, spectator_weapon_glow);
+
+        uint64_t spec_glowr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, spec_glowr_addr);
+        if (spec_glowr_addr)
+            client_mem.Read<float>(spec_glowr_addr, spec_glowr);
+
+        uint64_t spec_glowg_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, spec_glowg_addr);
+        if (spec_glowg_addr)
+            client_mem.Read<float>(spec_glowg_addr, spec_glowg);
+
+        uint64_t spec_glowb_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, spec_glowb_addr);
+        if (spec_glowb_addr)
+            client_mem.Read<float>(spec_glowb_addr, spec_glowb);
+
         client_mem.Read<bool>(firing_range_addr, firing_range);
         //client_mem.Read<bool>(shooting_addr, shooting);
         client_mem.Read<bool>(onevone_addr, onevone);

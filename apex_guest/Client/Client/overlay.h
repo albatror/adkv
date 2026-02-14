@@ -36,6 +36,7 @@ typedef struct visuals
 	bool spectator_notifier = true;
 	bool target_indicator = false;
 	float target_indicator_fov = 10.0f;
+	bool spectator_weapon_glow = false;
 }visuals;
 
 struct GColor {

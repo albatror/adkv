@@ -595,6 +595,7 @@ void WeaponXEntity::update(uint64_t LocalPlayer)
 
 	uint64_t wep_entity = 0;
     apex_mem.Read<uint64_t>(entitylist + (wephandle << 5), wep_entity);
+	ptr = wep_entity;
 
 	projectile_speed = 0;
     apex_mem.Read<float>(wep_entity + OFFSET_BULLET_SPEED, projectile_speed);
@@ -627,6 +628,36 @@ float WeaponXEntity::get_zoom_fov()
 int WeaponXEntity::get_ammo()
 {
 	return ammo;
+}
+
+void WeaponXEntity::enableGlow(int contextId, std::array<float, 3> highlightParameter)
+{
+	if (ptr == 0) return;
+
+	static const unsigned char outsidevalue = 125;
+	static const unsigned char insidevalue = 6;
+	static const unsigned char outlinesize = 32;
+
+	std::array<unsigned char, 4> highlightFunctionBits = {
+		insidevalue,   // InsideFunction
+		outsidevalue, // OutlineFunction: HIGHLIGHT_OUTLINE_OBJECTIVE
+		outlinesize,  // OutlineRadius: size * 255 / 8
+		64   // (EntityVisible << 6) | State & 0x3F | (AfterPostProcess << 7)
+	};
+
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, contextId);
+	long highlightSettingsPtr;
+	apex_mem.Read<long>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 2);
+	apex_mem.Write<typeof(highlightFunctionBits)>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * contextId + 0x0, highlightFunctionBits);
+	apex_mem.Write<typeof(highlightParameter)>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * contextId + 0x4, highlightParameter);
+	apex_mem.Write<float>(ptr + GLOW_DISTANCE, 88888);
+}
+
+void WeaponXEntity::disableGlow()
+{
+	if (ptr == 0) return;
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 0);
 }
 
 //const char *WeaponXEntity::get_name_str() { return name_str; }
