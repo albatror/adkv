@@ -244,6 +244,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Shield bar"), &v.shieldbar);
 			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
 			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
 			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
 			if (v.target_indicator) {
 				ImGui::SameLine();
@@ -293,6 +294,7 @@ void Overlay::RenderMenu()
 					config << v.distance << "\n";
 					config << v.line << "\n";
 					config << v.skeleton << "\n";
+					config << v.spectator_notifier << "\n";
 					config << v.target_indicator << "\n";
 					config << v.target_indicator_fov << "\n";
 					config << glowr << "\n";
@@ -342,6 +344,7 @@ void Overlay::RenderMenu()
 					config >> v.distance;
 					config >> v.line;
 					config >> v.skeleton;
+					config >> v.spectator_notifier;
 					config >> v.target_indicator;
 					config >> v.target_indicator_fov;
 					config >> glowr;
@@ -565,7 +568,8 @@ DWORD Overlay::CreateOverlay()
 			RenderMenu();
 		else
 			RenderInfo();
-			//RenderSpectator();
+
+		RenderSpectator();
 
 		if (fov)
 		{
