@@ -673,7 +673,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	const char* ap_proc = "r5apex_dx12.exe";
+	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	std::thread aimbot_thr;
