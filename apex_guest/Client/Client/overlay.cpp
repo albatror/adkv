@@ -245,6 +245,11 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
+			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
+			if (v.target_indicator) {
+				ImGui::SameLine();
+				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 500.0f, "%.2f");
+			}
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -290,6 +295,8 @@ void Overlay::RenderMenu()
 					config << v.line << "\n";
 					config << v.skeleton << "\n";
 					config << v.spectator_notifier << "\n";
+					config << v.target_indicator << "\n";
+					config << v.target_indicator_fov << "\n";
 					config << glowr << "\n";
 					config << glowg << "\n";
 					config << glowb << "\n";
@@ -338,6 +345,8 @@ void Overlay::RenderMenu()
 					config >> v.line;
 					config >> v.skeleton;
 					config >> v.spectator_notifier;
+					config >> v.target_indicator;
+					config >> v.target_indicator_fov;
 					config >> glowr;
 					config >> glowg;
 					config >> glowb;

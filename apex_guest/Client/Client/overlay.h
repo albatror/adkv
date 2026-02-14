@@ -34,6 +34,8 @@ typedef struct visuals
 	bool name = true;
 	bool skeleton = false;
 	bool spectator_notifier = true;
+	bool target_indicator = false;
+	float target_indicator_fov = 10.0f;
 }visuals;
 
 struct GColor {
