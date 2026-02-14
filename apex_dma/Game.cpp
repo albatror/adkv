@@ -276,8 +276,7 @@ float Entity::GetYaw()
 
 bool Entity::isGlowing()
 {
-	int glowEnable = *(int*)(buffer + OFFSET_GLOW_ENABLE);
-	return glowEnable >= 1 && glowEnable <= 31;
+	return *(int*)(buffer + OFFSET_GLOW_ENABLE) == 7;
 }
 
 bool Entity::isZooming()
@@ -299,11 +298,31 @@ bool Entity::isZooming()
     extern unsigned char insidevalueItem;
     extern unsigned char outlinesize;
 
-    void Entity::enableGlow(int contextId)
+    void Entity::enableGlow()
     {
+
+		//static const int contextId = 0;
+		//int settingIndex = 50;
+		std::array<unsigned char, 4> highlightFunctionBits = {
+			insidevalue,   // InsideFunction
+			outsidevalue, // OutlineFunction: HIGHLIGHT_OUTLINE_OBJECTIVE
+			outlinesize,  // OutlineRadius: size * 255 / 8
+			64   // (EntityVisible << 6) | State & 0x3F | (AfterPostProcess << 7)
+		};
+
 		apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, contextId);
+		long highlightSettingsPtr;
+		apex_mem.Read<long>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
 		apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 2);
+		apex_mem.Write<typeof(highlightFunctionBits)>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * contextId + 0x0, highlightFunctionBits);
+		apex_mem.Write<typeof(highlightParameter)>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * contextId + 0x4, highlightParameter);
+		//apex_mem.Write<float>(ptr + 0x264, 8.0E+4);
+
+		//apex_mem.Write(g_Base + OFFSET_GLOW_FIX, 1);
 		apex_mem.Write<float>(ptr + GLOW_DISTANCE, 88888);
+
+
+
     }
 ///////////////////////////
 
