@@ -354,7 +354,7 @@ QAngle Entity::GetRecoil()
 	return *(QAngle*)(buffer + OFFSET_AIMPUNCH);
 }
 
-void Entity::get_name(uint64_t g_Base, uint64_t index, char* name)
+void Entity::get_name(uint64_t g_Base, char* name)
 {
      int name_index;
     apex_mem.Read<int>(ptr + 0x38, name_index);

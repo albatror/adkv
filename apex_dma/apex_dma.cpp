@@ -199,28 +199,7 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 
 void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index, uint64_t spectated_ptr)
 {
-	char name[33];
-	target.get_name(g_Base, index - 1, name);
-
 	int entity_team = target.getTeamId();
-	bool obs = target.Observing(entitylist);
-
-	if (obs)
-	{
-		/*if(obs == spectated_ptr)
-		{
-			if (entity_team == team_player)
-			{
-				tmp_all_spec++;
-			}
-			else
-			{
-				tmp_spec++;
-			}
-		}*/
-		tmp_spec++;
-		return;
-	}
 	
 	if (!target.isAlive())
 	{
@@ -230,6 +209,11 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 				tmp_all_spec++;
 			else
 				tmp_spec++;
+
+			if (index >= 0 && index < toRead) {
+				target.get_name(g_Base, spectator_list[index].name);
+				spectator_list[index].is_spec = true;
+			}
 		}
 		return;
 	}
@@ -382,14 +366,20 @@ void DoActions()
 // Retrieve the local player entity object
 Entity LPlayer = getEntity(LocalPlayer);
 
-			uint64_t spectated_ptr = LPlayer.ptr;
-			if (!LPlayer.isAlive()) {
-				uint32_t observer_handle = 0;
-				apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_OBSERVING_TARGET, observer_handle);
-				if (observer_handle != 0xFFFFFFFF && observer_handle != 0) {
-					apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + ((observer_handle & 0xFFFF) << 5), spectated_ptr);
-				}
+			uint64_t spectated_ptr = 0;
+			uint32_t spec_handle = 0;
+			if (LPlayer.isAlive()) {
+				apex_mem.Read<uint32_t>(g_Base + OFFSET_LOCAL_ENTITY_HANDLE, spec_handle);
+			} else {
+				apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_OBSERVING_TARGET, spec_handle);
 			}
+
+			if (spec_handle != 0xFFFFFFFF && spec_handle != 0) {
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + ((spec_handle & 0xFFFF) << 5), spectated_ptr);
+			}
+
+			if (spectated_ptr == 0)
+				spectated_ptr = LPlayer.ptr;
 
 			team_player = LPlayer.getTeamId();
 			if (team_player < 0 || team_player > 50 && !onevone)
@@ -581,7 +571,8 @@ if (isGrappling && grappleAttached == 1) {
 			tmp_spec = 0;
 			tmp_all_spec = 0;
 
-			memset(spectator_list,0, sizeof(spectator_list));
+			// Clear spectator list every frame to prevent ghosting/stale data
+			memset(spectator_list, 0, sizeof(spectator_list));
 
 			if (firing_range)
 			{
@@ -630,32 +621,6 @@ if (isGrappling && grappleAttached == 1) {
 						continue;
 					}
 					
-//////////////////
-					if (!Target.isAlive() && Target.Observing(spectated_ptr)) { // If this player is a spectator
-					char temp_name[34];  // Assuming MAX_NAME_LENGTH + 1 for null terminator
-					Target.get_name(g_Base, i - 1, &temp_name[0]);
-					
-					//Target.get_name(data_buf.name);					
-
-    					if (temp_name[0]) { // Check if the player has a name (i.e., hasn't quit)
-        				strcpy(spectator_list[i].name, temp_name);
-        				spectator_list[i].is_spec = true;
-    					} else {
-        				spectator_list[i].is_spec = false; // Player has quit
-        				strcpy(spectator_list[i].name, ""); // Clear the name
-    					}
-					} else {
-    					spectator_list[i].is_spec = false;
-    					strcpy(spectator_list[i].name, ""); // Clear the name if not a spectator
-					}
-
-					// Print spectator list
-					//if (strlen(spectator_list[i].name) > 0) {
-    					//printf("Spectator name: %s\n", spectator_list[i].name);
-					//std::cout << "Corresponding level: " << player_level << std::endl;
-					//}
-//////////////////
-
 					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
 
 					int entity_team = Target.getTeamId();
@@ -856,7 +821,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 								}
 							}
 
-							Target.get_name(g_Base, i - 1, &players[c].name[0]);
+							Target.get_name(g_Base, &players[c].name[0]);
 							lastvis_esp[c] = Target.lastVisTime();
 							valid = true;
 							c++;
@@ -962,7 +927,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 								}
 							}
 
-							Target.get_name(g_Base, i - 1, &players[i].name[0]);
+							Target.get_name(g_Base, &players[i].name[0]);
 							lastvis_esp[i] = Target.lastVisTime();
 							valid = true;
 						}
