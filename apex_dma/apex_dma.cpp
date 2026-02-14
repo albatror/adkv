@@ -151,11 +151,38 @@ float lastvis_aim[toRead];
 int tmp_spec = 0, spectators = 0;
 int tmp_all_spec = 0, allied_spectators = 0;
 
-////////////
-int settingIndex;
-int contextId;
-std::array<float, 3> highlightParameter;
-///////////
+void UpdateGlobalGlowSettings() {
+    if (g_Base == 0) return;
+
+    long highlightSettingsPtr;
+    if (!apex_mem.Read<long>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr)) return;
+
+    unsigned char outsidevalue = 125;
+
+    // Context 5: Knocked
+    std::array<unsigned char, 4> highlightFunctionBits5 = {
+        insidevalue, outsidevalue, outlinesize, 64
+    };
+    std::array<float, 3> highlightParameter5 = { glowrknocked, glowgknocked, glowbknocked };
+    apex_mem.Write<std::array<unsigned char, 4>>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * 5 + 0x0, highlightFunctionBits5);
+    apex_mem.Write<std::array<float, 3>>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * 5 + 0x4, highlightParameter5);
+
+    // Context 6: Visible
+    std::array<unsigned char, 4> highlightFunctionBits6 = {
+        insidevalue, outsidevalue, outlinesize, 64
+    };
+    std::array<float, 3> highlightParameter6 = { glowrviz, glowgviz, glowbviz };
+    apex_mem.Write<std::array<unsigned char, 4>>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * 6 + 0x0, highlightFunctionBits6);
+    apex_mem.Write<std::array<float, 3>>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * 6 + 0x4, highlightParameter6);
+
+    // Context 7: Invisible
+    std::array<unsigned char, 4> highlightFunctionBits7 = {
+        insidevalue, outsidevalue, outlinesize, 64
+    };
+    std::array<float, 3> highlightParameter7 = { glowr, glowg, glowb };
+    apex_mem.Write<std::array<unsigned char, 4>>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * 7 + 0x0, highlightFunctionBits7);
+    apex_mem.Write<std::array<float, 3>>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * 7 + 0x4, highlightParameter7);
+}
 
 //////////////////////////////////////////
 //works
@@ -164,30 +191,21 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
     	if (player_glow >= 1)
     	{
-    			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
-    				float currentEntityTime = 5000.f;
-    				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
-    					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
-    					{
-    						contextId = 5;
-    						settingIndex = 80;
-    						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
-    					}
-    					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
-    					{
-    						contextId = 6;
-    						settingIndex = 81;
-    						highlightParameter = { glowrviz, glowgviz, glowbviz };
-    					}
-    					else 
-    					{
-    						contextId = 7;
-    						settingIndex = 82;
-    						highlightParameter = { glowr, glowg, glowb };
-    					}
-    					Target.enableGlow();
-    				}
-    			}
+			int desiredContextId = 7; // Default: Invisible
+			if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
+			{
+				desiredContextId = 5;
+			}
+			else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+			{
+				desiredContextId = 6;
+			}
+
+			int currentContextId = *(int*)(Target.buffer + OFFSET_GLOW_ENABLE);
+			if (currentContextId != desiredContextId)
+			{
+				Target.enableGlow(desiredContextId);
+			}
     	}
     	//////////////////////////////////////////////////////////////////////////////////////////////////
 		else if((player_glow == 0) && Target.isGlowing())
@@ -499,9 +517,12 @@ Entity LPlayer = getEntity(LocalPlayer);
                if (apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, currentTime)) {
                  if (currentTime - startjumpTime < jumpPressLoopTime) {
                    // Keep looping
+                   std::this_thread::sleep_for(std::chrono::microseconds(100));
                  } else {
                    break; 
                  }
+               } else {
+                 break;
                }
              }
              
@@ -567,7 +588,7 @@ if (isGrappling && grappleAttached == 1) {
 			// Read shooting state from game
 			kbutton_t in_attack_button;
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
-			shooting = (in_attack_button.state & 1) != 0;
+			shooting = in_attack_button.down[0] != 0 || in_attack_button.down[1] != 0;
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;
@@ -590,15 +611,6 @@ if (isGrappling && grappleAttached == 1) {
 					if (!Target.isDummy())
 					{
 						continue;
-					}
-
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.disableGlow();
 					}
 
 					ProcessPlayer(LPlayer, Target, entitylist, c);
@@ -650,22 +662,6 @@ if (isGrappling && grappleAttached == 1) {
 //////////////////
 
 					ProcessPlayer(LPlayer, Target, entitylist, i);
-
-					int entity_team = Target.getTeamId();
-					if (entity_team == team_player && !onevone)
-					{
-						continue;
-					}
-
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.enableGlow();
-						//Target.disableGlow();
-					}
 				}
 			}
 
@@ -981,10 +977,10 @@ static void AimbotLoop()
 	aim_t = true;
 	while (aim_t)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		while (g_Base != 0 && c_Base != 0)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			if (aim > 0)
 			{
 				if (aimentity == 0 || !aiming)
@@ -1050,7 +1046,13 @@ static void AimbotLoop()
 					continue;
 				}
 
-				LPlayer.SetViewAngles(Angles);
+				QAngle currentAngles = LPlayer.GetViewAngles();
+				QAngle Delta = Angles - currentAngles;
+				Math::NormalizeAngles(Delta);
+				if (abs(Delta.x) > 0.001f || abs(Delta.y) > 0.001f)
+				{
+					LPlayer.SetViewAngles(Angles);
+				}
 			}
 		}
 	}
@@ -1308,6 +1310,12 @@ while (vars_t)
         client_mem.Read<float>(smooth_addr, smooth);
         client_mem.Read<float>(max_fov_addr, max_fov);
         client_mem.Read<int>(bone_addr, bone);
+
+        float p_glowr = glowr, p_glowg = glowg, p_glowb = glowb;
+        float p_glowrviz = glowrviz, p_glowgviz = glowgviz, p_glowbviz = glowbviz;
+        float p_glowrknocked = glowrknocked, p_glowgknocked = glowgknocked, p_glowbknocked = glowbknocked;
+        unsigned char p_insidevalue = insidevalue, p_outlinesize = outlinesize;
+
         client_mem.Read<float>(glowr_addr, glowr);
         client_mem.Read<float>(glowg_addr, glowg);
         client_mem.Read<float>(glowb_addr, glowb);
@@ -1318,6 +1326,18 @@ while (vars_t)
         client_mem.Read<float>(glowgknocked_addr, glowgknocked);
         client_mem.Read<float>(glowbknocked_addr, glowbknocked);
         client_mem.Read<bool>(firing_range_addr, firing_range);
+
+        // We should also read insidevalue and outlinesize if they are available via client_mem,
+        // but they don't seem to have addresses in the current set_vars implementation.
+        // If they are changed elsewhere, we might need a different way to detect changes.
+
+        if (p_glowr != glowr || p_glowg != glowg || p_glowb != glowb ||
+            p_glowrviz != glowrviz || p_glowgviz != glowgviz || p_glowbviz != glowbviz ||
+            p_glowrknocked != glowrknocked || p_glowgknocked != glowgknocked || p_glowbknocked != glowbknocked)
+        {
+            UpdateGlobalGlowSettings();
+        }
+
         //client_mem.Read<bool>(shooting_addr, shooting);
         client_mem.Read<bool>(onevone_addr, onevone);
 
@@ -1453,6 +1473,8 @@ int main(int argc, char *argv[])
 					printf("\nApex process found\n");
 					printf("Base: %lx\n", g_Base);
 				}
+
+				UpdateGlobalGlowSettings();
 
 				aimbot_thr = std::thread(AimbotLoop);
 				esp_thr = std::thread(EspLoop);
