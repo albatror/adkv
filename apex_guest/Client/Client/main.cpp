@@ -369,6 +369,9 @@ void Overlay::RenderEsp()
 			}
 
 			if (active_idx != -1) {
+				if (v.target_indicator) {
+					ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, IM_COL32(255, 255, 255, 255), 12, 2.0f);
+				}
 				float distRatio = players[active_idx].dist / max_dist;
 				float distanceFactor = 1.0f - distRatio;
 				float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
@@ -497,6 +500,7 @@ int main(int argc, char** argv)
 				config >> v.distance;
 				config >> v.line;
 				config >> v.skeleton;
+				config >> v.target_indicator;
 				config >> glowr;
 				config >> glowg;
 				config >> glowb;
