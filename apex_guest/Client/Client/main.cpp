@@ -533,8 +533,6 @@ int main(int argc, char** argv)
 			}
 		}
 
-		memset(spectator_list, 0, sizeof(spectator_list));
-
 		if (IsKeyDown(VK_F1) && k_f1 == 0)
 		{
 			k_f1 = 1;
