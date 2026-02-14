@@ -51,6 +51,11 @@ extern float glowgknocked;
 extern float glowbknocked;
 extern float glowcolorknocked[3];
 
+extern float spec_glowr;
+extern float spec_glowg;
+extern float spec_glowb;
+extern float spec_glowcolor[3];
+
 //DDS
 extern float min_max_fov;
 extern float max_max_fov;
@@ -246,6 +251,7 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
 			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
+			ImGui::Checkbox(XorStr("Spectator weapon glow"), &v.spectator_weapon_glow);
 			if (v.target_indicator) {
 				ImGui::SameLine();
 				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 500.0f, "%.2f");
@@ -276,6 +282,14 @@ void Overlay::RenderMenu()
 				glowbknocked = glowcolorknocked[2] * 250;
 			}
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+			ImGui::Text(XorStr("Spectator Weapon Glow:"));
+			ImGui::ColorEdit3("##Spectator Weapon Glow Color", spec_glowcolor);
+			{
+				spec_glowr = spec_glowcolor[0] * 250;
+				spec_glowg = spec_glowcolor[1] * 250;
+				spec_glowb = spec_glowcolor[2] * 250;
+			}
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Saving and Loading. Need to Save Once to make the file."));
 			//Saving
 			if (ImGui::Button("Save Config"))
@@ -297,6 +311,13 @@ void Overlay::RenderMenu()
 					config << v.spectator_notifier << "\n";
 					config << v.target_indicator << "\n";
 					config << v.target_indicator_fov << "\n";
+					config << std::boolalpha << v.spectator_weapon_glow << "\n";
+					config << spec_glowr << "\n";
+					config << spec_glowg << "\n";
+					config << spec_glowb << "\n";
+					config << spec_glowcolor[0] << "\n";
+					config << spec_glowcolor[1] << "\n";
+					config << spec_glowcolor[2] << "\n";
 					config << glowr << "\n";
 					config << glowg << "\n";
 					config << glowb << "\n";
@@ -347,6 +368,13 @@ void Overlay::RenderMenu()
 					config >> v.spectator_notifier;
 					config >> v.target_indicator;
 					config >> v.target_indicator_fov;
+					config >> std::boolalpha >> v.spectator_weapon_glow;
+					config >> spec_glowr;
+					config >> spec_glowg;
+					config >> spec_glowb;
+					config >> spec_glowcolor[0];
+					config >> spec_glowcolor[1];
+					config >> spec_glowcolor[2];
 					config >> glowr;
 					config >> glowg;
 					config >> glowb;

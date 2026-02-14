@@ -140,12 +140,18 @@ float glowgknocked = 100.0f;
 float glowbknocked = 100.0f;
 float glowcolorknocked[3] = { 000.0f, 000.0f, 000.0f };
 
+//spectator weapon glow
+float spec_glowr = 250.0f;
+float spec_glowg = 0.0f;
+float spec_glowb = 0.0f;
+float spec_glowcolor[3] = { 1.0f, 0.0f, 0.0f };
+
 bool valid = false; //write
 bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[38];//38
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -444,6 +450,10 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&v.spectator_weapon_glow;
+	add[35] = (uintptr_t)&spec_glowr;
+	add[36] = (uintptr_t)&spec_glowg;
+	add[37] = (uintptr_t)&spec_glowb;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -503,6 +513,13 @@ int main(int argc, char** argv)
 				config >> v.spectator_notifier;
 				config >> v.target_indicator;
 				config >> v.target_indicator_fov;
+				config >> std::boolalpha >> v.spectator_weapon_glow;
+				config >> spec_glowr;
+				config >> spec_glowg;
+				config >> spec_glowb;
+				config >> spec_glowcolor[0];
+				config >> spec_glowcolor[1];
+				config >> spec_glowcolor[2];
 				config >> glowr;
 				config >> glowg;
 				config >> glowb;
