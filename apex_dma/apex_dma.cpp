@@ -162,32 +162,32 @@ std::array<float, 3> highlightParameter;
 // Inside SetPlayerGlow function
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
-	if (player_glow >= 1)
+    	if (player_glow >= 1)
     	{
-			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
-				float currentEntityTime = 5000.f;
-				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
-					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
-					{
-						contextId = 5;
-						settingIndex = 80;
-						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
-					}
-					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
-					{
-						contextId = 6;
-						settingIndex = 81;
-						highlightParameter = { glowrviz, glowgviz, glowbviz };
-					}
-					else
-					{
-						contextId = 7;
-						settingIndex = 82;
-						highlightParameter = { glowr, glowg, glowb };
-					}
-					Target.enableGlow();
-				}
-			}
+    			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
+    				float currentEntityTime = 5000.f;
+    				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
+    					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
+    					{
+    						contextId = 5;
+    						settingIndex = 80;
+    						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
+    					}
+    					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+    					{
+    						contextId = 6;
+    						settingIndex = 81;
+    						highlightParameter = { glowrviz, glowgviz, glowbviz };
+    					}
+    					else 
+    					{
+    						contextId = 7;
+    						settingIndex = 82;
+    						highlightParameter = { glowr, glowg, glowb };
+    					}
+    					Target.enableGlow();
+    				}
+    			}
     	}
     	//////////////////////////////////////////////////////////////////////////////////////////////////
 		else if((player_glow == 0) && Target.isGlowing())
@@ -499,12 +499,9 @@ Entity LPlayer = getEntity(LocalPlayer);
                if (apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, currentTime)) {
                  if (currentTime - startjumpTime < jumpPressLoopTime) {
                    // Keep looping
-                   std::this_thread::sleep_for(std::chrono::microseconds(100));
                  } else {
                    break; 
                  }
-               } else {
-                 break;
                }
              }
              
@@ -570,7 +567,7 @@ if (isGrappling && grappleAttached == 1) {
 			// Read shooting state from game
 			kbutton_t in_attack_button;
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
-			shooting = in_attack_button.down[0] != 0 || in_attack_button.down[1] != 0;
+			shooting = (in_attack_button.state & 1) != 0;
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;
@@ -984,10 +981,10 @@ static void AimbotLoop()
 	aim_t = true;
 	while (aim_t)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		while (g_Base != 0 && c_Base != 0)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			if (aim > 0)
 			{
 				if (aimentity == 0 || !aiming)
@@ -1053,13 +1050,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle currentAngles = LPlayer.GetViewAngles();
-				QAngle Delta = Angles - currentAngles;
-				Math::NormalizeAngles(Delta);
-				if (abs(Delta.x) > 0.001f || abs(Delta.y) > 0.001f)
-				{
-					LPlayer.SetViewAngles(Angles);
-				}
+				LPlayer.SetViewAngles(Angles);
 			}
 		}
 	}
@@ -1317,7 +1308,6 @@ while (vars_t)
         client_mem.Read<float>(smooth_addr, smooth);
         client_mem.Read<float>(max_fov_addr, max_fov);
         client_mem.Read<int>(bone_addr, bone);
-
         client_mem.Read<float>(glowr_addr, glowr);
         client_mem.Read<float>(glowg_addr, glowg);
         client_mem.Read<float>(glowb_addr, glowb);
