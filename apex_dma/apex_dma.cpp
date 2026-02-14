@@ -197,7 +197,7 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index)
+void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index, uint64_t spectated_ptr)
 {
 	char name[33];
 	target.get_name(g_Base, index - 1, name);
@@ -207,7 +207,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 
 	if (obs)
 	{
-		/*if(obs == LPlayer.ptr)
+		/*if(obs == spectated_ptr)
 		{
 			if (entity_team == team_player)
 			{
@@ -224,7 +224,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	
 	if (!target.isAlive())
 	{
-		if (target.Observing(LPlayer.ptr))
+		if (target.Observing(spectated_ptr))
 		{
 			if (LPlayer.getTeamId() == entity_team)
 				tmp_all_spec++;
@@ -381,6 +381,15 @@ void DoActions()
 
 // Retrieve the local player entity object
 Entity LPlayer = getEntity(LocalPlayer);
+
+			uint64_t spectated_ptr = LPlayer.ptr;
+			if (!LPlayer.isAlive()) {
+				uint32_t observer_handle = 0;
+				apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_OBSERVING_TARGET, observer_handle);
+				if (observer_handle != 0xFFFFFFFF && observer_handle != 0) {
+					apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + ((observer_handle & 0xFFFF) << 5), spectated_ptr);
+				}
+			}
 
 			team_player = LPlayer.getTeamId();
 			if (team_player < 0 || team_player > 50 && !onevone)
@@ -601,7 +610,7 @@ if (isGrappling && grappleAttached == 1) {
 						Target.disableGlow();
 					}
 
-					ProcessPlayer(LPlayer, Target, entitylist, c);
+					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
 					c++;
 				}
 			}
@@ -622,9 +631,7 @@ if (isGrappling && grappleAttached == 1) {
 					}
 					
 //////////////////
-					float localyaw = LPlayer.GetYaw();
-					float targetyaw = Target.GetYaw();
-					if (!Target.isAlive() && localyaw == targetyaw) { // If this player is a spectator
+					if (!Target.isAlive() && Target.Observing(spectated_ptr)) { // If this player is a spectator
 					char temp_name[34];  // Assuming MAX_NAME_LENGTH + 1 for null terminator
 					Target.get_name(g_Base, i - 1, &temp_name[0]);
 					
@@ -649,7 +656,7 @@ if (isGrappling && grappleAttached == 1) {
 					//}
 //////////////////
 
-					ProcessPlayer(LPlayer, Target, entitylist, i);
+					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
 
 					int entity_team = Target.getTeamId();
 					if (entity_team == team_player && !onevone)
