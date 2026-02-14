@@ -181,39 +181,29 @@ void randomBone()
 
 spectator spectator_list[100];
 
-//void Overlay::RenderSpectator() {
-	//memset(spectator_list, 0, sizeof(spectator_list));
-    //ImGui::SetNextWindowPos(ImVec2(490, 0));
-    //ImGui::SetNextWindowSize(ImVec2(190, 130));
-    //ImGui::Begin(XorStr("##spectator_list"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
-	//ImGui::TextColored(RED, "%d", spectators);
-	//ImGui::SameLine();
-	//ImGui::Text("-");
-	//ImGui::SameLine();
-	//ImGui::TextColored(GREEN, "%d", allied_spectators);
+void Overlay::RenderSpectator() {
+	if (!v.spectator_notifier) return;
+	ImGui::SetNextWindowPos(ImVec2(490, 0));
+	ImGui::SetNextWindowSize(ImVec2(190, 130));
+	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground);
+	ImGui::TextColored(RED, "%d", spectators);
+	ImGui::SameLine();
+	ImGui::Text("-");
+	ImGui::SameLine();
+	ImGui::TextColored(GREEN, "%d", allied_spectators);
 
-    //int text_index = 0;
-    //for (const auto& spectator : spectator_list) {
-    //    if (spectator.is_spec) {
-	//		ImGui::TextColored(WHITE, "%d", text_index + 1);
-    //        ImGui::SameLine(25);
-	//		ImGui::TextColored(ORANGE, "%s", spectator.name);
-    //        text_index++;
-			//TEST// Convert char array to std::wstring
-			//std::wstring wideStr;
-			//for (int i = 0; spectator.name[i] != '\0'; ++i)
-			//	wideStr += static_cast<wchar_t>(spectator.name[i]);
+	int text_index = 0;
+	for (int i = 0; i < 100; i++) {
+		if (spectator_list[i].is_spec) {
+			ImGui::TextColored(WHITE, "%d", text_index + 1);
+			ImGui::SameLine(25);
+			ImGui::TextColored(ORANGE, "%s", spectator_list[i].name);
+			text_index++;
+		}
+	}
 
-			 //Pass the wide string to ImGui::TextColored
-			//ImGui::TextColored(ORANGE, "%ls", wideStr.c_str());
-
-			//text_index++;
-
-     //   }
-    //}
-
-    //ImGui::End();
-//}
+	ImGui::End();
+}
 // Define a function for smooth interpolation using a cubic easing function
 float smoothStep(float edge0, float edge1, float x) {
 	// Scale, bias and saturate x to 0..1 range
@@ -497,6 +487,7 @@ int main(int argc, char** argv)
 				config >> v.distance;
 				config >> v.line;
 				config >> v.skeleton;
+				config >> v.spectator_notifier;
 				config >> glowr;
 				config >> glowg;
 				config >> glowb;

@@ -33,6 +33,7 @@ typedef struct visuals
 	bool shieldbar = true;
 	bool name = true;
 	bool skeleton = false;
+	bool spectator_notifier = true;
 }visuals;
 
 struct GColor {
@@ -50,7 +51,7 @@ public:
 	void RenderInfo();
 	void RenderMenu();
 	void RenderEsp();
-	//void RenderSpectator();
+	void RenderSpectator();
 	void ClickThrough(bool v);
 	void DrawLine(ImVec2 a, ImVec2 b, ImColor color, float width);
 	void DrawBox(ImColor color, float x, float y, float w, float h);

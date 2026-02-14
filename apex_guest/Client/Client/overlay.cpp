@@ -243,6 +243,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Health bar"), &v.healthbar);
 			ImGui::Checkbox(XorStr("Shield bar"), &v.shieldbar);
 			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -287,6 +289,7 @@ void Overlay::RenderMenu()
 					config << v.distance << "\n";
 					config << v.line << "\n";
 					config << v.skeleton << "\n";
+					config << v.spectator_notifier << "\n";
 					config << glowr << "\n";
 					config << glowg << "\n";
 					config << glowb << "\n";
@@ -334,6 +337,7 @@ void Overlay::RenderMenu()
 					config >> v.distance;
 					config >> v.line;
 					config >> v.skeleton;
+					config >> v.spectator_notifier;
 					config >> glowr;
 					config >> glowg;
 					config >> glowb;
@@ -555,7 +559,8 @@ DWORD Overlay::CreateOverlay()
 			RenderMenu();
 		else
 			RenderInfo();
-			//RenderSpectator();
+
+		RenderSpectator();
 
 		if (fov)
 		{
