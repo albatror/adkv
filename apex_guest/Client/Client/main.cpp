@@ -247,6 +247,7 @@ void Overlay::RenderEsp()
 
 			int best_player_idx = -1;
 			float best_fov = 9999.0f;
+			float best_score = 999999.0f;
 			float cx = (float)getWidth() / 2.0f;
 			float cy = (float)getHeight() / 2.0f;
 
@@ -274,7 +275,9 @@ void Overlay::RenderEsp()
 					float dx = players[i].b_x - cx;
 					float dy = (players[i].b_y + players[i].h_y) / 2.0f - cy;
 					float d = sqrt(dx * dx + dy * dy);
-					if (d < best_fov) {
+					float score = d + (players[i].dist / 20.0f); // Weighted score (screen distance + world distance)
+					if (score < best_score) {
+						best_score = score;
 						best_fov = d;
 						best_player_idx = i;
 					}
@@ -370,7 +373,14 @@ void Overlay::RenderEsp()
 
 			if (active_idx != -1) {
 				if (v.target_indicator) {
-					ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, IM_COL32(255, 255, 255, 255), 12, 2.0f);
+					float dx = players[active_idx].b_x - cx;
+					float dy = (players[active_idx].b_y + players[active_idx].h_y) / 2.0f - cy;
+					float d = sqrt(dx * dx + dy * dy);
+
+					if (d < cfsize) { // Condition: near crosshair (inside FOV)
+						ImColor color = players[active_idx].visible ? GREEN : RED;
+						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, color, 12, 2.0f);
+					}
 				}
 				float distRatio = players[active_idx].dist / max_dist;
 				float distanceFactor = 1.0f - distRatio;
