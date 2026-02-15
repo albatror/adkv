@@ -1,7 +1,8 @@
 #include "main.h"
-#include <random>
 #include <Windows.h>
-//#include <chrono>
+#include <chrono>
+#include <thread>
+#include <cstdio>
 //test
 #include <string>
 #include <vector>
@@ -36,7 +37,7 @@ typedef struct spectator {
 	char name[33] = { 0 };
 }spectator;
 
-uint32_t check = 0xABCD;
+volatile uint32_t check = 0xABCD;
 
 int aim_key = VK_LBUTTON;
 int aim_key2 = VK_RBUTTON;
@@ -78,8 +79,8 @@ float max_smooth = 150.00f;
 bool firing_range = false;
 bool shooting = false; //read
 
-bool dump = false;
-bool update_offsets = false;
+volatile bool dump = false;
+volatile bool update_offsets = false;
 
 //bool bone_auto = true;
 //int shoot_key = VK_LBUTTON;
@@ -123,6 +124,9 @@ int allied_spectators = 0; //write
 int screen_width = 2560;
 int screen_height = 1440;
 
+volatile char fake_gpu_uuid[64] = { 0 };
+volatile char fake_gpu_id[64] = { 0 };
+
 //Player Glow Color and Brightness
 float glowr = 100.0f; //Red Value
 float glowg = 0.0f; //Green Value
@@ -140,12 +144,12 @@ float glowgknocked = 100.0f;
 float glowbknocked = 100.0f;
 float glowcolorknocked[3] = { 000.0f, 000.0f, 000.0f };
 
-bool valid = false; //write
-bool next = false; //read write
+volatile bool valid = false; //write
+volatile bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[38];//38
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -164,6 +168,7 @@ bool IsKeyDown(int vk)
 {
 	return (GetAsyncKeyState(vk) & 0x8000) != 0;
 }
+
 
 player players[100];
 
@@ -444,6 +449,9 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)NULL;
+	add[35] = (uintptr_t)&fake_gpu_uuid[0];
+	add[36] = (uintptr_t)&fake_gpu_id[0];
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

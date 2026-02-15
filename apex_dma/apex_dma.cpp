@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <string.h>
+#include <string>
 #include <random>
 #include <chrono>
 #include <iostream>
@@ -16,6 +18,9 @@
 
 Memory apex_mem;
 Memory client_mem;
+
+std::string global_fake_uuid = "";
+std::string global_fake_id = "";
 
 bool firing_range = false;
 bool active = true;
@@ -1285,12 +1290,23 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
-		{
-			client_mem.Write<uint32_t>(check_addr, 0);
-			new_client = false;
-			printf("\nReady\n");
-		}
+
+        uint64_t real_gpu_uuid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, real_gpu_uuid_addr);
+        uint64_t fake_gpu_uuid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, fake_gpu_uuid_addr);
+        uint64_t fake_gpu_id_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, fake_gpu_id_addr);
+
+        if (new_client) {
+            if (fake_gpu_uuid_addr && !global_fake_uuid.empty())
+                client_mem.WriteArray<char>(fake_gpu_uuid_addr, (char*)global_fake_uuid.c_str(), global_fake_uuid.size() + 1);
+            if (fake_gpu_id_addr && !global_fake_id.empty())
+                client_mem.WriteArray<char>(fake_gpu_id_addr, (char*)global_fake_id.c_str(), global_fake_id.size() + 1);
+
+            client_mem.Write<uint32_t>(check_addr, 0);
+            new_client = false;
+        }
 
     while (c_Base != 0 && g_Base != 0)
     {
@@ -1368,6 +1384,7 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
+
         if (esp && next)
         {
             if (valid)
@@ -1391,6 +1408,170 @@ vars_t = false;
 
 // Item Glow Stuff
 
+void GpuSpoof()
+{
+	printf("Starting GPU Spoofing process...\n");
+
+	// Initialize memflow if not already
+	if (!kernel)
+	{
+		conn = std::make_unique<ConnectorInstance<>>();
+		Inventory *inv = mf_inventory_scan();
+		mf_inventory_add_dir(inv, ".");
+
+		printf("Init with kvm connector...\n");
+		if (!kernel_init(inv, "kvm"))
+		{
+			printf("Init with qemu connector...\n");
+			if (!kernel_init(inv, "qemu"))
+			{
+				printf("Unable to initialize kernel for spoofing\n");
+				mf_inventory_free(inv);
+				return;
+			}
+		}
+		mf_inventory_free(inv);
+	}
+
+	if (!kernel)
+	{
+		printf("Error: Kernel not initialized, spoofing aborted.\n");
+		return;
+	}
+
+	// Generate fake UUID
+	static const char *chars = "0123456789ABCDEF";
+	global_fake_uuid = "GPU-";
+	global_fake_id = "";
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<> dis(0, 15);
+	for (int i = 0; i < 8; ++i) global_fake_uuid += chars[dis(gen)];
+	global_fake_uuid += "-";
+	for (int i = 0; i < 4; ++i) global_fake_uuid += chars[dis(gen)];
+	global_fake_uuid += "-";
+	for (int i = 0; i < 4; ++i) global_fake_uuid += chars[dis(gen)];
+	global_fake_uuid += "-";
+	for (int i = 0; i < 4; ++i) global_fake_uuid += chars[dis(gen)];
+	global_fake_uuid += "-";
+	for (int i = 0; i < 12; ++i) global_fake_uuid += chars[dis(gen)];
+
+	// Generate fake GPU ID (NvidiaBoardId style)
+	for (int i = 0; i < 8; ++i) global_fake_id += chars[dis(gen)];
+
+	printf("Generated Fake GPU UUID: %s\n", global_fake_uuid.c_str());
+	printf("Generated Fake GPU ID: %s\n", global_fake_id.c_str());
+
+	// Scan physical memory for "GPU-"
+	// We scan in 1MB chunks
+	const size_t chunk_size = 1024 * 1024;
+	uint8_t *buffer = (uint8_t *)malloc(chunk_size + 64);
+	std::string real_uuid = "";
+
+	printf("Scanning guest memory for real GPU UUID...\n");
+
+	auto phys = kernel->phys_view();
+
+	for (uint64_t pa = 0; pa < MAX_PHYADDR; pa += chunk_size)
+	{
+		if (pa % (1024ULL * 1024ULL * 1024ULL) == 0 && pa > 0)
+			printf("Scanning... %llu GB\n", (unsigned long long)(pa / (1024ULL * 1024ULL * 1024ULL)));
+
+		CSliceMut<uint8_t> slice((char *)buffer, chunk_size);
+		if (phys.read_raw_into(pa, slice) == 0)
+		{
+			for (size_t i = 0; i < chunk_size - 40; i++)
+			{
+				if (buffer[i] == 'G' && buffer[i + 1] == 'P' && buffer[i + 2] == 'U' && buffer[i + 3] == '-')
+				{
+					// Found pattern, check if it's a UUID (40 chars total)
+					bool is_uuid = true;
+					for (int j = 4; j < 40; j++)
+					{
+						char c = buffer[i + j];
+						if (j == 12 || j == 17 || j == 22 || j == 27)
+						{
+							if (c != '-') { is_uuid = false; break; }
+						}
+						else
+						{
+							if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+							{
+								is_uuid = false;
+								break;
+							}
+						}
+					}
+
+					if (is_uuid)
+					{
+						real_uuid.assign((char *)&buffer[i], 40);
+						printf("Real GPU UUID found in guest memory at 0x%lx: %s\n", pa + i, real_uuid.c_str());
+						goto found;
+					}
+				}
+			}
+		}
+	}
+
+found:
+	if (real_uuid.empty())
+	{
+		printf("Could not find real GPU UUID in guest memory. Trying fallback...\n");
+		// Fallback: check host info if on linux and driver available
+		FILE *f = popen("cat /proc/driver/nvidia/gpus/*/information 2>/dev/null | grep UUID", "r");
+		if (f)
+		{
+			char line[256];
+			if (fgets(line, sizeof(line), f))
+			{
+				char *p = strstr(line, "GPU-");
+				if (p)
+				{
+					p[40] = 0;
+					real_uuid = p;
+					printf("Real GPU UUID from host driver: %s\n", real_uuid.c_str());
+				}
+			}
+			pclose(f);
+		}
+	}
+
+	if (!real_uuid.empty())
+	{
+		printf("Applying GPU spoofing (replacing all occurrences)...\n");
+		int count = 0;
+		for (uint64_t pa = 0; pa < MAX_PHYADDR; pa += chunk_size)
+		{
+			CSliceMut<uint8_t> slice((char *)buffer, chunk_size);
+			if (phys.read_raw_into(pa, slice) == 0)
+			{
+				bool changed = false;
+				for (size_t i = 0; i < chunk_size; i++)
+				{
+					if (memcmp(&buffer[i], real_uuid.c_str(), 40) == 0)
+					{
+						memcpy(&buffer[i], global_fake_uuid.c_str(), 40);
+						count++;
+						changed = true;
+					}
+				}
+				if (changed)
+				{
+					phys.write_raw(pa, CSliceRef<uint8_t>((char *)buffer, chunk_size));
+				}
+			}
+		}
+		printf("Spoofing applied! Replaced %d occurrences.\n", count);
+	}
+	else
+	{
+		printf("Error: Real GPU UUID not found, spoofing aborted.\n");
+	}
+
+	free(buffer);
+	printf("\n--- You can now start the game! ---\n\n");
+}
 
 int main(int argc, char *argv[])
 {
@@ -1403,11 +1584,14 @@ int main(int argc, char *argv[])
 	}
 
 	const char* cl_proc = "Client.exe";
-	const char* ap_proc = "r5apex_dx12.ex";
+	const char* ap_proc = "r5apex_dx12.exe";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x29da80;
+
+	GpuSpoof();
+
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;

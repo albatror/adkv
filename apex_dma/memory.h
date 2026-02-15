@@ -14,8 +14,8 @@ typedef unsigned long DWORD;
 typedef unsigned short WORD;
 typedef WORD *PWORD;
 
-static std::unique_ptr<ConnectorInstance<>> conn = nullptr;
-static std::unique_ptr<OsInstance<>> kernel = nullptr;
+extern std::unique_ptr<ConnectorInstance<>> conn;
+extern std::unique_ptr<OsInstance<>> kernel;
 
 // set MAX_PHYADDR to a reasonable value, larger values will take more time to traverse.
 constexpr uint64_t MAX_PHYADDR = 0xFFFFFFFFF;
@@ -42,6 +42,7 @@ inline bool isMatch(const PBYTE addr, const PBYTE pat, const PBYTE msk)
 }
 
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern);
+bool kernel_init(Inventory *inv, const char *connector_name);
 
 typedef struct Process
 {
