@@ -22,6 +22,15 @@ extern int allied_spectators;
 
 extern bool onevone;
 
+extern bool flickbot;
+extern bool triggerbot;
+extern bool glow_armor;
+extern bool rapidfire;
+extern bool superglide;
+extern bool bhop;
+extern bool walljump;
+extern bool autotapstrafe;
+
 //extern float esp_distance;
 
 extern int index;
@@ -182,6 +191,23 @@ void Overlay::RenderMenu()
 
 			//ImGui::Checkbox(XorStr("Glow items"), &item_glow);
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Armor colors"), &glow_armor);
+
+			ImGui::Checkbox(XorStr("Triggerbot"), &triggerbot);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Flickbot"), &flickbot);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("RapidFire"), &rapidfire);
+
+			ImGui::Checkbox(XorStr("SuperGlide"), &superglide);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("BHop"), &bhop);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("WallJump"), &walljump);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("AutoTapStrafe"), &autotapstrafe);
+
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
@@ -323,6 +349,14 @@ void Overlay::RenderMenu()
 					config << max_smooth << "\n";
 					config << min_cfsize << "\n";
 					config << max_cfsize << "\n";
+					config << flickbot << "\n";
+					config << triggerbot << "\n";
+					config << glow_armor << "\n";
+					config << rapidfire << "\n";
+					config << superglide << "\n";
+					config << bhop << "\n";
+					config << walljump << "\n";
+					config << autotapstrafe << "\n";
 					config.close();
 				}
 			}
@@ -373,6 +407,14 @@ void Overlay::RenderMenu()
 					config >> max_smooth;
 					config >> min_cfsize;
 					config >> max_cfsize;
+					config >> flickbot;
+					config >> triggerbot;
+					config >> glow_armor;
+					config >> rapidfire;
+					config >> superglide;
+					config >> bhop;
+					config >> walljump;
+					config >> autotapstrafe;
 					config.close();
 				}
 			}

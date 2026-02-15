@@ -59,6 +59,17 @@ int grappleAttached;
 //Firing Range 1v1 toggle
 bool onevone = false;
 
+bool flickbot = false;
+bool triggerbot = false;
+bool glow_armor = false;
+bool rapidfire = false;
+bool superglide = true;
+bool bhop = false;
+bool walljump = true;
+bool autotapstrafe = false;
+bool flickbot_active = false;
+bool triggerbot_active = false;
+
 ///////////
 //bool medbackpack = true;
 ///////////
@@ -173,7 +184,32 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
     						settingIndex = 80;
     						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
     					}
-    					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+					else if (glow_armor)
+						{
+							int armorType = Target.getArmortype();
+							if (armorType == 1) { // Blue
+								contextId = 11;
+								settingIndex = 91;
+								highlightParameter = { 0, 0.5, 1 };
+							} else if (armorType == 2) { // Purple
+								contextId = 12;
+								settingIndex = 92;
+								highlightParameter = { 0.5, 0, 1 };
+							} else if (armorType == 3) { // Gold
+								contextId = 13;
+								settingIndex = 93;
+								highlightParameter = { 1, 1, 0 };
+							} else if (armorType == 4) { // Red
+								contextId = 14;
+								settingIndex = 94;
+								highlightParameter = { 1, 0, 0 };
+							} else { // White/None
+								contextId = 10;
+								settingIndex = 90;
+								highlightParameter = { 1, 1, 1 };
+							}
+						}
+						else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
     					{
     						contextId = 6;
     						settingIndex = 81;
@@ -393,6 +429,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 //////////////////////////////////
 
 //walljump ++/////////////////////////////////////
+if (walljump) {
     bool success; // Declare success once
     int onWall;
     // Corrected memory read call
@@ -428,8 +465,6 @@ Entity LPlayer = getEntity(LocalPlayer);
         {
             wallJumpNow = 2;
             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-            // Consider the impact of sleep here, potentially remove or adjust
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
     }
     onEdgeTmp = onEdge;
@@ -444,43 +479,36 @@ Entity LPlayer = getEntity(LocalPlayer);
             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
         }
     }
-
+}
 //walljump ++///////////////
 
     // SUPERGLIDE
-
+    if (superglide) {
        static float startjumpTime = 0;
        static bool startSg = false;
-       static float traversalProgressTmp = 0.0;
         
        float worldtime;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, worldtime)) {
-         // error handling 
-       }
+       apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, worldtime);
         
        float traversalStartTime;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_STARTTIME, traversalStartTime)) {
-         // error handling
-       }
+       apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_STARTTIME, traversalStartTime);
         
        float traversalProgress;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversalProgress)) {
-         // error handling
-       }
+       apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversalProgress);
         
        auto HangOnWall = -(traversalStartTime - worldtime);
         
-       // Adjust thresholds and delays based on frame rate
+       // Adjust thresholds and delays (using 75 FPS settings from zap-client as default)
        float wallHangThreshold = 0.1f;
        float wallHangMax = 1.5f;
        float traversalProgressThreshold = 0.87f;
        float jumpPressLoopTime = 0.011f;
        int duckActionDelay = 50;
-       int jumpResetDelay = 800;
+       int jumpResetDelay = 600;
         
        // Check if SPACEBAR is pressed and held
        if (SuperKey) {
-           if (HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
+           if (HangOnWall > 0.1 && HangOnWall < 0.12) {
              apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
            }
             
@@ -514,6 +542,7 @@ Entity LPlayer = getEntity(LocalPlayer);
              startSg = false;
            }
        }
+    }
        //////////////////////////////
 
 ////////////////////////////////
@@ -545,13 +574,50 @@ if (isGrappling && grappleAttached == 1) {
 //grapple END/////////////////////////////
 
 //bhop///
-//if (bhop_enable) {
-//apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-//apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-//}
+if (bhop && SuperKey && LPlayer.isOnGround()) {
+    apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+}
 //bhop END/////////////////////////////
+
+//AutoTapStrafe
+if (autotapstrafe) {
+    uint32_t flags;
+    apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_FLAGS, flags);
+    bool onGround = (flags & 0x1) != 0;
+    if (!onGround) {
+        int forward_state;
+        apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD, forward_state);
+        if (forward_state != 0) {
+            static bool ts_toggle = false;
+            apex_mem.Write<int>(g_Base + OFFSET_IN_FORWARD + 0x8, ts_toggle ? 5 : 4);
+            ts_toggle = !ts_toggle;
+        }
+    }
+}
+//AutoTapStrafe END
+
+//RapidFire
+if (rapidfire && shooting) {
+    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+}
+//RapidFire END
+
+//Triggerbot
+if (triggerbot) {
+    static float lastTriggerTime = 0;
+    float currentCrosshairTime = LPlayer.lastCrossHairTime();
+    if (currentCrosshairTime > lastTriggerTime) {
+        apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+        lastTriggerTime = currentCrosshairTime;
+    }
+}
+//Triggerbot END
 
 			uint64_t baseent = 0;
 			apex_mem.Read<uint64_t>(entitylist, baseent);
@@ -985,9 +1051,9 @@ static void AimbotLoop()
 		while (g_Base != 0 && c_Base != 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			if (aim > 0)
+			if (aim > 0 || (flickbot && flickbot_active))
 			{
-				if (aimentity == 0 || !aiming)
+				if (aimentity == 0 || (!aiming && !(flickbot && flickbot_active)))
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -1050,7 +1116,24 @@ static void AimbotLoop()
 					continue;
 				}
 
-				LPlayer.SetViewAngles(Angles);
+				if (flickbot && flickbot_active)
+				{
+					QAngle OldAngles = LPlayer.GetViewAngles();
+					QAngle FlickAngles = CalculateBestBoneAim(LPlayer, aimentity, 360.0f, 1.0f);
+					if (FlickAngles.x != 0 || FlickAngles.y != 0)
+					{
+						LPlayer.SetViewAngles(FlickAngles);
+						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+						std::this_thread::sleep_for(std::chrono::milliseconds(30));
+						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+						std::this_thread::sleep_for(std::chrono::milliseconds(10));
+						LPlayer.SetViewAngles(OldAngles);
+					}
+				}
+				else
+				{
+					LPlayer.SetViewAngles(Angles);
+				}
 			}
 		}
 	}
@@ -1367,6 +1450,61 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_addr);
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
+
+        uint64_t flickbot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, flickbot_addr);
+        if (flickbot_addr)
+            client_mem.Read<bool>(flickbot_addr, flickbot);
+
+        uint64_t triggerbot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, triggerbot_addr);
+        if (triggerbot_addr)
+            client_mem.Read<bool>(triggerbot_addr, triggerbot);
+
+        uint64_t glow_armor_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, glow_armor_addr);
+        if (glow_armor_addr)
+            client_mem.Read<bool>(glow_armor_addr, glow_armor);
+
+        uint64_t rapidfire_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, rapidfire_addr);
+        if (rapidfire_addr)
+            client_mem.Read<bool>(rapidfire_addr, rapidfire);
+
+        uint64_t superglide_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 38, superglide_addr);
+        if (superglide_addr)
+            client_mem.Read<bool>(superglide_addr, superglide);
+
+        uint64_t bhop_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, bhop_addr);
+        if (bhop_addr)
+            client_mem.Read<bool>(bhop_addr, bhop);
+
+        uint64_t walljump_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 40, walljump_addr);
+        if (walljump_addr)
+            client_mem.Read<bool>(walljump_addr, walljump);
+
+        uint64_t autotapstrafe_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 41, autotapstrafe_addr);
+        if (autotapstrafe_addr)
+            client_mem.Read<bool>(autotapstrafe_addr, autotapstrafe);
+
+        uint64_t superkey_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, superkey_addr);
+        if (superkey_addr)
+            client_mem.Read<int>(superkey_addr, SuperKey);
+
+        uint64_t flickbot_active_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, flickbot_active_addr);
+        if (flickbot_active_addr)
+            client_mem.Read<bool>(flickbot_active_addr, flickbot_active);
+
+        uint64_t triggerbot_active_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, triggerbot_active_addr);
+        if (triggerbot_active_addr)
+            client_mem.Read<bool>(triggerbot_active_addr, triggerbot_active);
 
         if (esp && next)
         {

@@ -87,6 +87,17 @@ bool update_offsets = false;
 //1v1
 bool onevone = false;
 
+bool flickbot = false;
+bool triggerbot = false;
+bool glow_armor = false;
+bool rapidfire = false;
+bool superglide = true;
+bool bhop = false;
+bool walljump = true;
+bool autotapstrafe = false;
+bool flickbot_active = false;
+bool triggerbot_active = false;
+
 //items
 //bool medbackpack = true;
 
@@ -145,7 +156,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[45];//45
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -444,6 +455,17 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&flickbot;
+	add[35] = (uintptr_t)&triggerbot;
+	add[36] = (uintptr_t)&glow_armor;
+	add[37] = (uintptr_t)&rapidfire;
+	add[38] = (uintptr_t)&superglide;
+	add[39] = (uintptr_t)&bhop;
+	add[40] = (uintptr_t)&walljump;
+	add[41] = (uintptr_t)&autotapstrafe;
+	add[42] = (uintptr_t)&SuperKey;
+	add[43] = (uintptr_t)&flickbot_active;
+	add[44] = (uintptr_t)&triggerbot_active;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -529,6 +551,14 @@ int main(int argc, char** argv)
 				config >> max_smooth;
 				config >> min_cfsize;
 				config >> max_cfsize;
+				config >> flickbot;
+				config >> triggerbot;
+				config >> glow_armor;
+				config >> rapidfire;
+				config >> superglide;
+				config >> bhop;
+				config >> walljump;
+				config >> autotapstrafe;
 				config.close();
 			}
 		}
@@ -669,6 +699,8 @@ int main(int argc, char** argv)
 		}
 
 		shooting = IsKeyDown(VK_LBUTTON);
+		flickbot_active = IsKeyDown(VK_XBUTTON1);
+		triggerbot_active = IsKeyDown(VK_XBUTTON2);
 
 	}
 	ready = false;
