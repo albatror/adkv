@@ -7,22 +7,6 @@
 
 extern Memory apex_mem;
 
-extern bool firing_range;
-float smooth = 12.0f;
-extern bool aim_no_recoil;
-int bone = 2;
-//
-bool bone_auto = true;
-extern float max_dist;
-//
-extern float glowr;
-extern float glowg;
-extern float glowb;
-
-extern int glowtype;
-extern int glowtype2;
-extern int glowtype3;
-
 // https://github.com/Gerosity/zap-client/blob/master/Core/Player.hpp#L161
 bool Entity::Observing(uint64_t localptr)
 {
@@ -292,11 +276,6 @@ bool Entity::isZooming()
     extern int settingIndex;
     extern int contextId;
     extern std::array<float, 3> highlightParameter;
-    //custom glow colo RGB
-    unsigned char outsidevalue = 125;
-    extern unsigned char insidevalue;
-    extern unsigned char insidevalueItem;
-    extern unsigned char outlinesize;
 
     void Entity::enableGlow()
     {
@@ -304,9 +283,9 @@ bool Entity::isZooming()
 		//static const int contextId = 0;
 		//int settingIndex = 50;
 		std::array<unsigned char, 4> highlightFunctionBits = {
-			insidevalue,   // InsideFunction
-			outsidevalue, // OutlineFunction: HIGHLIGHT_OUTLINE_OBJECTIVE
-			outlinesize,  // OutlineRadius: size * 255 / 8
+			(unsigned char)config.inside_value,   // InsideFunction
+			(unsigned char)config.outside_value, // OutlineFunction: HIGHLIGHT_OUTLINE_OBJECTIVE
+			(unsigned char)config.outline_size,  // OutlineRadius: size * 255 / 8
 			64   // (EntityVisible << 6) | State & 0x3F | (AfterPostProcess << 7)
 		};
 
@@ -444,7 +423,7 @@ float CalculateFov(Entity& from, Entity& target)
 QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing)
 {
 	Entity target = getEntity(t);
-	if(firing_range)
+	if(config.firing_range)
 	{
 		if (!target.isAlive())
 		{
@@ -463,7 +442,7 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	//
 	float distanceToTarget;
 	//
-	Vector TargetBonePosition = target.getBonePositionByHitbox(bone);
+	Vector TargetBonePosition = target.getBonePositionByHitbox(config.bone);
 	QAngle CalculatedAngles = QAngle(0, 0, 0);
 	
 	WeaponXEntity curweap = WeaponXEntity();
@@ -478,8 +457,8 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	}
 
   // Find best bone
-  if (bone_auto) {
-    float NearestBoneDistance = max_dist;
+  if (config.bone_auto) {
+    float NearestBoneDistance = config.max_dist;
     for (int i = 0; i < 4; i++) {
       Vector currentBonePosition = target.getBonePositionByHitbox(i);
       float DistanceFromCrosshair =
@@ -491,7 +470,7 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
       }
     }
   } else {
-    TargetBonePosition = target.getBonePositionByHitbox(bone);
+    TargetBonePosition = target.getBonePositionByHitbox(config.bone);
     distanceToTarget = (TargetBonePosition - LocalCamera).Length();
   }
 	/*
@@ -526,7 +505,7 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	QAngle ViewAngles = from.GetViewAngles();
 	QAngle SwayAngles = from.GetSwayAngles();
 	//remove sway and recoil
-	if(aim_no_recoil)
+	if(config.aim_no_recoil)
 		CalculatedAngles-=SwayAngles-ViewAngles;
 	Math::NormalizeAngles(CalculatedAngles);
 	QAngle Delta = CalculatedAngles - ViewAngles;

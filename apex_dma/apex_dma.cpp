@@ -8,6 +8,7 @@
 #include <cfloat>
 #include "offsets_dynamic.h"
 #include "Game.h"
+#include "Config.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -16,44 +17,18 @@
 
 Memory apex_mem;
 
-bool firing_range = false;
 bool active = true;
 uintptr_t aimentity = 0;
 uintptr_t tmp_aimentity = 0;
 uintptr_t lastaimentity = 0;
 float max = 999.0f;
-float max_dist = 200.0f * 40.0f;
 int team_player = 0;
-float max_fov = 10;
 const int toRead = 100;
 
-int aim = 2;
-bool player_glow = true;
-bool aim_no_recoil = true;
-bool aiming = true;
-
-extern float smooth;
-//added stuff
-//extern float min_max_fov;
-//extern float max_max_fov;
-//extern float min_smooth;
-//extern float max_smooth;
-//en stuff
-
-extern int bone;
 bool shooting = false;
-
-//const int SuperKey = VK_SPACE;
-int SuperKey = false;
-//bool SuperKeyToggle = true;
-
-//int itementcount = 10000;
 
 bool isGrappling;
 int grappleAttached;
-
-//Firing Range 1v1 toggle
-bool onevone = false;
 
 ///////////
 //bool medbackpack = true;
@@ -61,22 +36,6 @@ bool onevone = false;
 bool updateInsideValue_t = false;
 ///////////////////////////
 //Player Glow Color and Brightness.
-//inside fill
-unsigned char insidevalue = 6;  //0 = no fill, 14 = full fill
-//Outline size
-unsigned char outlinesize = 32; // 0-255
-//Not Visable 
-float glowr = 1; //Red 0-255, higher is brighter color.
-float glowg = 0; //Green 0-255, higher is brighter color.
-float glowb = 0; //Blue 0-255, higher is brighter color.
-//Visable
-float glowrviz = 0; //Red 0-255, higher is brighter color.
-float glowgviz = 1; //Green 0-255, higher is brighter color.
-float glowbviz = 0; //Blue 0-255, higher is brighter color.
-//Knocked
-float glowrknocked = 0; //Red 0-255, higher is brighter color.
-float glowgknocked = 0; //Green 0-255, higher is brighter color.
-float glowbknocked = 1; //Blue 0-255, higher is brighter color.
 //Item Configs
 //loot Fill
 //unsigned char lootfilled = 5;  //0 no fill, 14 100% fill
@@ -94,8 +53,6 @@ bool is_aimentity_visible = false;
 //map
 int map = 0;
 
-int screen_width = 2560;
-int screen_height = 1440;
 
 // DÃ©clarations au niveau global (ou dans votre classe si besoin)
 
@@ -121,35 +78,35 @@ std::array<float, 3> highlightParameter;
 // Inside SetPlayerGlow function
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
-    	if (player_glow >= 1)
+	if (config.player_glow)
     	{
     			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
     				float currentEntityTime = 5000.f;
     				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
-    					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
+					if (!(config.firing_range) && (Target.isKnocked() || !Target.isAlive()))
     					{
-    						contextId = 5;
-    						settingIndex = 80;
-    						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
+						contextId = config.knocked_context_id;
+						settingIndex = config.knocked_setting_index;
+						highlightParameter = { config.glow_r_knocked, config.glow_g_knocked, config.glow_b_knocked };
     					}
     					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
     					{
-    						contextId = 6;
-    						settingIndex = 81;
-    						highlightParameter = { glowrviz, glowgviz, glowbviz };
+						contextId = config.visible_context_id;
+						settingIndex = config.visible_setting_index;
+						highlightParameter = { config.glow_r_viz, config.glow_g_viz, config.glow_b_viz };
     					}
     					else 
     					{
-    						contextId = 7;
-    						settingIndex = 82;
-    						highlightParameter = { glowr, glowg, glowb };
+						contextId = config.not_visible_context_id;
+						settingIndex = config.not_visible_setting_index;
+						highlightParameter = { config.glow_r, config.glow_g, config.glow_b };
     					}
     					Target.enableGlow();
     				}
     			}
     	}
     	//////////////////////////////////////////////////////////////////////////////////////////////////
-		else if((player_glow == 0) && Target.isGlowing())
+		else if(!config.player_glow && Target.isGlowing())
 		{
 			Target.disableGlow();
 		}
@@ -168,10 +125,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector EntityPosition = target.getPosition();
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
-		if (dist > max_dist)
+		if (dist > config.max_dist)
 		return;
 
-	if(!firing_range && !onevone)
+	if(!config.firing_range && !config.onevone)
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
 	
@@ -187,9 +144,9 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (config.aim == 2)
 	{
-		if (visible && fov <= max_fov)
+		if (visible && fov <= config.max_fov)
 		{
 			if (fov < max)
 			{
@@ -207,7 +164,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov)
+		if (fov <= config.max_fov)
 		{
 			if (fov < max)
 			{
@@ -222,29 +179,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	lastvis_aim[index] = target.lastVisTime();
 }
 
-////////////////////////////////////////
-//Used to change things on a timer
-/* unsigned char insidevalueItem = 0;
-void updateInsideValue()
-{
-	updateInsideValue_t = true;
-	while (updateInsideValue_t)
-	{
-		insidevalueItem++;
-		insidevalueItem %= 256;
-		//std::this_thread::sleep_for(std::chrono::seconds(1));
-		std::this_thread::sleep_for(std::chrono::seconds(2));
-		printf("smooth: %f\n", smooth);
-		printf("bone: %i\n", bone);
-		printf("glowrnot: %f\n", glowr);
-		printf("glowgnot: %f\n", glowg);
-		printf("glowbnot: %f\n", glowb);
-		
-		//printf("%i\n", insidevalueItem);
-		
-	}
-	updateInsideValue_t = false;
-} */
 //walljump +//////////////////////////////////////
 	int onWallTmp = 0;
 	int wallJumpNow = 0;
@@ -314,7 +248,7 @@ void DoActions()
 Entity LPlayer = getEntity(LocalPlayer);
 
 			team_player = LPlayer.getTeamId();
-			if (team_player < 0 || team_player > 50 && !onevone)
+			if (team_player < 0 || (team_player > 50 && !config.onevone))
 			{
 				continue;
 			}
@@ -410,7 +344,7 @@ Entity LPlayer = getEntity(LocalPlayer);
        int jumpResetDelay = 800;
         
        // Check if SPACEBAR is pressed and held
-       if (SuperKey) {
+       if (config.super_key) {
            if (HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
              apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
            }
@@ -500,7 +434,7 @@ if (isGrappling && grappleAttached == 1) {
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
 			shooting = (in_attack_button.state & 1) != 0;
 
-			if (firing_range)
+			if (config.firing_range)
 			{
 				int c = 0;
 				for (int i = 0; i < 10000; i++)
@@ -518,11 +452,11 @@ if (isGrappling && grappleAttached == 1) {
 						continue;
 					}
 
-					if (player_glow && !Target.isGlowing())
+					if (config.player_glow && !Target.isGlowing())
 					{
 						Target.enableGlow();
 					}
-					else if (!player_glow && Target.isGlowing())
+					else if (!config.player_glow && Target.isGlowing())
 					{
 						Target.disableGlow();
 					}
@@ -550,16 +484,16 @@ if (isGrappling && grappleAttached == 1) {
 					ProcessPlayer(LPlayer, Target, entitylist, i);
 
 					int entity_team = Target.getTeamId();
-					if (entity_team == team_player && !onevone)
+					if (entity_team == team_player && !config.onevone)
 					{
 						continue;
 					}
 
-					if (player_glow && !Target.isGlowing())
+					if (config.player_glow && !Target.isGlowing())
 					{
 						Target.enableGlow();
 					}
-					else if (!player_glow && Target.isGlowing())
+					else if (!config.player_glow && Target.isGlowing())
 					{
 						Target.enableGlow();
 						//Target.disableGlow();
@@ -591,9 +525,9 @@ static void AimbotLoop()
 		while (g_Base != 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			if (aim > 0)
+			if (config.aim > 0)
 			{
-				if (aimentity == 0 || !aiming)
+				if (aimentity == 0 || !config.aiming)
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -602,7 +536,7 @@ static void AimbotLoop()
 				}
 
 				Entity Target = getEntity(aimentity);
-				if (!Target.isAlive() || (Target.isKnocked() && !firing_range))
+				if (!Target.isAlive() || (Target.isKnocked() && !config.firing_range))
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -619,10 +553,10 @@ static void AimbotLoop()
 					lock_start_time = std::chrono::steady_clock::now();
 				}
 
-				float current_smooth = smooth;
+				float current_smooth = config.smooth;
 				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
 				if (elapsed < 500) {
-					current_smooth = smooth * 2.0f;
+					current_smooth = config.smooth * 2.0f;
 				}
 
 				uint64_t LocalPlayer = 0;
@@ -634,7 +568,7 @@ static void AimbotLoop()
 				Entity LPlayer = getEntity(LocalPlayer);
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				if (fov > config.max_fov)
 				{
 					if (!shooting) {
 						lock = false;
@@ -645,12 +579,12 @@ static void AimbotLoop()
 					continue;
 				}
 
-				if (aim == 2 && !is_aimentity_visible)
+				if (config.aim == 2 && !is_aimentity_visible)
 				{
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, config.max_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
@@ -666,6 +600,7 @@ static void AimbotLoop()
 int main(int argc, char *argv[])
 {
 	mf_log_init(LevelFilter::LevelFilter_Info);
+	config.load("settings.ini");
 
 	if(geteuid() != 0)
 	{

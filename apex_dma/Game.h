@@ -1,6 +1,7 @@
 #include "Math.h"
 #include "offsets.h"
 #include "memory.h"
+#include "Config.h"
 
 #define NUM_ENT_ENTRIES			(1 << 12)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
