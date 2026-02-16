@@ -550,7 +550,8 @@ int main(int argc, char** argv)
 				config >> glowcolorknocked[0];
 				config >> glowcolorknocked[1];
 				config >> glowcolorknocked[2];
-				//config >> std::boolalpha >> firing_range;
+				config >> std::boolalpha >> firing_range;
+				config >> std::boolalpha >> onevone;
 				config >> DDS;
 				config >> min_max_fov;
 				config >> max_max_fov;

@@ -21,6 +21,7 @@ extern int spectators;
 extern int allied_spectators;
 
 extern bool onevone;
+extern bool firing_range;
 
 extern bool flickbot;
 extern int flickbot_key;
@@ -242,6 +243,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Superglide"), &superglide);
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
+			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);
+			ImGui::Checkbox(XorStr("1v1"), &onevone);
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
@@ -378,7 +381,8 @@ void Overlay::RenderMenu()
 					config << glowcolorknocked[0] << "\n";
 					config << glowcolorknocked[1] << "\n";
 					config << glowcolorknocked[2] << "\n";
-					//config << std::boolalpha << firing_range << "\n";
+					config << std::boolalpha << firing_range << "\n";
+					config << std::boolalpha << onevone << "\n";
 					config << DDS << "\n";
 					config << min_max_fov << "\n";
 					config << max_max_fov << "\n";
@@ -386,6 +390,15 @@ void Overlay::RenderMenu()
 					config << max_smooth << "\n";
 					config << min_cfsize << "\n";
 					config << max_cfsize << "\n";
+					config << flickbot << "\n";
+					config << flickbot_key << "\n";
+					config << triggerbot << "\n";
+					config << triggerbot_key << "\n";
+					config << superglide << "\n";
+					config << bhop << "\n";
+					config << walljump << "\n";
+					config << flickbot_fov << "\n";
+					config << flickbot_smooth << "\n";
 					config.close();
 				}
 			}
@@ -429,7 +442,8 @@ void Overlay::RenderMenu()
 					config >> glowcolorknocked[0];
 					config >> glowcolorknocked[1];
 					config >> glowcolorknocked[2];
-					//config >> std::boolalpha >> firing_range;
+					config >> std::boolalpha >> firing_range;
+					config >> std::boolalpha >> onevone;
 					config >> DDS;
 					config >> min_max_fov;
 					config >> max_max_fov;
