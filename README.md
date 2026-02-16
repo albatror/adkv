@@ -79,6 +79,7 @@ GameVersion v3.0.3.24
     ```bash
     ./build.sh
     ```
+    Memflow-qemu, memflow-kvm, others connectors and dumper will be compile at build and everything will be copied into build folder if succes.
 
 5.  **Configure `add_off` (CRITICAL STEP):**
     - Start the **Overlay** and **Client** on the guest.
