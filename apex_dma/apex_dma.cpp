@@ -68,6 +68,7 @@ float flickbot_smooth = 20.0f;
 bool triggerbot = false;
 int triggerbot_key = 0;
 bool triggerbot_aiming = false;
+float triggerbot_fov = 10.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -985,14 +986,16 @@ static void AimbotLoop()
 			// Triggerbot logic
 			if (triggerbot && triggerbot_aiming && aimentity != 0) {
 				Entity Target = getEntity(aimentity);
-				float aimed_at_time = 0;
-				apex_mem.Read<float>(Target.ptr + OFFSET_LAST_AIMEDAT_TIME, aimed_at_time);
-				if (aimed_at_time > last_aimed_at_time_tb) {
-					apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-					std::this_thread::sleep_for(std::chrono::milliseconds(20));
-					apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+				if (CalculateFov(LPlayer, Target) <= triggerbot_fov) {
+					float aimed_at_time = 0;
+					apex_mem.Read<float>(Target.ptr + OFFSET_LAST_AIMEDAT_TIME, aimed_at_time);
+					if (aimed_at_time > last_aimed_at_time_tb) {
+						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+					}
+					last_aimed_at_time_tb = aimed_at_time;
 				}
-				last_aimed_at_time_tb = aimed_at_time;
 			}
 
 			// Flickbot logic
@@ -1439,6 +1442,10 @@ while (vars_t)
         uint64_t flickbot_smooth_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, flickbot_smooth_addr);
         if (flickbot_smooth_addr) client_mem.Read<float>(flickbot_smooth_addr, flickbot_smooth);
+
+        uint64_t triggerbot_fov_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
+        if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
         if (esp && next)
         {

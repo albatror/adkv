@@ -50,6 +50,7 @@ float flickbot_smooth = 20.0f;
 bool triggerbot = false;
 int triggerbot_key = 0x06;
 bool triggerbot_aiming = false;
+float triggerbot_fov = 10.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -160,7 +161,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[46];//46
+uint64_t add[47];//47
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -472,6 +473,7 @@ int main(int argc, char** argv)
 	add[43] = (uintptr_t)&SuperKey;
 	add[44] = (uintptr_t)&flickbot_fov;
 	add[45] = (uintptr_t)&flickbot_smooth;
+	add[46] = (uintptr_t)&triggerbot_fov;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -567,6 +569,9 @@ int main(int argc, char** argv)
 				config >> walljump;
 				config >> flickbot_fov;
 				config >> flickbot_smooth;
+				config >> triggerbot_fov;
+				config >> v.flickbot_fov_circle;
+				config >> v.triggerbot_fov_circle;
 				config.close();
 			}
 		}

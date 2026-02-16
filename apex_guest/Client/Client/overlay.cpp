@@ -29,6 +29,7 @@ extern float flickbot_smooth;
 
 extern bool triggerbot;
 extern int triggerbot_key;
+extern float triggerbot_fov;
 
 extern bool superglide;
 extern bool bhop;
@@ -234,6 +235,7 @@ void Overlay::RenderMenu()
 					}
 				}
 			}
+			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::EndTabItem();
 		}
@@ -312,6 +314,8 @@ void Overlay::RenderMenu()
 				ImGui::SameLine();
 				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 1000.0f, "%.2f");
 			}
+			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
+			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -386,6 +390,18 @@ void Overlay::RenderMenu()
 					config << max_smooth << "\n";
 					config << min_cfsize << "\n";
 					config << max_cfsize << "\n";
+					config << flickbot << "\n";
+					config << flickbot_key << "\n";
+					config << triggerbot << "\n";
+					config << triggerbot_key << "\n";
+					config << superglide << "\n";
+					config << bhop << "\n";
+					config << walljump << "\n";
+					config << flickbot_fov << "\n";
+					config << flickbot_smooth << "\n";
+					config << triggerbot_fov << "\n";
+					config << v.flickbot_fov_circle << "\n";
+					config << v.triggerbot_fov_circle << "\n";
 					config.close();
 				}
 			}
@@ -446,6 +462,9 @@ void Overlay::RenderMenu()
 					config >> walljump;
 					config >> flickbot_fov;
 					config >> flickbot_smooth;
+					config >> triggerbot_fov;
+					config >> v.flickbot_fov_circle;
+					config >> v.triggerbot_fov_circle;
 					config.close();
 				}
 			}
@@ -650,6 +669,20 @@ DWORD Overlay::CreateOverlay()
 			ImGui::Begin("##circlefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), cfsize, IM_COL32(255, 0, 0, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (v.flickbot_fov_circle)
+		{
+			ImGui::Begin("##flickcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), flickbot_fov, IM_COL32(0, 0, 255, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (v.triggerbot_fov_circle)
+		{
+			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
 			ImGui::End();
 		}
 		RenderEsp();
