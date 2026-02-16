@@ -200,7 +200,8 @@ void Overlay::RenderSpectator() {
 	if (!v.spectator_notifier) return;
 	ImGui::SetNextWindowPos(ImVec2(490, 0));
 	ImGui::SetNextWindowSize(ImVec2(190, 130));
-	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground);
+	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
+	DrawLine(ImVec2(491, 2), ImVec2(679, 2), RED, 2);
 	ImGui::TextColored(RED, "%d", spectators);
 	ImGui::SameLine();
 	ImGui::Text("-");
