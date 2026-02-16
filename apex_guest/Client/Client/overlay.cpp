@@ -305,6 +305,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Info window"), &v.info_window);
 			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
 			if (v.target_indicator) {
 				ImGui::SameLine();
@@ -355,6 +357,7 @@ void Overlay::RenderMenu()
 					config << v.line << "\n";
 					config << v.skeleton << "\n";
 					config << v.spectator_notifier << "\n";
+					config << v.info_window << "\n";
 					config << v.target_indicator << "\n";
 					config << v.target_indicator_fov << "\n";
 					config << glowr << "\n";
@@ -405,6 +408,7 @@ void Overlay::RenderMenu()
 					config >> v.line;
 					config >> v.skeleton;
 					config >> v.spectator_notifier;
+					config >> v.info_window;
 					config >> v.target_indicator;
 					config >> v.target_indicator_fov;
 					config >> glowr;
@@ -455,6 +459,7 @@ void Overlay::RenderMenu()
 
 void Overlay::RenderInfo()
 {
+	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 0));
 	ImGui::SetNextWindowSize(ImVec2(170, 100));
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
