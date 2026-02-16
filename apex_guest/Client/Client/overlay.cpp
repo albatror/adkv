@@ -213,8 +213,8 @@ void Overlay::RenderMenu()
 					}
 				}
 			}
-			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 100.0f, "%.2f");
-			ImGui::SliderFloat(XorStr("Flick Smooth"), &flickbot_smooth, 1.0f, 100.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 1000.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("Flick Smooth"), &flickbot_smooth, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot"), &triggerbot);
@@ -252,10 +252,10 @@ void Overlay::RenderMenu()
 			ImGui::Text("%d meters", (int)(max_dist / 40));
 
 			ImGui::Text(XorStr("Smooth aim value:"));
-			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 250.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
 
 			ImGui::Text(XorStr("Max FOV:"));
-			ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 250.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 1000.0f, "%.2f");
 			
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
@@ -267,22 +267,22 @@ void Overlay::RenderMenu()
 			ImGui::Text("%d meters", (int)(DDS / 40));
 			//TEST CONFIG DDS
 			//ImGui::Text(XorStr("EBD:"));
-			if (ImGui::SliderFloat(XorStr("##min_max_fov"), &min_max_fov, 3.80f, 250.0f, "%.2f"))
+			if (ImGui::SliderFloat(XorStr("##min_max_fov"), &min_max_fov, 3.80f, 1000.0f, "%.2f"))
 			{
 				min_cfsize = min_max_fov;
 			}
 			ImGui::SameLine();
 			ImGui::Text("Min Fov");
-			if (ImGui::SliderFloat(XorStr("##max_max_fov"), &max_max_fov, 3.80f, 250.0f, "%.2f"))
+			if (ImGui::SliderFloat(XorStr("##max_max_fov"), &max_max_fov, 3.80f, 1000.0f, "%.2f"))
 			{
 				max_cfsize = max_max_fov;
 			}
 			ImGui::SameLine();
 			ImGui::Text("Max Fov");
-			ImGui::SliderFloat(XorStr("##min_smooth"), &min_smooth, 12.0f, 250.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##min_smooth"), &min_smooth, 12.0f, 1000.0f, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("Min Smooth");
-			ImGui::SliderFloat(XorStr("##max_smooth"), &max_smooth, 12.0f, 250.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##max_smooth"), &max_smooth, 12.0f, 1000.0f, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("Max Smooth");
 			ImGui::EndTabItem();
@@ -296,7 +296,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Name"), &v.name);
 			ImGui::Checkbox(XorStr("Circle fov"), &fov);
 			ImGui::SameLine();
-			ImGui::SliderFloat(XorStr("fov"), &cfsize, 2.0f, 250.0f, "%.2f size");
+			ImGui::SliderFloat(XorStr("fov"), &cfsize, 2.0f, 1000.0f, "%.2f size");
 			ImGui::Checkbox(XorStr("Line"), &v.line);
 			//ImGui::Checkbox(XorStr("Level"), &v.player_level);
 			ImGui::Checkbox(XorStr("Distance"), &v.distance);
@@ -310,7 +310,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
 			if (v.target_indicator) {
 				ImGui::SameLine();
-				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 500.0f, "%.2f");
+				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 1000.0f, "%.2f");
 			}
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
@@ -482,10 +482,10 @@ void Overlay::RenderInfo()
 	//ImGui::TextColored(GREEN, "%.0f", esp_distance / 39.62); //meters
 	ImGui::Text(XorStr("SMT"));
 	ImGui::SameLine();
-	ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 250.0f, "%.2f");
+	ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
 	ImGui::Text(XorStr("FOV"));
 	ImGui::SameLine();
-	ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 250.0f, "%.2f");
+	ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 1000.0f, "%.2f");
 
 	// Get the end position of the FOV slider
 	ImVec2 fovSliderEnd = ImGui::GetItemRectMax();
