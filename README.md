@@ -91,11 +91,13 @@ A high-performance Apex Legends DMA hack designed for **QEMU/KVM** environments 
 ## 📖 Usage
 
 1.  **Guest Side:** Start the **Overlay** (obfuscated) and **Client** (obfuscated).
-2.  **Game:** Start Apex Legends.
-3.  **Host Side:** Run the server with root privileges:
+2.  **Guest Side:** Nothing is showed from Client/Overlay at start to prevent screenshoot detection.
+3.  **Game:** Start Apex Legends.
+4.  **Host Side:** Run the server with root privileges:
     ```bash
     sudo -E ./apex_dma
     ```
+5. **Guest Side:** Press INSERT to active the menu and save your config. You can aswell choose to show Overlay Base Infos and/or Spectators's List at start by slecting them in menu. 
 
 ### Hotkeys
 - **INSERT:** Open/Close Overlay Menu.
