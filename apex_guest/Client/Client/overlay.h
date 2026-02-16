@@ -33,7 +33,8 @@ typedef struct visuals
 	bool shieldbar = true;
 	bool name = true;
 	bool skeleton = false;
-	bool spectator_notifier = true;
+	bool spectator_notifier = false;
+	bool info_window = false;
 	bool target_indicator = false;
 	float target_indicator_fov = 10.0f;
 }visuals;

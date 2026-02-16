@@ -529,6 +529,7 @@ int main(int argc, char** argv)
 				config >> v.line;
 				config >> v.skeleton;
 				config >> v.spectator_notifier;
+				config >> v.info_window;
 				config >> v.target_indicator;
 				config >> v.target_indicator_fov;
 				config >> glowr;
