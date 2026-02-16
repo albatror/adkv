@@ -72,13 +72,5 @@ FEATURES :
  - If using Client.exe and Overlay.exe - obfuscate both files to avoid detection.
  - If using Client.exe and Overlay from NVIDIA - obfuscate both files to avoid detection.
 
-<img src="https://github.com/albatror/adkv/blob/master/demo/settingsS.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/settingsS2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N1.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N3.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N4.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/ingame1.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/ingame2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/show1.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/console.png" style="display: block; margin: auto;" />
+<img src="https://github.com/albatror/adkv/blob/master/demo/optimize.gif" style="display: block; margin: auto;" />
+
