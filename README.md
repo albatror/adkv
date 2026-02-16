@@ -11,6 +11,8 @@ A high-performance Apex Legends DMA hack designed for **QEMU/KVM** environments 
 
 ---
 
+GameVersion v3.0.3.24 3
+
 ## 🚀 Features
 
 ### 🛡️ Visuals (ESP)
