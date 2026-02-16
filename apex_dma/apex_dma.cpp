@@ -127,6 +127,7 @@ int tapstrafe = 0;  // InitialisÃ© Ã  0, commence le comptage
 
 bool forward_hold = false;  // InitialisÃ© Ã  faux, pas de clÃ© maintenue au dÃ©but
 
+#pragma pack(push, 1)
 typedef struct player
 {
 	float dist = 0;
@@ -152,6 +153,7 @@ typedef struct spectator{
 	bool is_spec = false;
 	char name[33] = { 0 };
 }spectator;
+#pragma pack(pop)
 
 struct Matrix
 {
@@ -212,7 +214,7 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index, uint64_t spectated_ptr)
+void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index, uint64_t spectated_ptr, spectator* local_spec_list)
 {
 	int entity_team = target.getTeamId();
 	
@@ -226,8 +228,8 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 				tmp_spec++;
 
 			if (index >= 0 && index < toRead) {
-				target.get_name(g_Base, spectator_list[index].name);
-				spectator_list[index].is_spec = true;
+				target.get_name(g_Base, local_spec_list[index].name);
+				local_spec_list[index].is_spec = true;
 			}
 		}
 		return;
@@ -590,8 +592,9 @@ if (bhop && SuperKey) {
 			tmp_spec = 0;
 			tmp_all_spec = 0;
 
-			// Clear spectator list every frame to prevent ghosting/stale data
-			memset(spectator_list, 0, sizeof(spectator_list));
+			// Use temporary list to prevent race conditions with main thread
+			spectator tmp_spectator_list[toRead];
+			memset(tmp_spectator_list, 0, sizeof(tmp_spectator_list));
 
 			if (firing_range)
 			{
@@ -620,7 +623,7 @@ if (bhop && SuperKey) {
 						Target.disableGlow();
 					}
 
-					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
+					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr, tmp_spectator_list);
 					c++;
 				}
 			}
@@ -640,7 +643,7 @@ if (bhop && SuperKey) {
 						continue;
 					}
 					
-					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
+					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr, tmp_spectator_list);
 
 					int entity_team = Target.getTeamId();
 					if (entity_team == team_player && !onevone)
@@ -654,12 +657,13 @@ if (bhop && SuperKey) {
 					}
 					else if (!player_glow && Target.isGlowing())
 					{
-						Target.enableGlow();
-						//Target.disableGlow();
+						Target.disableGlow();
 					}
 				}
 			}
 
+			// Atomic-like update of spectator data
+			memcpy(spectator_list, tmp_spectator_list, sizeof(spectator_list));
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
 

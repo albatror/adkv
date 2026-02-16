@@ -2,6 +2,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#pragma pack(push, 1)
 typedef struct player {
     float dist = 0;
     int entity_team = 0;
@@ -19,11 +20,13 @@ typedef struct player {
     int armortype = 0;
     int xp_level = 0;
     char name[33] = { 0 };
+    float bones[15][2] = { 0 };
 } player;
 
 typedef struct spectator {
     bool is_spec = false;
     char name[33] = { 0 };
 } spectator;
+#pragma pack(pop)
 
 #endif // TYPES_H
