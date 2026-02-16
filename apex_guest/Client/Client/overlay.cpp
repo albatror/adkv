@@ -12,6 +12,7 @@ extern bool aim_no_recoil;
 extern bool ready;
 extern bool use_nvidia;
 extern float max_dist;
+extern float esp_max_dist;
 extern float smooth;
 extern float max_fov;
 extern float default_smooth;
@@ -170,6 +171,8 @@ void Overlay::RenderMenu()
 		if (ImGui::BeginTabItem(XorStr("Main")))
 		{
 			ImGui::Checkbox(XorStr("ESP"), &esp);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("No recoil/sway"), &aim_no_recoil);
 
 			ImGui::Checkbox(XorStr("AIM"), &aim_enable);
 
@@ -177,8 +180,6 @@ void Overlay::RenderMenu()
 			{
 				ImGui::SameLine();
 				ImGui::Checkbox(XorStr("Visibility check"), &vis_check);
-				ImGui::SameLine();
-				ImGui::Checkbox(XorStr("No recoil/sway"), &aim_no_recoil);
 				if (vis_check)
 				{
 					aim = 2;
@@ -251,10 +252,15 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
 		{
-			ImGui::Text(XorStr("Max distance:"));
+			ImGui::Text(XorStr("Aimbot distance:"));
 			ImGui::SliderFloat(XorStr("##1"), &max_dist, 100.0f * 40, 800.0f * 40, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(max_dist / 40));
+
+			ImGui::Text(XorStr("ESP distance:"));
+			ImGui::SliderFloat(XorStr("##esp_dist"), &esp_max_dist, 100.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(esp_max_dist / 40));
 
 			ImGui::Text(XorStr("Smooth aim value:"));
 			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
@@ -301,8 +307,10 @@ void Overlay::RenderMenu()
 				{
 					config << aim << "\n";
 					config << std::boolalpha << esp << "\n";
+					config << std::boolalpha << aim_no_recoil << "\n";
 					config << std::boolalpha << player_glow << "\n";
 					config << max_dist << "\n";
+					config << esp_max_dist << "\n";
 					config << default_smooth << "\n";
 					config << default_fov << "\n";
 					config << v.healthbar << "\n";
@@ -365,8 +373,10 @@ void Overlay::RenderMenu()
 				{
 					config >> aim;
 					config >> std::boolalpha >> esp;
+					config >> std::boolalpha >> aim_no_recoil;
 					config >> std::boolalpha >> player_glow;
 					config >> max_dist;
+					config >> esp_max_dist;
 					config >> default_smooth;
 					config >> default_fov;
 					config >> v.healthbar;

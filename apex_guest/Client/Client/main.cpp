@@ -69,6 +69,7 @@ bool aim_no_recoil = true;
 bool aiming = false; //read
 uint64_t g_Base = 0; //write
 float max_dist = 120.0f * 40.0f;
+float esp_max_dist = 120.0f * 40.0f;
 //float esp_distance = 300.0f * 40.0f;
 float smooth = 200.00f;
 float max_fov = 3.80f;
@@ -161,7 +162,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[47];//47
+uint64_t add[48];//48
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -474,6 +475,7 @@ int main(int argc, char** argv)
 	add[44] = (uintptr_t)&flickbot_fov;
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
+	add[47] = (uintptr_t)&esp_max_dist;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -521,8 +523,10 @@ int main(int argc, char** argv)
 			{
 				config >> aim;
 				config >> std::boolalpha >> esp;
+				config >> std::boolalpha >> aim_no_recoil;
 				config >> std::boolalpha >> player_glow;
 				config >> max_dist;
+				config >> esp_max_dist;
 				config >> default_smooth;
 				config >> default_fov;
 				config >> v.healthbar;

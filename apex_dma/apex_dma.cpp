@@ -24,6 +24,7 @@ uintptr_t tmp_aimentity = 0;
 uintptr_t lastaimentity = 0;
 float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
+float esp_max_dist = 200.0f * 40.0f;
 int team_player = 0;
 float max_fov = 5;
 const int toRead = 100;
@@ -236,56 +237,61 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector EntityPosition = target.getPosition();
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
-		if (dist > max_dist)
+
+	if (dist > max_dist && dist > esp_max_dist)
 		return;
 
 	if(!firing_range && !onevone)
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
-	
-	bool visible = (target.lastVisTime() > lastvis_aim[index]);
-	float fov = CalculateFov(LPlayer, target);
 
+	bool visible = (target.lastVisTime() > lastvis_aim[index]);
 	if (target.ptr == aimentity)
 	{
 		is_aimentity_visible = visible;
 	}
 
-	if (aimentity != 0 && lock)
+	if (dist <= max_dist)
 	{
-		// Stick to target
-	}
-	else if (aim == 2)
-	{
-		if (visible && fov <= max_fov)
+		float fov = CalculateFov(LPlayer, target);
+
+		if (aimentity != 0 && lock)
 		{
-			if (fov < max)
+			// Stick to target
+		}
+		else if (aim == 2)
+		{
+			if (visible && fov <= max_fov)
 			{
-				max = fov;
-				tmp_aimentity = target.ptr;
+				if (fov < max)
+				{
+					max = fov;
+					tmp_aimentity = target.ptr;
+				}
+			}
+			else
+			{
+				if (aimentity == target.ptr && !shooting)
+				{
+					aimentity = tmp_aimentity = lastaimentity = 0;
+				}
 			}
 		}
 		else
 		{
-			if (aimentity == target.ptr && !shooting)
+			if (fov <= max_fov)
 			{
-				aimentity = tmp_aimentity = lastaimentity = 0;
-			}
-		}
-	}
-	else
-	{
-		if (fov <= max_fov)
-		{
-			if (fov < max)
-			{
-				max = fov;
-				tmp_aimentity = target.ptr;
+				if (fov < max)
+				{
+					max = fov;
+					tmp_aimentity = target.ptr;
+				}
 			}
 		}
 	}
 	////
-	SetPlayerGlow(LPlayer, target, index);
+	if (dist <= esp_max_dist)
+		SetPlayerGlow(LPlayer, target, index);
 	////
 	lastvis_aim[index] = target.lastVisTime();
 }
@@ -786,7 +792,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 						Vector EntityPosition = Target.getPosition();
 						float dist = LocalPlayerPosition.DistTo(EntityPosition);
-						if (dist > max_dist || dist < 50.0f)
+						if (dist > esp_max_dist || dist < 50.0f)
 						{	
 							continue;
 						}
@@ -892,7 +898,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 						Vector EntityPosition = Target.getPosition();
 						float dist = LocalPlayerPosition.DistTo(EntityPosition);
-						if (dist > max_dist || dist < 50.0f)
+						if (dist > esp_max_dist || dist < 50.0f)
 						{	
 							continue;
 						}
@@ -1019,6 +1025,7 @@ static void AimbotLoop()
 				}
 			}
 
+			bool bot_updated_angles = false;
 			if (aim > 0)
 			{
 				if (aimentity == 0 || !aiming)
@@ -1026,58 +1033,67 @@ static void AimbotLoop()
 					lock = false;
 					lastaimentity = 0;
 					last_locked_entity = 0;
-					continue;
 				}
-
-				Entity Target = getEntity(aimentity);
-				if (!Target.isAlive() || (Target.isKnocked() && !firing_range))
+				else
 				{
-					lock = false;
-					lastaimentity = 0;
-					last_locked_entity = 0;
-					aimentity = 0;
-					continue;
-				}
-
-				lock = true;
-				lastaimentity = aimentity;
-
-				if (aimentity != last_locked_entity) {
-					last_locked_entity = aimentity;
-					lock_start_time = std::chrono::steady_clock::now();
-				}
-
-				float current_smooth = smooth;
-				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-				if (elapsed < 500) {
-					current_smooth = smooth * 2.0f;
-				}
-
-
-				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
-				{
-					if (!shooting) {
+					Entity Target = getEntity(aimentity);
+					if (!Target.isAlive() || (Target.isKnocked() && !firing_range))
+					{
 						lock = false;
 						lastaimentity = 0;
 						last_locked_entity = 0;
 						aimentity = 0;
 					}
-					continue;
-				}
+					else
+					{
+						lock = true;
+						lastaimentity = aimentity;
 
-				if (aim == 2 && !is_aimentity_visible)
-				{
-					continue;
-				}
+						if (aimentity != last_locked_entity) {
+							last_locked_entity = aimentity;
+							lock_start_time = std::chrono::steady_clock::now();
+						}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
-				if (Angles.x == 0 && Angles.y == 0)
-				{
-					continue;
-				}
+						float current_smooth = smooth;
+						auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
+						if (elapsed < 500) {
+							current_smooth = smooth * 2.0f;
+						}
 
-				LPlayer.SetViewAngles(Angles);
+
+						float fov = CalculateFov(LPlayer, Target);
+						if (fov > max_fov)
+						{
+							if (!shooting) {
+								lock = false;
+								lastaimentity = 0;
+								last_locked_entity = 0;
+								aimentity = 0;
+							}
+						}
+						else if (!(aim == 2 && !is_aimentity_visible))
+						{
+							QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+							if (Angles.x != 0 || Angles.y != 0)
+							{
+								LPlayer.SetViewAngles(Angles);
+								bot_updated_angles = true;
+							}
+						}
+					}
+				}
+			}
+
+			if (!bot_updated_angles && aim_no_recoil)
+			{
+				QAngle ViewAngles = LPlayer.GetViewAngles();
+				QAngle SwayAngles = LPlayer.GetSwayAngles();
+				QAngle Delta = SwayAngles - ViewAngles;
+				if (Delta.x != 0 || Delta.y != 0) {
+					QAngle NewAngles = ViewAngles - Delta;
+					Math::NormalizeAngles(NewAngles);
+					LPlayer.SetViewAngles(NewAngles);
+				}
 			}
 		}
 	}
@@ -1334,6 +1350,12 @@ while (vars_t)
         client_mem.Read<bool>(aim_no_recoil_addr, aim_no_recoil);
         client_mem.Read<float>(smooth_addr, smooth);
         client_mem.Read<float>(max_fov_addr, max_fov);
+
+        uint64_t esp_max_dist_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, esp_max_dist_addr);
+        if (esp_max_dist_addr)
+            client_mem.Read<float>(esp_max_dist_addr, esp_max_dist);
+
         client_mem.Read<int>(bone_addr, bone);
         client_mem.Read<float>(glowr_addr, glowr);
         client_mem.Read<float>(glowg_addr, glowg);
