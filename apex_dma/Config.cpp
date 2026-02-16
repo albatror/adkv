@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cctype>
+#include <cstdio>
 
 Config config;
 
@@ -23,6 +24,7 @@ bool Config::load(const std::string& filename) {
         return false;
     }
 
+    printf("Config loaded from %s\n", filename.c_str());
     std::string line;
     while (std::getline(file, line)) {
         line = trim(line);
