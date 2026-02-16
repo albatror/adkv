@@ -163,8 +163,8 @@ void Overlay::RenderMenu()
 	}
 
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
-	ImGui::SetNextWindowSize(ImVec2(490, 440));
-	ImGui::Begin(XorStr("##title"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
+	ImGui::SetNextWindowSize(ImVec2(490, 500));
+	ImGui::Begin(XorStr("##title"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 	if (ImGui::BeginTabBar(XorStr("Tab")))
 	{
 		if (ImGui::BeginTabItem(XorStr("Main")))
@@ -290,60 +290,7 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("##max_smooth"), &max_smooth, 12.0f, 1000.0f, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("Max Smooth");
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem(XorStr("Visuals")))
-		{
-			ImGui::Text(XorStr("ESP options:"));
-			//ImGui::SliderFloat("ESP Distance", &esp_distance, 50.0f, 500.0f);
-			ImGui::Checkbox(XorStr("Box"), &v.box);
-			ImGui::SameLine(0, 75.0f);
-			ImGui::Checkbox(XorStr("Name"), &v.name);
-			ImGui::Checkbox(XorStr("Circle fov"), &fov);
-			ImGui::SameLine();
-			ImGui::SliderFloat(XorStr("fov"), &cfsize, 2.0f, 1000.0f, "%.2f size");
-			ImGui::Checkbox(XorStr("Line"), &v.line);
-			//ImGui::Checkbox(XorStr("Level"), &v.player_level);
-			ImGui::Checkbox(XorStr("Distance"), &v.distance);
-			ImGui::Checkbox(XorStr("Health bar"), &v.healthbar);
-			ImGui::Checkbox(XorStr("Shield bar"), &v.shieldbar);
-			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
-			ImGui::SameLine();
-			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
-			ImGui::SameLine();
-			ImGui::Checkbox(XorStr("Info window"), &v.info_window);
-			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
-			if (v.target_indicator) {
-				ImGui::SameLine();
-				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 1000.0f, "%.2f");
-			}
-			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
-			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
-			//test glow
-			ImGui::Dummy(ImVec2(0.0f, 10.0f));
-			ImGui::Text(XorStr("Player Glow Visable:"));
-			ImGui::ColorEdit3("##Glow Color Picker Visable", glowcolorviz);
-			{
-				glowrviz = glowcolorviz[0] * 250;
-				glowgviz = glowcolorviz[1] * 250;
-				glowbviz = glowcolorviz[2] * 250;
-			}
-			ImGui::Dummy(ImVec2(0.0f, 10.0f));
-			ImGui::Text(XorStr("Player Glow Not Visable:"));
-			ImGui::ColorEdit3("##Glow Color Not Visable", glowcolor);
-			{
-				glowr = glowcolor[0] * 250;
-				glowg = glowcolor[1] * 250;
-				glowb = glowcolor[2] * 250;
-			}
-			ImGui::Dummy(ImVec2(0.0f, 10.0f));
-			ImGui::Text(XorStr("Player Glow Knocked:"));
-			ImGui::ColorEdit3("##Glow Color Knocked", glowcolorknocked);
-			{
-				glowrknocked = glowcolorknocked[0] * 250;
-				glowgknocked = glowcolorknocked[1] * 250;
-				glowbknocked = glowcolorknocked[2] * 250;
-			}
+
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Saving and Loading. Need to Save Once to make the file."));
 			//Saving
@@ -472,6 +419,67 @@ void Overlay::RenderMenu()
 					config >> v.triggerbot_fov_circle;
 					config.close();
 				}
+			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Visuals")))
+		{
+			ImGui::Text(XorStr("ESP options:"));
+			//ImGui::SliderFloat("ESP Distance", &esp_distance, 50.0f, 500.0f);
+			ImGui::Checkbox(XorStr("Box"), &v.box);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Name"), &v.name);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Distance"), &v.distance);
+
+			ImGui::Checkbox(XorStr("Health bar"), &v.healthbar);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Shield bar"), &v.shieldbar);
+
+			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
+			ImGui::Checkbox(XorStr("Line"), &v.line);
+
+			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Info window"), &v.info_window);
+
+			ImGui::Checkbox(XorStr("Circle fov"), &fov);
+			ImGui::SameLine();
+			ImGui::SliderFloat(XorStr("fov"), &cfsize, 2.0f, 1000.0f, "%.2f size");
+
+			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
+			if (v.target_indicator) {
+				ImGui::SameLine();
+				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 1000.0f, "%.2f");
+			}
+
+			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
+			//test glow
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+			ImGui::Text(XorStr("Player Glow Visable:"));
+			ImGui::ColorEdit3("##Glow Color Picker Visable", glowcolorviz);
+			{
+				glowrviz = glowcolorviz[0] * 250;
+				glowgviz = glowcolorviz[1] * 250;
+				glowbviz = glowcolorviz[2] * 250;
+			}
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+			ImGui::Text(XorStr("Player Glow Not Visable:"));
+			ImGui::ColorEdit3("##Glow Color Not Visable", glowcolor);
+			{
+				glowr = glowcolor[0] * 250;
+				glowg = glowcolor[1] * 250;
+				glowb = glowcolor[2] * 250;
+			}
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+			ImGui::Text(XorStr("Player Glow Knocked:"));
+			ImGui::ColorEdit3("##Glow Color Knocked", glowcolorknocked);
+			{
+				glowrknocked = glowcolorknocked[0] * 250;
+				glowgknocked = glowcolorknocked[1] * 250;
+				glowbknocked = glowcolorknocked[2] * 250;
 			}
 			ImGui::EndTabItem();
 		}
