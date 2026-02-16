@@ -6,6 +6,7 @@
 [![Version](https://img.shields.io/badge/Version-v3.0.3.24-green?style=for-the-badge)](https://github.com/albatror/adkv)
 
 A high-performance Apex Legends DMA hack designed for **QEMU/KVM** environments using the **memflow** library. This project provides a stealthy and efficient way to enhance your gameplay with minimal footprint.
+We use kvm connector for best performances.
 
 ![Showcase](https://github.com/albatror/adkv/raw/master/demo/optimize.gif)
 
