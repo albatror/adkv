@@ -42,9 +42,10 @@ VISUALS :
  - ESP Box, XP Level, Line, Name, Distance, Skeleton
  - ESP Seer Health and Shield
  - Circle FOV
+ - Target DOT (if target was on pre-selected FOV, green when visible and red when not)
  - Players Glow (GREEN when visible, RED when not visible and YELLOW when knocked - Can be changed in the overlay's menu)
  - Items Glow (complete disable)
- - Spectators count + Name List (Name List temporary disable but you can active it)
+ - Spectators count + Name List
 
 FEATURES :
  - Work in BoderLess and FullScreen
@@ -54,9 +55,13 @@ FEATURES :
  - Added a visual DOT to know if you're connected on the server (GREEN DOT) or disconnected (RED DOT)
  - Added the BruteForce and optimization CR3/DTB fix by MisterY - Stable CR3 > Windows 22H2
  - Press F1 (To Activate GloW, ESP Seer Health/Shield and Aimbot based on default conf)
- - DDS : Dynamic FOV/AIM/SMOOTH [70m by default]
- - AutoSuperGlide (nothing to do, it do for you :) ) [NEED TO BE REVIEWED].
- - AutoWallJump updated (Slide then jump on a wall, dont touch anything else and it'll auto-walljump) [NEED TO BE REVIEWED]
+ - F5 (To Activate only ESP Seer Health/Shield based on default conf)
+ - DDS : Dynamic FOV/AIM/SMOOTH [40m by default]
+ - BHOP
+ - AutoSuperGlide (nothing to do, it do for you :) ).
+ - AutoWallJump updated (Slide then jump on a wall, dont touch anything else and it'll auto-walljump)
+ - TriggerBot (Key settings in Overlay menu)
+ - FlickBot (Key, fov and smooth settings in Overlay menu)
  - Offsets Dumper included - F9 to full dump offsets and F10 for update. Offsets will be in apex_dma/build/r5dumper. Thanks & Crédits to to Apex-CV
 
  * 1V1 (Temporay disable)
