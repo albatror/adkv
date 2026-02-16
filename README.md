@@ -17,9 +17,8 @@ That's made to work on QEMU/KVM, so we dont talk about Linux Host, Windows VM, p
 
 - Now include and fix memflow-qemu and memflow-kvm (we use kvm for better perfomances) lib in the project
 - Now include libmemflow_kvm.so, libmemflow_qemu.so and libmemflow_win32.so in build folder after success build
-- Now include Skeleton ESP
-- Now include Offsets Dumper (Full dump and update offsets.ini)
-- Now Fix small bugs during save and changes in settings from Overlay menu
+- Now Fix big and small bugs
+- now include new features
 
 INSTALL :
  - Download sources from there *.zip or git
@@ -39,6 +38,7 @@ INSTALL :
  - On the Linux console (host) start the server by : sudo -E ./apex_dma
 
 VISUALS :
+ - Overlay information and the list of viewers are hidden by default to prevent screenshot detection at start - Both can be activated in Overlay menu (INSERT by default to activate config)
  - ESP Box, XP Level, Line, Name, Distance, Skeleton
  - ESP Seer Health and Shield
  - Circle FOV
