@@ -59,6 +59,20 @@ int grappleAttached;
 //Firing Range 1v1 toggle
 bool onevone = false;
 
+bool flickbot = false;
+int flickbot_key = 0;
+bool flickbot_aiming = false;
+float flickbot_fov = 10.0f;
+float flickbot_smooth = 20.0f;
+
+bool triggerbot = false;
+int triggerbot_key = 0;
+bool triggerbot_aiming = false;
+
+bool superglide = false;
+bool bhop = false;
+bool walljump = false;
+
 ///////////
 //bool medbackpack = true;
 ///////////
@@ -392,6 +406,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 //////////////////////////////////
 
 //walljump ++/////////////////////////////////////
+if (walljump) {
     bool success; // Declare success once
     int onWall;
     // Corrected memory read call
@@ -443,7 +458,7 @@ Entity LPlayer = getEntity(LocalPlayer);
             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
         }
     }
-
+}
 //walljump ++///////////////
 
     // SUPERGLIDE
@@ -478,7 +493,7 @@ Entity LPlayer = getEntity(LocalPlayer);
        int jumpResetDelay = 800;
         
        // Check if SPACEBAR is pressed and held
-       if (SuperKey) {
+       if (superglide && SuperKey) {
            if (HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
              apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
            }
@@ -544,12 +559,15 @@ if (isGrappling && grappleAttached == 1) {
 //grapple END/////////////////////////////
 
 //bhop///
-//if (bhop_enable) {
-//apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-//apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-//}
+if (bhop && SuperKey) {
+    uint32_t flags;
+    apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_FLAGS, flags);
+    if (flags & 0x1) {
+        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+    }
+}
 //bhop END/////////////////////////////
 
 			uint64_t baseent = 0;
@@ -949,6 +967,7 @@ static void AimbotLoop()
 {
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
+	static float last_aimed_at_time_tb = 0;
 
 	aim_t = true;
 	while (aim_t)
@@ -957,6 +976,46 @@ static void AimbotLoop()
 		while (g_Base != 0 && c_Base != 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+			uint64_t LocalPlayer = 0;
+			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+			if (LocalPlayer == 0) continue;
+			Entity LPlayer = getEntity(LocalPlayer);
+
+			// Triggerbot logic
+			if (triggerbot && triggerbot_aiming && aimentity != 0) {
+				Entity Target = getEntity(aimentity);
+				float aimed_at_time = 0;
+				apex_mem.Read<float>(Target.ptr + OFFSET_LAST_AIMEDAT_TIME, aimed_at_time);
+				if (aimed_at_time > last_aimed_at_time_tb) {
+					apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+					std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+				}
+				last_aimed_at_time_tb = aimed_at_time;
+			}
+
+			// Flickbot logic
+			if (flickbot && flickbot_aiming && aimentity != 0) {
+				Entity Target = getEntity(aimentity);
+				if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
+					float fov = CalculateFov(LPlayer, Target);
+					if (fov <= flickbot_fov) {
+						QAngle old_angles = LPlayer.GetViewAngles();
+						QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
+						if (aim_angles.x != 0 || aim_angles.y != 0) {
+							LPlayer.SetViewAngles(aim_angles);
+							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+							std::this_thread::sleep_for(std::chrono::milliseconds(50));
+							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+							std::this_thread::sleep_for(std::chrono::milliseconds(10));
+							LPlayer.SetViewAngles(old_angles);
+							std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
+						}
+					}
+				}
+			}
+
 			if (aim > 0)
 			{
 				if (aimentity == 0 || !aiming)
@@ -991,13 +1050,6 @@ static void AimbotLoop()
 					current_smooth = smooth * 2.0f;
 				}
 
-				uint64_t LocalPlayer = 0;
-				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
-
-				if (LocalPlayer == 0)
-					continue;
-
-				Entity LPlayer = getEntity(LocalPlayer);
 
 				float fov = CalculateFov(LPlayer, Target);
 				if (fov > max_fov)
@@ -1339,6 +1391,54 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_addr);
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
+
+        uint64_t flickbot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, flickbot_addr);
+        if (flickbot_addr) client_mem.Read<bool>(flickbot_addr, flickbot);
+
+        uint64_t flickbot_key_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, flickbot_key_addr);
+        if (flickbot_key_addr) client_mem.Read<int>(flickbot_key_addr, flickbot_key);
+
+        uint64_t flickbot_aiming_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, flickbot_aiming_addr);
+        if (flickbot_aiming_addr) client_mem.Read<bool>(flickbot_aiming_addr, flickbot_aiming);
+
+        uint64_t triggerbot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr);
+        if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
+
+        uint64_t triggerbot_key_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 38, triggerbot_key_addr);
+        if (triggerbot_key_addr) client_mem.Read<int>(triggerbot_key_addr, triggerbot_key);
+
+        uint64_t triggerbot_aiming_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, triggerbot_aiming_addr);
+        if (triggerbot_aiming_addr) client_mem.Read<bool>(triggerbot_aiming_addr, triggerbot_aiming);
+
+        uint64_t superglide_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 40, superglide_addr);
+        if (superglide_addr) client_mem.Read<bool>(superglide_addr, superglide);
+
+        uint64_t bhop_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 41, bhop_addr);
+        if (bhop_addr) client_mem.Read<bool>(bhop_addr, bhop);
+
+        uint64_t walljump_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, walljump_addr);
+        if (walljump_addr) client_mem.Read<bool>(walljump_addr, walljump);
+
+        uint64_t superkey_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);
+        if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
+
+        uint64_t flickbot_fov_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, flickbot_fov_addr);
+        if (flickbot_fov_addr) client_mem.Read<float>(flickbot_fov_addr, flickbot_fov);
+
+        uint64_t flickbot_smooth_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, flickbot_smooth_addr);
+        if (flickbot_smooth_addr) client_mem.Read<float>(flickbot_smooth_addr, flickbot_smooth);
 
         if (esp && next)
         {

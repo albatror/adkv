@@ -40,6 +40,21 @@ uint32_t check = 0xABCD;
 
 int aim_key = VK_LBUTTON;
 int aim_key2 = VK_RBUTTON;
+
+bool flickbot = false;
+int flickbot_key = VK_LBUTTON;
+bool flickbot_aiming = false;
+float flickbot_fov = 10.0f;
+float flickbot_smooth = 20.0f;
+
+bool triggerbot = false;
+int triggerbot_key = 0x06;
+bool triggerbot_aiming = false;
+
+bool superglide = false;
+bool bhop = false;
+bool walljump = false;
+
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
@@ -145,7 +160,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[34];//34
+uint64_t add[46];//46
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -444,6 +459,18 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&flickbot;
+	add[35] = (uintptr_t)&flickbot_key;
+	add[36] = (uintptr_t)&flickbot_aiming;
+	add[37] = (uintptr_t)&triggerbot;
+	add[38] = (uintptr_t)&triggerbot_key;
+	add[39] = (uintptr_t)&triggerbot_aiming;
+	add[40] = (uintptr_t)&superglide;
+	add[41] = (uintptr_t)&bhop;
+	add[42] = (uintptr_t)&walljump;
+	add[43] = (uintptr_t)&SuperKey;
+	add[44] = (uintptr_t)&flickbot_fov;
+	add[45] = (uintptr_t)&flickbot_smooth;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -529,6 +556,15 @@ int main(int argc, char** argv)
 				config >> max_smooth;
 				config >> min_cfsize;
 				config >> max_cfsize;
+				config >> flickbot;
+				config >> flickbot_key;
+				config >> triggerbot;
+				config >> triggerbot_key;
+				config >> superglide;
+				config >> bhop;
+				config >> walljump;
+				config >> flickbot_fov;
+				config >> flickbot_smooth;
 				config.close();
 			}
 		}
@@ -664,6 +700,24 @@ int main(int argc, char** argv)
 		else
 		{
 			aiming = false;
+		}
+
+		if (flickbot && IsKeyDown(flickbot_key))
+		{
+			flickbot_aiming = true;
+		}
+		else
+		{
+			flickbot_aiming = false;
+		}
+
+		if (triggerbot && IsKeyDown(triggerbot_key))
+		{
+			triggerbot_aiming = true;
+		}
+		else
+		{
+			triggerbot_aiming = false;
 		}
 
 		shooting = IsKeyDown(VK_LBUTTON);
