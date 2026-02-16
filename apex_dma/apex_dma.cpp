@@ -979,10 +979,10 @@ static void AimbotLoop()
 	aim_t = true;
 	while (aim_t)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		while (g_Base != 0 && c_Base != 0)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
 			uint64_t LocalPlayer = 0;
 			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
@@ -1076,8 +1076,15 @@ static void AimbotLoop()
 							QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
 							if (Angles.x != 0 || Angles.y != 0)
 							{
-								LPlayer.SetViewAngles(Angles);
-								bot_updated_angles = true;
+								QAngle ViewAngles = LPlayer.GetViewAngles();
+								QAngle Delta = Angles - ViewAngles;
+								if (abs(Delta.x) > 0.001f || abs(Delta.y) > 0.001f) {
+									LPlayer.SetViewAngles(Angles);
+									bot_updated_angles = true;
+								}
+								else {
+									bot_updated_angles = true; // Still considered updated even if below threshold
+								}
 							}
 						}
 					}
@@ -1089,8 +1096,11 @@ static void AimbotLoop()
 				QAngle ViewAngles = LPlayer.GetViewAngles();
 				QAngle SwayAngles = LPlayer.GetSwayAngles();
 				QAngle Delta = SwayAngles - ViewAngles;
-				if (Delta.x != 0 || Delta.y != 0) {
-					QAngle NewAngles = ViewAngles - Delta;
+				if (abs(Delta.x) > 0.001f || abs(Delta.y) > 0.001f) {
+					float current_smooth = smooth;
+					if (current_smooth < 1.0f) current_smooth = 1.0f;
+
+					QAngle NewAngles = ViewAngles - (Delta / current_smooth);
 					Math::NormalizeAngles(NewAngles);
 					LPlayer.SetViewAngles(NewAngles);
 				}
