@@ -116,4 +116,4 @@ A high-performance Apex Legends DMA hack designed for **QEMU/KVM** environments 
   - [Bone IDs Reference](https://www.unknowncheats.me/wiki/Apex_Legends_Bones_and_Hitboxes)
 
 ---
-*Credits to the Memflow team and all contributors.*
+*Credits to the Memflow team and all contributors, MisterY, Gerosity, ApexCV, KrackerCo, and more... .*
