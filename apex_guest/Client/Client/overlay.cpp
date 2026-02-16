@@ -458,7 +458,7 @@ void Overlay::RenderInfo()
 	ImGui::SetNextWindowPos(ImVec2(300, 0));
 	ImGui::SetNextWindowSize(ImVec2(170, 100));
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
-	DrawLine(ImVec2(1, 2), ImVec2(170, 2), RED, 2);;
+	DrawLine(ImVec2(301, 2), ImVec2(469, 2), RED, 2);
 	ImGui::Text(XorStr("DDS :"));
 	ImGui::SameLine();
 	ImGui::Text("%d meters", (int)(DDS / 40));
