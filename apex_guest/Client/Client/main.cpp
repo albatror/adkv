@@ -10,6 +10,7 @@
 //test contraste texte
 #include ".\imgui\imgui.h"
 
+#pragma pack(push, 1)
 typedef struct player
 {
 	float dist = 0;
@@ -35,6 +36,7 @@ typedef struct spectator {
 	bool is_spec = false;
 	char name[33] = { 0 };
 }spectator;
+#pragma pack(pop)
 
 uint32_t check = 0xABCD;
 

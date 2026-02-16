@@ -32,8 +32,7 @@
 #define OFFSET_ACTIVE_WEAPON 0x1958 + 0x0058 //[RecvTable.DT_Player].m_inventory + WeaponInventory_Client>activeWeapons updated 2026/02/11
 
 #define OFFSET_SPECTATOR_LIST OFFSET_OBSERVER_LIST //? updated 2024/11/15
-//#define OFFSET_OBSERVER_LIST 0x026d89d0 + 0x20C8 //[ConVars].gamepad_aim_assist_melee + 0x20C8 updated 2026/02/11
-#define OFFSET_OBSERVER_LIST  0x026d89d0 //[ConVars].gamepad_aim_assist_melee + 0x20C8 updated 2026/02/11
+#define OFFSET_OBSERVER_LIST  0x644df58 //[Miscellaneous].cl_entitylist + 0x2020 updated 2026/02/11
 #define OFFSET_OBSERVER_ARRAY 0x954 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2024/09/20
 
 #define OFFSET_IN_DUCKSTATE 0x2abc //[RecvTable.DT_Player].m_duckState updated 2026/02/11
