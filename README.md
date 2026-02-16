@@ -1,84 +1,119 @@
-# apex_dma_kvm_pub 3.0
- Apex Legends QEMU/KVM hack memflow
+# ⚡ Apex Legends DMA Hack v3.0 (QEMU/KVM)
 
-UnknownCheats thread: https://www.unknowncheats.me/forum/apex-legends/406426-kvm-vmread-apex-esp-aimbot.html
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-blueviolet?style=for-the-badge&logo=linux)](https://github.com/albatror/adkv)
+[![Language](https://img.shields.io/badge/Language-C%2B%2B-blue?style=for-the-badge&logo=c%2B%2B)](https://github.com/albatror/adkv)
+[![Technology](https://img.shields.io/badge/Powered%20By-Memflow-orange?style=for-the-badge)](https://memflow.io/)
+[![Version](https://img.shields.io/badge/Version-v3.0.3.24-green?style=for-the-badge)](https://github.com/albatror/adkv)
 
-Bone IDs reference: https://www.unknowncheats.me/wiki/Apex_Legends_Bones_and_Hitboxes
+A high-performance Apex Legends DMA hack designed for **QEMU/KVM** environments using the **memflow** library. This project provides a stealthy and efficient way to enhance your gameplay with minimal footprint.
 
-Game version (Steam & origin): 2026/02/08
+![Showcase](https://github.com/albatror/adkv/raw/master/demo/optimize.gif)
 
-That's made to work on QEMU/KVM, so we dont talk about Linux Host, Windows VM, passthrough and detection configuration
+---
 
-- Tested on Last release of Fedora, Ubuntu and ProxMox
-- Working on Windows 10 20H1 (never below) - Tested with stable CR3 on 22H2
+## 🚀 Features
 
-- 1920*1080 (need to be changed manually - search 2560 and/or 1440 in apex_dma.cpp)
-- 2560*1440 (default)
+### 🛡️ Visuals (ESP)
+- **ESP Boxes:** Clear 2D boxes around players.
+- **Health & Shields:** Integrated Seer-style health and shield bars.
+- **Skeleton:** Real-time bone rendering for precise movement tracking.
+- **Glow:** Highly customizable player glow (Green: Visible, Red: Hidden, Yellow: Knocked).
+- **Extra Info:** XP Level, Player Name, Distance, and Snap-lines.
+- **Spectator List:** Keep track of who is watching you (Count + Names).
+- **Target Indicator:** A visual DOT and FOV circle for Aimbot targets.
 
-- Now include and fix memflow-qemu and memflow-kvm (we use kvm for better perfomances) lib in the project
-- Now include libmemflow_kvm.so, libmemflow_qemu.so and libmemflow_win32.so in build folder after success build
-- Now Fix big and small bugs
-- now include new features
+### 🔫 Combat & Aimbot
+- **Aimbot:** Smooth and adjustable aiming with FOV locking.
+- **Lock On Target:** Prevents target switching during active combat.
+- **FlickBot:** Fast target acquisition with configurable FOV and smoothness.
+- **TriggerBot:** Automated firing when crosshairs are over an enemy.
+- **Dynamic Settings (DDS):** On-the-fly adjustment of FOV and Smoothing (Default: 40m).
 
-INSTALL :
- - Download sources from there *.zip or git
- - Extract it
- - Install Cargo & Rust with the famous curl https://sh.rustup.rs/ -sSf | sh (dont forget to add your USER)
- - Install memflow with the famous curl --proto '=https' --tlsv1.2 -sSf https://sh.memflow.io/ | sh (dont forget to add your USER)
- - execute : sudo modprobe memflow (at every start of the host - can be added with cron ..)
- - Compile with the build.sh to see if any errors.
- - When build is ok without errors, start Overlay (obfuscated by yourself before using direct code not included or VMP/Themida..) then Client (obfuscated by yourself before using direct code not included or VMP/Themida..)
+### 🏃 Movement & Misc
+- **Auto SuperGlide:** Perfect glides every time.
+- **Auto WallJump:** Fluid wall jumps (Slide -> Jump -> Wall -> Auto-jump).
+- **BunnyHop (BHOP):** Effortless movement across the map.
+- **DirectX 12 Support:** Fully compatible with DX12 game mode.
+- **Offset Dumper:** Built-in dumper to keep the hack updated with game patches.
 
- - Take the offset in the console and copy it then close Client and Overlay by pressing F4
- - Open apex_dma.cpp with editor then find uint64_t add_off = 0X0000000; at the end and replace with the offset from Client console : uint64_t add_off = YOUR_OFFSET; (You have to do that the first time after install only)
- - Compile again the server with ./build.sh
+---
 
- - When build is ok without errors, start Overlay (obfuscated) then Client (obfuscated)
- - Start the game
- - On the Linux console (host) start the server by : sudo -E ./apex_dma
+## 💻 Requirements
 
-VISUALS :
- - Overlay information and the list of viewers are hidden by default to prevent screenshot detection at start - Both can be activated in Overlay menu (INSERT by default to activate config)
- - ESP Box, XP Level, Line, Name, Distance, Skeleton
- - ESP Seer Health and Shield
- - Circle FOV
- - Target DOT (if target was on pre-selected FOV, green when visible and red when not)
- - Players Glow (GREEN when visible, RED when not visible and YELLOW when knocked - Can be changed in the overlay's menu)
- - Items Glow (complete disable)
- - Spectators count + Name List
+### Host (Linux)
+- **Supported Distros:** Fedora, Ubuntu, Proxmox.
+- **Hardware:** Second PC or KVM-compatible setup for DMA.
+- **Dependencies:** Cargo, Rust, Memflow.
 
-FEATURES :
- - Work in BoderLess and FullScreen
- - work with DirectX 12
- - Added "Lock On Target" feature. This feature prevents the aimbot from switching targets mid-fight, focusing on the first enemy targeted as long as the aim button is held. Can be choose in Overlay menu.
- - Added Offsets Dumper (Full dump and update offsets.ini)
- - Added a visual DOT to know if you're connected on the server (GREEN DOT) or disconnected (RED DOT)
- - Added the BruteForce and optimization CR3/DTB fix by MisterY - Stable CR3 > Windows 22H2
- - Press F1 (To Activate GloW, ESP Seer Health/Shield and Aimbot based on default conf)
- - F5 (To Activate only ESP Seer Health/Shield based on default conf)
- - DDS : Dynamic FOV/AIM/SMOOTH [40m by default]
- - BHOP
- - AutoSuperGlide (nothing to do, it do for you :) ).
- - AutoWallJump updated (Slide then jump on a wall, dont touch anything else and it'll auto-walljump)
- - TriggerBot (Key settings in Overlay menu)
- - FlickBot (Key, fov and smooth settings in Overlay menu)
- - Offsets Dumper included - F9 to full dump offsets and F10 for update. Offsets will be in apex_dma/build/r5dumper. Thanks & Crédits to to Apex-CV
+### Guest (Windows)
+- **OS:** Windows 10 (Version 20H1 or newer).
+- **Tested:** Stable on 22H2 with CR3 fix.
+- **Resolution:** 2560x1440 (Default) | 1920x1080 (Manual change required in `apex_dma.cpp`).
 
- * 1V1 (Temporay disable)
- * Training with dummies (Temporay disable)
+---
 
-!!! WARNING !!!
+## 🛠️ Installation
 
- - If using Client.exe and Overlay.exe - obfuscate both files to avoid detection.
- - If using Client.exe and Overlay from NVIDIA - obfuscate both files to avoid detection.
+1.  **Download Source:**
+    ```bash
+    git clone https://github.com/albatror/adkv.git
+    cd adkv
+    ```
 
-<img src="https://github.com/albatror/adkv/blob/master/demo/settingsS.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/settingsS2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N1.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N3.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/N4.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/ingame1.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/ingame2.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/show1.png" style="display: block; margin: auto;" />
-<img src="https://github.com/albatror/adkv/blob/master/demo/console.png" style="display: block; margin: auto;" />
+2.  **Install Toolchain:**
+    Install Rust & Cargo:
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    ```
+
+3.  **Setup Memflow:**
+    Install memflow:
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.memflow.io/ | sh
+    sudo modprobe memflow
+    ```
+
+4.  **Initial Build:**
+    ```bash
+    ./build.sh
+    ```
+
+5.  **Configure `add_off` (CRITICAL STEP):**
+    - Start the **Overlay** and **Client** on the guest.
+    - Note the offset displayed in the Client console.
+    - Close them (F4).
+    - Open `apex_dma/apex_dma.cpp`.
+    - Find `uint64_t add_off = 0x000000;` and replace it with your offset.
+    - Re-run `./build.sh`.
+
+---
+
+## 📖 Usage
+
+1.  **Guest Side:** Start the **Overlay** (obfuscated) and **Client** (obfuscated).
+2.  **Game:** Start Apex Legends.
+3.  **Host Side:** Run the server with root privileges:
+    ```bash
+    sudo -E ./apex_dma
+    ```
+
+### Hotkeys
+- **INSERT:** Open/Close Overlay Menu.
+- **F1:** Activate Full Suite (Glow, ESP, Aimbot).
+- **F5:** Activate ESP Only.
+- **F9:** Run Full Offset Dump.
+- **F10:** Update Offsets from INI.
+- **F4:** Emergency Close (Guest).
+
+---
+
+## ⚠️ Safety & Warning
+
+- **Obfuscation:** Always obfuscate `Client.exe` and `Overlay.exe` before use to prevent detection.
+- **Detection:** Cheating in online games can lead to permanent bans. Use at your own risk.
+- **External Links:**
+  - [UnknownCheats Thread](https://www.unknowncheats.me/forum/apex-legends/406426-kvm-vmread-apex-esp-aimbot.html)
+  - [Bone IDs Reference](https://www.unknowncheats.me/wiki/Apex_Legends_Bones_and_Hitboxes)
+
+---
+*Credits to the Memflow team and all contributors.*
