@@ -79,5 +79,6 @@ struct DynamicOffsets {
 extern DynamicOffsets offsets;
 
 bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, const char* buttons_file);
+void update_offsets_files(const char* offsets_file, const char* convars_file, const char* buttons_file);
 
 #endif

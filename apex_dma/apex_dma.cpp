@@ -1378,7 +1378,8 @@ while (vars_t)
             if (update_req)
             {
                 printf("Update offsets requested\n");
-                load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
+                if (load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini"))
+                    update_offsets_files("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
                 client_mem.Write<bool>(update_req_addr, false);
             }
         }

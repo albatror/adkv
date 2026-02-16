@@ -343,8 +343,7 @@ int main(int argc, char* argv[])
                 if (m_pszName < memoryBytesSize) {
                     std::memcpy(nameConVar, &memoryBytes[m_pszName], 127);
                     std::string fullName = formStr("[ConVars]" + std::string(nameConVar));
-                    if (mapConVars[fullName] == 0)
-                        mapConVars[fullName] = addressConVar;
+                    mapConVars[fullName] = addressConVar;
                 }
             }
         }
@@ -404,8 +403,7 @@ int main(int argc, char* argv[])
                         uint32_t m_fieldOffset = dataTypeDesc[i].m_fieldOffset[0];
                         std::cout << fieldName << " = 0x" << std::hex << m_fieldOffset << "\n";
                         std::string fullName = formStr("[DataMap." + std::string(dataClassName) + "]" + fieldName);
-                        if (mapOffsets[fullName] == 0)
-                            mapOffsets[fullName] = m_fieldOffset;
+                        mapOffsets[fullName] = m_fieldOffset;
                         dataFieldsCount++;
                     }
                 }
@@ -432,8 +430,7 @@ int main(int argc, char* argv[])
                 auto propName = (char*)(memoryBytes + m_propName);\
                 std::cout << propName << " = 0x" << std::hex << recvProp[i].m_offset << "\n";\
                 std::string fullName = formStr("[RecvTable." + std::string(tableName) + "]" + propName);\
-                if (mapOffsets[fullName] == 0)\
-                    mapOffsets[fullName] = recvProp[i].m_offset;\
+                mapOffsets[fullName] = recvProp[i].m_offset;\
                 recvPropsCount++;\
             }\
         }\
@@ -545,8 +542,7 @@ int main(int argc, char* argv[])
                     if (strlen(name) == 0) break;
                     std::cout << name << " = " << std::dec << i << "\n";
                     std::string fullName = formStr("[ModifierNames]" + std::string(name));
-                    if (mapOffsets[fullName] == 0)
-                        mapOffsets[fullName] = i;
+                    mapOffsets[fullName] = i;
                     modifierNamesCount++;
                 }
             }
@@ -567,8 +563,7 @@ int main(int argc, char* argv[])
             if (scanForPattern(temp, temp + 64, "488905 ${'}", save, saveAddr)) {
                 std::cout << nameNetworkedStringTable << " = 0x" << std::hex << save[0] << "\n";
                 std::string fullName = formStr("[NetworkedStringTables]" + std::string(nameNetworkedStringTable));
-                if (mapOffsets[fullName] == 0)
-                    mapOffsets[fullName] = save[0];
+                mapOffsets[fullName] = save[0];
                 networkedStringTablesCount++;
             }
             step = resume + 15;
@@ -607,8 +602,7 @@ int main(int argc, char* argv[])
                     auto weaponName = (char*)(memoryBytes + weaponDataFieldName);
                     std::cout << weaponName << " = 0x" << weaponDataField->offset << "\n";
                     std::string fullName = formStr("[WeaponSettings]" + std::string(weaponName));
-                    if (mapOffsets[fullName] == 0)
-                        mapOffsets[fullName] = weaponDataField->offset;
+                    mapOffsets[fullName] = weaponDataField->offset;
                     weaponSettingsCount++;
                 }
             }
@@ -735,8 +729,7 @@ int main(int argc, char* argv[])
             //if (signatures[i][0] == "LocalPlayer") save[0] += 8;
             std::cout << signatures[i][0] << "=0x" << std::hex << save[0] << "\n";
             std::string fullName = formStr("[.Miscellaneous]" + std::string(signatures[i][0]));
-            if (mapOffsets[fullName] == 0)
-                mapOffsets[fullName] = save[0];
+            mapOffsets[fullName] = save[0];
         } else
             std::cout << signatures[i][0] << "=0x........\n";
     }
@@ -787,8 +780,7 @@ int main(int argc, char* argv[])
                         size_t temp = m_fnCommandCallback - g_base;
                         if (scanForPattern(temp, temp + 256, "84 C0 75 44 8B 05 ${'} 3B D8 74 3A 8B 0D ? ? ? ? 3B D9 74 30 85 C0 75 08", save, saveAddr)) {
                             std::string fullName = formStr("[Buttons]" + std::string(nameConCommand));
-                            if (mapButtons[fullName] == 0)
-                                mapButtons[fullName] = save[0];
+                            mapButtons[fullName] = save[0];
                         }
                     }
                 }
