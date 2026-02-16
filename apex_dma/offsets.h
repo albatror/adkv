@@ -92,7 +92,7 @@
 #define OFFSET_GLOW_THROUGH_WALLS 0x26c - 0x21 //[RecvTable.DT_HighlightSettings.m_highlightGenericContexts - 0x21 updated 2024/07/23
  
 #define OFFSET_TIME_BASE 0x2158 //[DataMap.DT_Player].m_currentFramePlayer.timeBase updated 2025/02/12
-#define GLOW_START_TIME 0x02c4 //m_playerFloatLookStartTime updated 01/10/2024
+#define GLOW_START_TIME 0x02c8 + 0x30 //m_playerFloatLookStartTime + 0x30 updated 01/10/2024
 #define OFFSET_HIGHLIGHTSERVERACTIVESTATES 0x29C //[DT_HighlightSettings].m_highlightServerActiveStates updated 2024/06/26
 
 #define OFFSET_GLOW_FIX 0x278 //0x268 //updated 2025/02/25
