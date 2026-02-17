@@ -11,6 +11,8 @@
 #include <thread>
 #include <array>
 #include <fstream>
+#include <unordered_map>
+#include <cmath>
 ////////////////////////
 ////////////////////////
 
@@ -675,6 +677,62 @@ if (bhop && SuperKey) {
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
+    // Special long zoom delay for Kraber and Sentinel
+    if (weaponId == 98 || weaponId == 1) { // KRABER, SENTINEL
+        if (zoomElapsedMs < 950)
+            return false; // Not ready to shoot yet
+    } else {
+        // All other weapons need 600ms after zoom
+        if (zoomElapsedMs < 600)
+            return false; // Not ready yet
+    }
+
+    // List of allowed weapons
+    return (
+        weaponId == 98 ||   // KRABER
+        weaponId == 117 ||  // WINGMAN
+        weaponId == 89 ||   // LONGBOW
+        weaponId == 1   ||  // SENTINEL
+        weaponId == 95  ||  // G7 SCOUT
+        weaponId == 96  ||  // HEMLOCK
+        weaponId == 120 ||  // 30-30
+        weaponId == 116 ||  // TRIPLE TAKE
+        weaponId == 182 ||  // BOCEK
+        weaponId == 2   ||  // THROWING KNIFE
+        weaponId == 114 ||  // P2020
+        weaponId == 103 ||  // MOZAMBIQUE
+        weaponId == 92  ||  // EVA-8
+        weaponId == 111 ||  // PEACEKEEPER
+        weaponId == 101 ||  // MASTIFF
+        weaponId == 122     // NEMESIS
+    );
+}
+
+bool IsInCrossHair(Entity& target)
+{
+    static std::unordered_map<uint64_t, float> lastTimes;  // per target
+
+    float now_crosshair_target_time = target.lastCrossHairTime();
+
+    if (std::isnan(now_crosshair_target_time)) {
+        // printf("[DEBUG] Invalid crosshair time (nan) for target 0x%lx\n", target.ptr);
+        return false;
+    }
+
+    bool triggered = false;
+
+    float last_time = lastTimes[target.ptr];  // 0 if first time seen
+
+    if (now_crosshair_target_time > last_time) {
+        triggered = true;
+    }
+
+    lastTimes[target.ptr] = now_crosshair_target_time;  // update for next check
+
+    return triggered;
+}
+
 player players[toRead];
 
 static void EspLoop()
@@ -968,7 +1026,10 @@ static void AimbotLoop()
 {
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
-	static float last_aimed_at_time_tb = 0;
+
+	// Zoom tracking
+	static auto zoomStartTime = std::chrono::steady_clock::now();
+	static bool wasZooming = false;
 
 	aim_t = true;
 	while (aim_t)
@@ -983,18 +1044,25 @@ static void AimbotLoop()
 			if (LocalPlayer == 0) continue;
 			Entity LPlayer = getEntity(LocalPlayer);
 
+			// Update zoom timing
+			bool isZooming = LPlayer.isZooming();
+			auto now = std::chrono::steady_clock::now();
+			if (isZooming && !wasZooming) {
+				zoomStartTime = now;
+			}
+			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
+			wasZooming = isZooming;
+
 			// Triggerbot logic
-			if (triggerbot && triggerbot_aiming && aimentity != 0) {
-				Entity Target = getEntity(aimentity);
-				if (CalculateFov(LPlayer, Target) <= triggerbot_fov) {
-					float aimed_at_time = 0;
-					apex_mem.Read<float>(Target.ptr + OFFSET_LAST_AIMEDAT_TIME, aimed_at_time);
-					if (aimed_at_time > last_aimed_at_time_tb) {
+			if (triggerbot && triggerbot_aiming) {
+				if (isZooming && aimentity != 0) {
+					Entity Target = getEntity(aimentity);
+					int weaponId = LPlayer.getCurrentWeaponId();
+					if (isAllowedWeapon(weaponId, zoomElapsedMs) && IsInCrossHair(Target)) {
 						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 					}
-					last_aimed_at_time_tb = aimed_at_time;
 				}
 			}
 
