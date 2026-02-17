@@ -122,4 +122,4 @@ GameVersion v3.0.3.24
   - [Bone IDs Reference](https://www.unknowncheats.me/wiki/Apex_Legends_Bones_and_Hitboxes)
 
 ---
-*Credits to the Memflow team and all contributors, MisterY, Gerosity, ApexCV, KrackerCo, and more... .*
+*Credits to the Memflow team and all contributors, Y33Tcoder, MisterY, Gerosity, ApexCV, KrackerCo, caochuang, and more... .*
