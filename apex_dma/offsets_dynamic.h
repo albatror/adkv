@@ -23,6 +23,7 @@ struct DynamicOffsets {
     uint64_t SignName;
     uint64_t AbsVelocity;
     uint64_t VisibleTime;
+    uint64_t LastAimedAtTime;
     uint64_t Zooming;
     uint64_t ViewOffset;
     uint64_t ActiveWeapon;
@@ -32,6 +33,7 @@ struct DynamicOffsets {
     uint64_t InDuck;
     uint64_t TraversalProgress;
     uint64_t TraversalStartTime;
+    uint64_t TraversalReleaseTime;
     uint64_t InJump;
     uint64_t InToggleDuck;
     uint64_t WeaponName;
@@ -51,6 +53,7 @@ struct DynamicOffsets {
     uint64_t AimPunch;
     uint64_t CameraPos;
     uint64_t ViewAngles;
+    uint64_t BreathAngles;
     uint64_t ObserverMode;
     uint64_t ObservingTarget;
     uint64_t InUse;
@@ -74,10 +77,14 @@ struct DynamicOffsets {
     uint64_t Grapple;
     uint64_t GrappleAttached;
     uint64_t m_xp;
+    uint64_t Grade;
+    uint64_t CrosshairLastTargetTime;
 };
 
 extern DynamicOffsets offsets;
 
 bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, const char* buttons_file);
+bool save_offsets_to_files(const char* h_file, const char* ini_file);
+void initialize_offsets();
 
 #endif

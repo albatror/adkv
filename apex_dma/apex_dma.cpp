@@ -1446,7 +1446,10 @@ while (vars_t)
             if (update_req)
             {
                 printf("Update offsets requested\n");
-                load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
+                if (load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini")) {
+                    save_offsets_to_files("offsets.h", "offsets.ini");
+                    printf("Offsets saved to files.\n");
+                }
                 client_mem.Write<bool>(update_req_addr, false);
             }
         }
@@ -1542,6 +1545,8 @@ vars_t = false;
 int main(int argc, char *argv[])
 {
 	mf_log_init(LevelFilter::LevelFilter_Info);
+
+	initialize_offsets();
 
 	if(geteuid() != 0)
 	{
