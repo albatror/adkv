@@ -74,6 +74,7 @@ public:
 	void get_name(uint64_t g_Base, char* name);
 	//void get_name(char *name);
 	float lastCrossHairTime();
+	int getCurrentWeaponId();
 	////test////
 	int xp_level();
 

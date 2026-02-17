@@ -191,6 +191,19 @@ float Entity::lastCrossHairTime()
 {
 	return *(float*)(buffer + OFFSET_CROSSHAIR_LAST);
 }
+
+int Entity::getCurrentWeaponId()
+{
+	uint64_t wep_handle = 0;
+	apex_mem.Read<uint64_t>(ptr + OFFSET_WEAPON, wep_handle);
+	wep_handle &= 0xffff;
+	uint64_t wep_entity = 0;
+	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + (wep_handle << 5), wep_entity);
+	if (!wep_entity) return -1;
+	int weaponId = 0;
+	apex_mem.Read<int>(wep_entity + OFFSET_WEAPON_NAME, weaponId);
+	return weaponId;
+}
 ///////////////////////////////
 
 Vector Entity::getBonePosition(int id)
