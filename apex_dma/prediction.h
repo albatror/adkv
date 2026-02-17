@@ -1,3 +1,4 @@
+#pragma once
 #include <cmath>
 #include "Game.h"
 
@@ -12,12 +13,12 @@ struct PredictCtx
 	Vector2D AimAngles;
 };
 
-Vector ExtrapolatePos(const PredictCtx& Ctx, float Time)
+inline Vector ExtrapolatePos(const PredictCtx& Ctx, float Time)
 {
 	return Ctx.TargetPos + (Ctx.TargetVel * Time);
 }
 
-bool OptimalPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
+inline bool OptimalPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
 {
 	float Vel = Ctx.BulletSpeed, Grav = Ctx.BulletGravity, DirX = Dir2D.x, DirY = Dir2D.y;
 	float Root = Vel * Vel * Vel * Vel - Grav * (Grav * DirX * DirX + 2.f * DirY * Vel * Vel);
@@ -25,15 +26,24 @@ bool OptimalPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
 	return false;
 }
 
-bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* TravelTime)
+inline bool HighPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
+{
+	float Vel = Ctx.BulletSpeed, Grav = Ctx.BulletGravity, DirX = Dir2D.x, DirY = Dir2D.y;
+	float Root = Vel * Vel * Vel * Vel - Grav * (Grav * DirX * DirX + 2.f * DirY * Vel * Vel);
+	if (Root >= 0.f) { *OutPitch = atanf((Vel * Vel + sqrt(Root)) / (Grav * DirX)); return true; }
+	return false;
+}
+
+inline bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* TravelTime, bool High = false)
 {
 	Vector Dir = ExtrPos - Ctx.StartPos;
 	Vector2D Dir2D = { sqrtf(Dir.x * Dir.x + Dir.y * Dir.y), Dir.z };
 
 	float CurPitch;
-	if (!OptimalPitch(Ctx, Dir2D, &CurPitch))
-    {
-		return false;
+	if (High) {
+		if (!HighPitch(Ctx, Dir2D, &CurPitch)) return false;
+	} else {
+		if (!OptimalPitch(Ctx, Dir2D, &CurPitch)) return false;
 	}
 
 	*TravelTime = Dir2D.x / (cosf(CurPitch) * Ctx.BulletSpeed);
@@ -42,14 +52,19 @@ bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* TravelTime)
 	return true;
 }
 
-bool BulletPredict(PredictCtx& Ctx)
+inline bool BulletPredict(PredictCtx& Ctx, bool High = false)
 {
-	float MAX_TIME = 1.f, TIME_STEP = (1.f / 256.f);
+	float MAX_TIME = 1.5f, TIME_STEP = (1.f / 128.f);
+	if (High) {
+		MAX_TIME = 5.0f;
+		TIME_STEP = (1.f / 64.f);
+	}
+
 	for (float CurrentTime = 0.f; CurrentTime <= MAX_TIME; CurrentTime += TIME_STEP)
 	{
 		float TravelTime;
 		Vector ExtrPos = ExtrapolatePos(Ctx, CurrentTime);
-		if (!SolveTrajectory(Ctx, ExtrPos, &TravelTime))
+		if (!SolveTrajectory(Ctx, ExtrPos, &TravelTime, High))
         {
 			return false;
 		}

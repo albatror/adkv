@@ -353,6 +353,7 @@ void Overlay::RenderMenu()
 					config << triggerbot_fov << "\n";
 					config << v.flickbot_fov_circle << "\n";
 					config << v.triggerbot_fov_circle << "\n";
+					config << v.skynade << "\n";
 					config.close();
 				}
 			}
@@ -417,6 +418,7 @@ void Overlay::RenderMenu()
 					config >> triggerbot_fov;
 					config >> v.flickbot_fov_circle;
 					config >> v.triggerbot_fov_circle;
+					config >> v.skynade;
 					config.close();
 				}
 			}
@@ -456,6 +458,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Sky Grenade"), &v.skynade);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));

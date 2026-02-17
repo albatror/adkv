@@ -8,6 +8,7 @@
 #include <cfloat>
 #include "offsets_dynamic.h"
 #include "Game.h"
+#include "prediction.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -75,6 +76,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool skynade_enabled = false;
 
 ///////////
 //bool medbackpack = true;
@@ -129,6 +131,7 @@ int tapstrafe = 0;  // InitialisÃ© Ã  0, commence le comptage
 
 bool forward_hold = false;  // InitialisÃ© Ã  faux, pas de clÃ© maintenue au dÃ©but
 
+#pragma pack(push, 1)
 typedef struct player
 {
 	float dist = 0;
@@ -147,13 +150,18 @@ typedef struct player
 	int armortype = 0;
 	int player_xp_level = 0;
 	char name[33] = { 0 };
+	float skynade_x = 0;
+	float skynade_y = 0;
 	float bones[15][2] = { 0 };
 }player;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct spectator{
 	bool is_spec = false;
 	char name[33] = { 0 };
 }spectator;
+#pragma pack(pop)
 
 struct Matrix
 {
@@ -794,6 +802,14 @@ Entity LPlayer = getEntity(LocalPlayer);
 				apex_mem.Read<Matrix>(viewMatrix, m);
 
 				uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+
+				WeaponXEntity wep = WeaponXEntity();
+				float speed = 0, gravity = 0;
+				if (skynade_enabled) {
+					wep.update(LPlayer.ptr);
+					speed = wep.get_projectile_speed();
+					gravity = wep.get_projectile_gravity();
+				}
 				
 				memset(players, 0, sizeof(players));
 				if (firing_range)
@@ -881,6 +897,26 @@ Entity LPlayer = getEntity(LocalPlayer);
 								armortype,
 								//Target.read_xp_level()
 							};
+
+							if (skynade_enabled && speed > 1.0f && speed < 5000.0f) {
+								PredictCtx ctx;
+								ctx.StartPos = LPlayer.GetCamPos();
+								ctx.TargetPos = Target.getBonePositionByHitbox(bone);
+								ctx.BulletSpeed = speed;
+								ctx.BulletGravity = gravity;
+								ctx.TargetVel = Target.getAbsVelocity();
+								if (BulletPredict(ctx, true)) {
+									Vector forward;
+									QAngle aimAngles = { ctx.AimAngles.x, ctx.AimAngles.y, 0 };
+									Math::AngleVectors(aimAngles, &forward);
+									Vector aimPoint = ctx.StartPos + forward * 1000.0f;
+									Vector screenAimPoint;
+									if (WorldToScreen(aimPoint, m.matrix, screen_width, screen_height, screenAimPoint)) {
+										players[c].skynade_x = screenAimPoint.x;
+										players[c].skynade_y = screenAimPoint.y;
+									}
+								}
+							}
 
 							if (skeleton)
 							{
@@ -987,6 +1023,26 @@ Entity LPlayer = getEntity(LocalPlayer);
 								armortype,
 								//Target.read_xp_level()
 							};
+
+							if (skynade_enabled && speed > 1.0f && speed < 5000.0f) {
+								PredictCtx ctx;
+								ctx.StartPos = LPlayer.GetCamPos();
+								ctx.TargetPos = Target.getBonePositionByHitbox(bone);
+								ctx.BulletSpeed = speed;
+								ctx.BulletGravity = gravity;
+								ctx.TargetVel = Target.getAbsVelocity();
+								if (BulletPredict(ctx, true)) {
+									Vector forward;
+									QAngle aimAngles = { ctx.AimAngles.x, ctx.AimAngles.y, 0 };
+									Math::AngleVectors(aimAngles, &forward);
+									Vector aimPoint = ctx.StartPos + forward * 1000.0f;
+									Vector screenAimPoint;
+									if (WorldToScreen(aimPoint, m.matrix, screen_width, screen_height, screenAimPoint)) {
+										players[i].skynade_x = screenAimPoint.x;
+										players[i].skynade_y = screenAimPoint.y;
+									}
+								}
+							}
 
 							if (skeleton)
 							{
@@ -1514,6 +1570,10 @@ while (vars_t)
         uint64_t triggerbot_fov_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        uint64_t skynade_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, skynade_addr);
+        if (skynade_addr) client_mem.Read<bool>(skynade_addr, skynade_enabled);
 
         if (esp && next)
         {

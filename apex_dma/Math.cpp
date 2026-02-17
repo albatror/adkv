@@ -42,3 +42,18 @@ double Math::DotProduct(const Vector& v1, const float* v2)
 {
 	return v1.x * v2[0] + v1.y * v2[1] + v1.z * v2[2];
 }
+
+void Math::AngleVectors(const QAngle& angles, Vector* forward)
+{
+	float	sp, sy, cp, cy;
+
+	sy = sin(DEG2RAD(angles.y));
+	cy = cos(DEG2RAD(angles.y));
+
+	sp = sin(DEG2RAD(angles.x));
+	cp = cos(DEG2RAD(angles.x));
+
+	forward->x = cp * cy;
+	forward->y = cp * sy;
+	forward->z = -sp;
+}

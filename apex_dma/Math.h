@@ -1,3 +1,4 @@
+#pragma once
 #include <math.h>
 #include "vector.h"
 
@@ -27,4 +28,5 @@ namespace Math
 	double GetFov(const QAngle& viewAngle, const QAngle& aimAngle);
 	double DotProduct(const Vector& v1, const float* v2);
 	QAngle CalcAngle(const Vector& src, const Vector& dst);
+	void AngleVectors(const QAngle& angles, Vector* forward);
 }

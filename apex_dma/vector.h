@@ -1,3 +1,4 @@
+#pragma once
 #include <stdlib.h>
 
 #define Assert( _exp ) ((void)0)

@@ -10,6 +10,7 @@
 //test contraste texte
 #include ".\imgui\imgui.h"
 
+#pragma pack(push, 1)
 typedef struct player
 {
 	float dist = 0;
@@ -28,6 +29,8 @@ typedef struct player
 	int armortype = 0;
 	int xp_level = 0;
 	char name[33] = { 0 };
+	float skynade_x = 0;
+	float skynade_y = 0;
 	float bones[15][2] = { 0 };
 }player;
 
@@ -35,6 +38,7 @@ typedef struct spectator {
 	bool is_spec = false;
 	char name[33] = { 0 };
 }spectator;
+#pragma pack(pop)
 
 uint32_t check = 0xABCD;
 
@@ -161,7 +165,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[47];//47
+uint64_t add[48];//48
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -363,6 +367,13 @@ void Overlay::RenderEsp()
 						}
 					}
 
+					if (v.skynade && players[i].skynade_x > 1.0f && players[i].skynade_y > 1.0f)
+					{
+						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[i].skynade_x, players[i].skynade_y), 10.0f, ORANGE, 100, 2.0f);
+						ImGui::GetWindowDrawList()->AddLine(ImVec2(players[i].skynade_x - 15, players[i].skynade_y), ImVec2(players[i].skynade_x + 15, players[i].skynade_y), ORANGE, 1.0f);
+						ImGui::GetWindowDrawList()->AddLine(ImVec2(players[i].skynade_x, players[i].skynade_y - 15), ImVec2(players[i].skynade_x, players[i].skynade_y + 15), ORANGE, 1.0f);
+					}
+
 				}
 			}
 
@@ -474,6 +485,7 @@ int main(int argc, char** argv)
 	add[44] = (uintptr_t)&flickbot_fov;
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
+	add[47] = (uintptr_t)&v.skynade;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -573,6 +585,7 @@ int main(int argc, char** argv)
 				config >> triggerbot_fov;
 				config >> v.flickbot_fov_circle;
 				config >> v.triggerbot_fov_circle;
+				config >> v.skynade;
 				config.close();
 			}
 		}
