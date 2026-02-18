@@ -65,6 +65,8 @@ extern float glowgknocked;
 extern float glowbknocked;
 extern float glowcolorknocked[3];
 
+extern float glowcolor_spec[3];
+
 //DDS
 extern float min_max_fov;
 extern float max_max_fov;
@@ -353,6 +355,10 @@ void Overlay::RenderMenu()
 					config << triggerbot_fov << "\n";
 					config << v.flickbot_fov_circle << "\n";
 					config << v.triggerbot_fov_circle << "\n";
+					config << v.spectator_weapon_glow << "\n";
+					config << glowcolor_spec[0] << "\n";
+					config << glowcolor_spec[1] << "\n";
+					config << glowcolor_spec[2] << "\n";
 					config.close();
 				}
 			}
@@ -417,6 +423,10 @@ void Overlay::RenderMenu()
 					config >> triggerbot_fov;
 					config >> v.flickbot_fov_circle;
 					config >> v.triggerbot_fov_circle;
+					config >> v.spectator_weapon_glow;
+					config >> glowcolor_spec[0];
+					config >> glowcolor_spec[1];
+					config >> glowcolor_spec[2];
 					config.close();
 				}
 			}
@@ -456,6 +466,10 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
+
+			ImGui::Checkbox(XorStr("Spectator Weapon Glow"), &v.spectator_weapon_glow);
+			ImGui::SameLine();
+			ImGui::ColorEdit3("##Spectator Weapon Glow Color", glowcolor_spec);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));

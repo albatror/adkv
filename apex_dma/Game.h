@@ -1,6 +1,7 @@
 #include "Math.h"
 #include "offsets.h"
 #include "memory.h"
+#include <array>
 
 #define NUM_ENT_ENTRIES			(1 << 12)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
@@ -107,9 +108,12 @@ public:
 	float get_projectile_gravity();
 	float get_zoom_fov();
 	int get_ammo();
+	void enableGlow(std::array<float, 3> color);
+	void disableGlow();
 	//const char *get_name_str();
 	//void updateAmmo(uint64_t LocalPlayer);
 
+	uint64_t ptr;
 private:
 	float projectile_scale;
 	float projectile_speed;

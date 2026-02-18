@@ -76,6 +76,11 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 
+bool spectator_weapon_glow = false;
+float spec_glow_r = 1.0f;
+float spec_glow_g = 0.0f;
+float spec_glow_b = 0.0f;
+
 ///////////
 //bool medbackpack = true;
 ///////////
@@ -664,6 +669,43 @@ if (bhop && SuperKey) {
 
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
+
+			static bool last_spec_glow_state = false;
+			static uint64_t last_weapon_ptr = 0;
+			static float last_r = 0, last_g = 0, last_b = 0;
+			bool current_spec_glow_state = spectator_weapon_glow && (spectators > 0 || allied_spectators > 0);
+
+			WeaponXEntity curweap = WeaponXEntity();
+			curweap.update(LocalPlayer);
+
+			if (current_spec_glow_state != last_spec_glow_state || curweap.ptr != last_weapon_ptr ||
+				spec_glow_r != last_r || spec_glow_g != last_g || spec_glow_b != last_b)
+			{
+				if (current_spec_glow_state)
+				{
+					if (curweap.ptr != last_weapon_ptr && last_weapon_ptr != 0)
+					{
+						WeaponXEntity oldweap;
+						oldweap.ptr = last_weapon_ptr;
+						oldweap.disableGlow();
+					}
+					curweap.enableGlow({ spec_glow_r, spec_glow_g, spec_glow_b });
+				}
+				else
+				{
+					// If the feature was enabled but now should be disabled (either no spectators or feature toggled off)
+					curweap.disableGlow();
+					if (curweap.ptr != last_weapon_ptr && last_weapon_ptr != 0)
+					{
+						WeaponXEntity oldweap;
+						oldweap.ptr = last_weapon_ptr;
+						oldweap.disableGlow();
+					}
+				}
+				last_spec_glow_state = current_spec_glow_state;
+				last_weapon_ptr = curweap.ptr;
+				last_r = spec_glow_r; last_g = spec_glow_g; last_b = spec_glow_b;
+			}
 
 			if (!lock){
 				aimentity = tmp_aimentity;
@@ -1514,6 +1556,22 @@ while (vars_t)
         uint64_t triggerbot_fov_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        uint64_t spec_weapon_glow_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, spec_weapon_glow_addr);
+        if (spec_weapon_glow_addr) client_mem.Read<bool>(spec_weapon_glow_addr, spectator_weapon_glow);
+
+        uint64_t spec_glow_r_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, spec_glow_r_addr);
+        if (spec_glow_r_addr) client_mem.Read<float>(spec_glow_r_addr, spec_glow_r);
+
+        uint64_t spec_glow_g_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, spec_glow_g_addr);
+        if (spec_glow_g_addr) client_mem.Read<float>(spec_glow_g_addr, spec_glow_g);
+
+        uint64_t spec_glow_b_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, spec_glow_b_addr);
+        if (spec_glow_b_addr) client_mem.Read<float>(spec_glow_b_addr, spec_glow_b);
 
         if (esp && next)
         {

@@ -39,6 +39,7 @@ typedef struct visuals
 	float target_indicator_fov = 10.0f;
 	bool flickbot_fov_circle = false;
 	bool triggerbot_fov_circle = false;
+	bool spectator_weapon_glow = false;
 }visuals;
 
 struct GColor {
