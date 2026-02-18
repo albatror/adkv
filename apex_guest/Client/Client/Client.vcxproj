@@ -102,6 +102,7 @@
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="overlay.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="config.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imgui\imconfig.h" />
@@ -114,6 +115,7 @@
     <ClInclude Include="imgui\imstb_truetype.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="overlay.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="XorString.h" />
   </ItemGroup>
