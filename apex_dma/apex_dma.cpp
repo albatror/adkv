@@ -679,7 +679,7 @@ if (bhop && SuperKey) {
 
 bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
     // Special long zoom delay for Kraber and Sentinel
-    if (weaponId == 98 || weaponId == 1) { // KRABER, SENTINEL
+    if (weaponId == 103 || weaponId == 2) { // KRABER, SENTINEL
         if (zoomElapsedMs < 950)
             return false; // Not ready to shoot yet
     } else {
@@ -690,22 +690,22 @@ bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
 
     // List of allowed weapons
     return (
-        weaponId == 98 ||   // KRABER
-        weaponId == 117 ||  // WINGMAN
-        weaponId == 89 ||   // LONGBOW
-        weaponId == 1   ||  // SENTINEL
-        weaponId == 95  ||  // G7 SCOUT
-        weaponId == 96  ||  // HEMLOCK
-        weaponId == 120 ||  // 30-30
-        weaponId == 116 ||  // TRIPLE TAKE
-        weaponId == 182 ||  // BOCEK
-        weaponId == 2   ||  // THROWING KNIFE
-        weaponId == 114 ||  // P2020
-        weaponId == 103 ||  // MOZAMBIQUE
-        weaponId == 92  ||  // EVA-8
-        weaponId == 111 ||  // PEACEKEEPER
-        weaponId == 101 ||  // MASTIFF
-        weaponId == 122     // NEMESIS
+        weaponId == 103 ||   // KRABER
+        weaponId == 124 || weaponId == 125 ||  // WINGMAN
+        weaponId == 93 ||   // LONGBOW
+        weaponId == 2   ||  // SENTINEL
+        weaponId == 99  || weaponId == 100 ||  // G7 SCOUT
+        weaponId == 101 || weaponId == 102 ||  // HEMLOCK
+        weaponId == 127 ||  // 30-30
+        weaponId == 122 || weaponId == 123 ||  // TRIPLE TAKE
+        weaponId == 3   || weaponId == 128 ||  // BOCEK
+        weaponId == 198 ||  // THROWING KNIFE
+        weaponId == 119 || weaponId == 120 ||  // P2020
+        (weaponId >= 108 && weaponId <= 112) ||  // MOZAMBIQUE variants
+        weaponId == 96  || weaponId == 97  ||  // EVA-8
+        weaponId == 115 || weaponId == 116 ||  // PEACEKEEPER
+        weaponId == 106 || weaponId == 107 ||  // MASTIFF
+        weaponId == 131     // NEMESIS
     );
 }
 

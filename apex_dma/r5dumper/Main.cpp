@@ -583,13 +583,8 @@ int main(int argc, char* argv[])
         uint64_t name;
         uint64_t _default;
         uint64_t description;
-//        uint32_t unk1;
-//        uint32_t offset;
-        uint8_t  ty;
-        uint8_t  flags;
-        uint16_t index;
-        uint16_t offset;
-        uint8_t  _pad[2];
+        uint32_t unk1;
+        uint32_t offset;
     };
     resume = 0;
     if (scanForPattern(resume, dataVirtualAddress, "41 8D 40 FF 3D u4 0F 87", save, saveAddr)) {
