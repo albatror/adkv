@@ -369,9 +369,10 @@ void Overlay::RenderEsp()
 
 					if (v.skynade && players[i].skynade_x > 1.0f && players[i].skynade_y > 1.0f)
 					{
-						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[i].skynade_x, players[i].skynade_y), 10.0f, ORANGE, 100, 2.0f);
-						ImGui::GetWindowDrawList()->AddLine(ImVec2(players[i].skynade_x - 15, players[i].skynade_y), ImVec2(players[i].skynade_x + 15, players[i].skynade_y), ORANGE, 1.0f);
-						ImGui::GetWindowDrawList()->AddLine(ImVec2(players[i].skynade_x, players[i].skynade_y - 15), ImVec2(players[i].skynade_x, players[i].skynade_y + 15), ORANGE, 1.0f);
+						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[i].skynade_x, players[i].skynade_y), 12.0f, ORANGE, 100, 2.5f);
+						ImGui::GetWindowDrawList()->AddLine(ImVec2(players[i].skynade_x - 20, players[i].skynade_y), ImVec2(players[i].skynade_x + 20, players[i].skynade_y), ORANGE, 1.0f);
+						ImGui::GetWindowDrawList()->AddLine(ImVec2(players[i].skynade_x, players[i].skynade_y - 20), ImVec2(players[i].skynade_x, players[i].skynade_y + 20), ORANGE, 1.0f);
+						ImGui::GetWindowDrawList()->AddText(ImVec2(players[i].skynade_x + 15, players[i].skynade_y + 15), ORANGE, "SKY NADE");
 					}
 
 				}

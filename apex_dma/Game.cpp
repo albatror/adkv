@@ -601,22 +601,38 @@ void WeaponXEntity::update(uint64_t LocalPlayer)
 {
     extern uint64_t g_Base;
 	uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-	uint64_t wephandle = 0;
-    apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_WEAPON, wephandle);
 	
-	wephandle &= 0xffff;
-
-	uint64_t wep_entity = 0;
-    apex_mem.Read<uint64_t>(entitylist + (wephandle << 5), wep_entity);
+	// Try multiple weapon handle offsets to find the active item (especially grenades)
+	uint32_t wephandles[3];
+	apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_ACTIVE_WEAPON, wephandles[0]);
+	apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_WEAPON, wephandles[1]);
+	apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_OFF_WEAPON, wephandles[2]);
 
 	projectile_speed = 0;
-    apex_mem.Read<float>(wep_entity + OFFSET_BULLET_SPEED, projectile_speed);
 	projectile_scale = 0;
-    apex_mem.Read<float>(wep_entity + OFFSET_BULLET_SCALE, projectile_scale);
 	zoom_fov = 0;
-    apex_mem.Read<float>(wep_entity + OFFSET_ZOOM_FOV, zoom_fov);
 	ammo = 0;
-    apex_mem.Read<int>(wep_entity + OFFSET_AMMO, ammo);
+
+	for (int i = 0; i < 3; i++) {
+		uint32_t wephandle = wephandles[i] & 0xffff;
+		if (wephandle == 0xffff || wephandle == 0) continue;
+
+		uint64_t wep_entity = 0;
+		apex_mem.Read<uint64_t>(entitylist + ((uint64_t)wephandle << 5), wep_entity);
+		if (!wep_entity) continue;
+
+		float speed = 0;
+		apex_mem.Read<float>(wep_entity + OFFSET_BULLET_SPEED, speed);
+		if (speed > 1.0f) {
+			projectile_speed = speed;
+			apex_mem.Read<float>(wep_entity + OFFSET_BULLET_SCALE, projectile_scale);
+			apex_mem.Read<float>(wep_entity + OFFSET_ZOOM_FOV, zoom_fov);
+			apex_mem.Read<int>(wep_entity + OFFSET_AMMO, ammo);
+
+			// If we found a valid projectile weapon/grenade, we can stop
+			if (speed < 5000.0f) break; // Priority to grenades/slow projectiles for sky-nade
+		}
+	}
 }
 
 //////////////////////

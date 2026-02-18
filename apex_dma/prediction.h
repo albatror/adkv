@@ -56,8 +56,8 @@ inline bool BulletPredict(PredictCtx& Ctx, bool High = false)
 {
 	float MAX_TIME = 1.5f, TIME_STEP = (1.f / 128.f);
 	if (High) {
-		MAX_TIME = 5.0f;
-		TIME_STEP = (1.f / 64.f);
+		MAX_TIME = 7.0f;
+		TIME_STEP = (1.f / 128.f);
 	}
 
 	for (float CurrentTime = 0.f; CurrentTime <= MAX_TIME; CurrentTime += TIME_STEP)
