@@ -75,6 +75,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool skynade = false;
 
 ///////////
 //bool medbackpack = true;
@@ -1145,7 +1146,45 @@ static void AimbotLoop()
 					continue;
 				}
 
-				LPlayer.SetViewAngles(Angles);
+				if (skynade) {
+					WeaponXEntity curweap = WeaponXEntity();
+					curweap.update(LocalPlayer);
+					float bulletSpeed = curweap.get_projectile_speed();
+					float bulletGravity = curweap.get_projectile_scale() * 725.0f;
+					char weaponName[32];
+					curweap.get_weapon_name(weaponName);
+					std::string weaponNameStr(weaponName);
+
+					if (weaponNameStr.find("thermite") != std::string::npos)
+						bulletGravity = curweap.get_projectile_scale() * 775.0f;
+
+					Vector LocalCamera = LPlayer.GetCamPos();
+					Vector EntityPosition = Target.getPosition();
+
+					QAngle baseAngles = Math::CalcAngle(LocalCamera, EntityPosition);
+					float distance2D = LocalCamera.Dist2D(EntityPosition);
+
+					if (weaponNameStr.find("frag") != std::string::npos)
+						baseAngles.x = acos(distance2D / bulletSpeed / 3.0f) * (180.0f / M_PI);
+					else
+						baseAngles.x = 90.0f - 0.5f * asin(bulletGravity * distance2D / (bulletSpeed * bulletSpeed)) * (180.0f / M_PI);
+
+					if (std::isnan(baseAngles.x) || std::isinf(baseAngles.x))
+						baseAngles.x = 0.0f;
+
+					baseAngles.x *= -1;
+
+					if (aim_no_recoil) {
+						QAngle ViewAngles = LPlayer.GetViewAngles();
+						QAngle SwayAngles = LPlayer.GetSwayAngles();
+						baseAngles -= SwayAngles - ViewAngles;
+					}
+
+					Math::NormalizeAngles(baseAngles);
+					LPlayer.SetViewAngles(baseAngles);
+				} else {
+					LPlayer.SetViewAngles(Angles);
+				}
 			}
 		}
 	}
@@ -1514,6 +1553,10 @@ while (vars_t)
         uint64_t triggerbot_fov_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        uint64_t skynade_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, skynade_addr);
+        if (skynade_addr) client_mem.Read<bool>(skynade_addr, skynade);
 
         if (esp && next)
         {

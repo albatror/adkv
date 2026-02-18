@@ -105,6 +105,8 @@ public:
 	void update(uint64_t LocalPlayer);
 	float get_projectile_speed();
 	float get_projectile_gravity();
+	float get_projectile_scale();
+	void get_weapon_name(char* out_str);
 	float get_zoom_fov();
 	int get_ammo();
 	//const char *get_name_str();

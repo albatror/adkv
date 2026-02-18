@@ -155,6 +155,7 @@ public:
 	void	NormalizeInPlace();
 	inline float	DistTo(const Vector& vOther) const;
 	inline float	DistToSqr(const Vector& vOther) const;
+	inline float	Dist2D(const Vector& vOther) const;
 	float	Dot(const Vector& vOther) const;
 	float	Length2D(void) const;
 	float	Length2DSqr(void) const;
@@ -351,6 +352,15 @@ float Vector::DistToSqr(const Vector& vOther) const
 	delta.z = z - vOther.z;
 
 	return delta.LengthSqr();
+}
+float Vector::Dist2D(const Vector& vOther) const
+{
+	Vector delta;
+
+	delta.x = x - vOther.x;
+	delta.y = y - vOther.y;
+
+	return delta.Length2D();
 }
 //===============================================
 inline Vector Vector::Normalize()

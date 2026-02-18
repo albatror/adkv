@@ -632,6 +632,26 @@ float WeaponXEntity::get_projectile_gravity()
 	return 750.0f * projectile_scale;
 }
 
+float WeaponXEntity::get_projectile_scale()
+{
+	return projectile_scale;
+}
+
+void WeaponXEntity::get_weapon_name(char* out_str)
+{
+	extern uint64_t g_Base;
+	uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+	extern Memory apex_mem;
+	uint64_t LocalPlayer = 0;
+	apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+	uint64_t wephandle = 0;
+	apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_WEAPON, wephandle);
+	wephandle &= 0xffff;
+	uint64_t wep_entity = 0;
+	apex_mem.Read<uint64_t>(entitylist + (wephandle << 5), wep_entity);
+	get_class_name(wep_entity, out_str);
+}
+
 float WeaponXEntity::get_zoom_fov()
 {
 	return zoom_fov;

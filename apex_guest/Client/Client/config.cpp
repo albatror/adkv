@@ -118,6 +118,8 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov " << triggerbot_fov << "\n";
     file << "flickbot_fov_circle " << std::boolalpha << v.flickbot_fov_circle << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
+    file << "skynade " << std::boolalpha << v.skynade << "\n";
+    file << "skynade_fov_circle " << std::boolalpha << v.skynade_fov_circle << "\n";
 
     file.close();
 }
@@ -185,6 +187,8 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
         else if (key == "flickbot_fov_circle") ss >> std::boolalpha >> v.flickbot_fov_circle;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
+        else if (key == "skynade") ss >> std::boolalpha >> v.skynade;
+        else if (key == "skynade_fov_circle") ss >> std::boolalpha >> v.skynade_fov_circle;
     }
 
     file.close();
