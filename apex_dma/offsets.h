@@ -88,7 +88,7 @@
 //#define OFFSET_GLOW_T1 0x292 //16256 = enabled, 0 = disabled
 //#define OFFSET_GLOW_T2 0x30c //1193322764 = enabled, 0 = disabled
 #define OFFSET_GLOW_ENABLE 0x0299 - 0x1 //0x299 //[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x1 updated 2026/02/11
-#define OFFSET_GLOW_THROUGH_WALLS 0x26c - 0x21 //[RecvTable.DT_HighlightSettings.m_highlightGenericContexts - 0x21 updated 2024/07/23
+#define OFFSET_GLOW_THROUGH_WALLS 0x26c //[RecvTable.DT_HighlightSettings.m_highlightGenericContexts - 0x21 updated 2024/07/23
  
 #define OFFSET_TIME_BASE 0x2158 //[DataMap.DT_Player].m_currentFramePlayer.timeBase updated 2025/02/12
 #define GLOW_START_TIME 0x02c8 + 0x30 //m_playerFloatLookStartTime + 0x30 updated 01/10/2024
