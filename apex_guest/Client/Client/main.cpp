@@ -1,4 +1,5 @@
 #include "main.h"
+#include "config.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>
@@ -513,68 +514,9 @@ int main(int argc, char** argv)
 			active = false;
 		}
 
-		//Load at start for saved settings to take effect. Need to save once to make the file.
-
+		//Load at start for saved settings to take effect.
 		for (static bool once = true; once; once = false) {
-			std::ifstream config("Settings.txt");
-			if (config.is_open())
-			{
-				config >> aim;
-				config >> std::boolalpha >> esp;
-				config >> std::boolalpha >> player_glow;
-				config >> max_dist;
-				config >> default_smooth;
-				config >> default_fov;
-				config >> v.healthbar;
-				config >> v.shieldbar;
-				config >> v.distance;
-				config >> v.line;
-				config >> v.skeleton;
-				config >> v.spectator_notifier;
-				config >> v.info_window;
-				config >> v.target_indicator;
-				config >> v.target_indicator_fov;
-				config >> glowr;
-				config >> glowg;
-				config >> glowb;
-				config >> glowcolor[0];
-				config >> glowcolor[1];
-				config >> glowcolor[2];
-				config >> glowrviz;
-				config >> glowgviz;
-				config >> glowbviz;
-				config >> glowcolorviz[0];
-				config >> glowcolorviz[1];
-				config >> glowcolorviz[2];
-				config >> glowrknocked;
-				config >> glowgknocked;
-				config >> glowbknocked;
-				config >> glowcolorknocked[0];
-				config >> glowcolorknocked[1];
-				config >> glowcolorknocked[2];
-				config >> std::boolalpha >> firing_range;
-				config >> std::boolalpha >> onevone;
-				config >> DDS;
-				config >> min_max_fov;
-				config >> max_max_fov;
-				config >> min_smooth;
-				config >> max_smooth;
-				config >> min_cfsize;
-				config >> max_cfsize;
-				config >> flickbot;
-				config >> flickbot_key;
-				config >> triggerbot;
-				config >> triggerbot_key;
-				config >> superglide;
-				config >> bhop;
-				config >> walljump;
-				config >> flickbot_fov;
-				config >> flickbot_smooth;
-				config >> triggerbot_fov;
-				config >> v.flickbot_fov_circle;
-				config >> v.triggerbot_fov_circle;
-				config.close();
-			}
+			LoadConfig("Settings.txt");
 		}
 
 		if (IsKeyDown(VK_F1) && k_f1 == 0)

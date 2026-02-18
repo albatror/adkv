@@ -1,4 +1,5 @@
 #include "overlay.h"
+#include "config.h"
 #include <fstream>
 #include <iomanip>
 
@@ -292,133 +293,17 @@ void Overlay::RenderMenu()
 			ImGui::Text("Max Smooth");
 
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
-			ImGui::Text(XorStr("Saving and Loading. Need to Save Once to make the file."));
+			ImGui::Text(XorStr("Saving and Loading."));
 			//Saving
 			if (ImGui::Button("Save Config"))
 			{
-				ofstream config("Settings.txt");
-				if (config.is_open())
-				{
-					config << aim << "\n";
-					config << std::boolalpha << esp << "\n";
-					config << std::boolalpha << player_glow << "\n";
-					config << max_dist << "\n";
-					config << default_smooth << "\n";
-					config << default_fov << "\n";
-					config << v.healthbar << "\n";
-					config << v.shieldbar << "\n";
-					config << v.distance << "\n";
-					config << v.line << "\n";
-					config << v.skeleton << "\n";
-					config << v.spectator_notifier << "\n";
-					config << v.info_window << "\n";
-					config << v.target_indicator << "\n";
-					config << v.target_indicator_fov << "\n";
-					config << glowr << "\n";
-					config << glowg << "\n";
-					config << glowb << "\n";
-					config << glowcolor[0] << "\n";
-					config << glowcolor[1] << "\n";
-					config << glowcolor[2] << "\n";
-					config << glowrviz << "\n";
-					config << glowgviz << "\n";
-					config << glowbviz << "\n";
-					config << glowcolorviz[0] << "\n";
-					config << glowcolorviz[1] << "\n";
-					config << glowcolorviz[2] << "\n";
-					config << glowrknocked << "\n";
-					config << glowgknocked << "\n";
-					config << glowbknocked << "\n";
-					config << glowcolorknocked[0] << "\n";
-					config << glowcolorknocked[1] << "\n";
-					config << glowcolorknocked[2] << "\n";
-					config << std::boolalpha << firing_range << "\n";
-					config << std::boolalpha << onevone << "\n";
-					config << DDS << "\n";
-					config << min_max_fov << "\n";
-					config << max_max_fov << "\n";
-					config << min_smooth << "\n";
-					config << max_smooth << "\n";
-					config << min_cfsize << "\n";
-					config << max_cfsize << "\n";
-					config << flickbot << "\n";
-					config << flickbot_key << "\n";
-					config << triggerbot << "\n";
-					config << triggerbot_key << "\n";
-					config << superglide << "\n";
-					config << bhop << "\n";
-					config << walljump << "\n";
-					config << flickbot_fov << "\n";
-					config << flickbot_smooth << "\n";
-					config << triggerbot_fov << "\n";
-					config << v.flickbot_fov_circle << "\n";
-					config << v.triggerbot_fov_circle << "\n";
-					config.close();
-				}
+				SaveConfig("Settings.txt");
 			}
 			ImGui::SameLine();
 			//Loading
 			if (ImGui::Button("Load Config"))
 			{
-				ifstream config("Settings.txt");
-				if (config.is_open())
-				{
-					config >> aim;
-					config >> std::boolalpha >> esp;
-					config >> std::boolalpha >> player_glow;
-					config >> max_dist;
-					config >> default_smooth;
-					config >> default_fov;
-					config >> v.healthbar;
-					config >> v.shieldbar;
-					config >> v.distance;
-					config >> v.line;
-					config >> v.skeleton;
-					config >> v.spectator_notifier;
-					config >> v.info_window;
-					config >> v.target_indicator;
-					config >> v.target_indicator_fov;
-					config >> glowr;
-					config >> glowg;
-					config >> glowb;
-					config >> glowcolor[0];
-					config >> glowcolor[1];
-					config >> glowcolor[2];
-					config >> glowrviz;
-					config >> glowgviz;
-					config >> glowbviz;
-					config >> glowcolorviz[0];
-					config >> glowcolorviz[1];
-					config >> glowcolorviz[2];
-					config >> glowrknocked;
-					config >> glowgknocked;
-					config >> glowbknocked;
-					config >> glowcolorknocked[0];
-					config >> glowcolorknocked[1];
-					config >> glowcolorknocked[2];
-					config >> std::boolalpha >> firing_range;
-					config >> std::boolalpha >> onevone;
-					config >> DDS;
-					config >> min_max_fov;
-					config >> max_max_fov;
-					config >> min_smooth;
-					config >> max_smooth;
-					config >> min_cfsize;
-					config >> max_cfsize;
-					config >> flickbot;
-					config >> flickbot_key;
-					config >> triggerbot;
-					config >> triggerbot_key;
-					config >> superglide;
-					config >> bhop;
-					config >> walljump;
-					config >> flickbot_fov;
-					config >> flickbot_smooth;
-					config >> triggerbot_fov;
-					config >> v.flickbot_fov_circle;
-					config >> v.triggerbot_fov_circle;
-					config.close();
-				}
+				LoadConfig("Settings.txt");
 			}
 			ImGui::EndTabItem();
 		}
