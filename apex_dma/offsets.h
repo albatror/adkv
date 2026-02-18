@@ -45,7 +45,7 @@
 #define OFFSET_IN_JUMP 0x3f39270 //[Buttons].in_jump updated 2026/02/11
 #define OFFSET_IN_TOGGLE_DUCK 0x03f391a8 //[Buttons].in_toggle_duck updated 2026/02/11
  
-#define OFFSET_WEAPON_NAME 0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/02/11
+#define OFFSET_WEAPON_NAME 0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/02/11
 #define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/02/11
 #define OFFSET_WALL_RUN_START_TIME 0x370c //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunStartTime updated 2026/02/11
 #define OFFSET_WALL_RUN_CLEAR_TIME 0x3710 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/02/11
