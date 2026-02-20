@@ -201,42 +201,14 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Flickbot"), &flickbot);
 			ImGui::SameLine();
-			static bool binding_flick = false;
-			char flick_btn_text[32];
-			sprintf(flick_btn_text, "Key: %d##flick", flickbot_key);
-			if (ImGui::Button(binding_flick ? "Press a key...##flick" : flick_btn_text)) {
-				binding_flick = true;
-			}
-			if (binding_flick) {
-				for (int i = 1; i < 255; i++) {
-					if (IsKeyDown(i)) {
-						flickbot_key = i;
-						binding_flick = false;
-						break;
-					}
-				}
-			}
+			ImGui::Text("(Left SHIFT)");
 			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 1000.0f, "%.2f");
 			ImGui::SliderFloat(XorStr("Flick Smooth"), &flickbot_smooth, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot"), &triggerbot);
 			ImGui::SameLine();
-			static bool binding_trigger = false;
-			char trigger_btn_text[32];
-			sprintf(trigger_btn_text, "Key: %d##trigger", triggerbot_key);
-			if (ImGui::Button(binding_trigger ? "Press a key...##trigger" : trigger_btn_text)) {
-				binding_trigger = true;
-			}
-			if (binding_trigger) {
-				for (int i = 1; i < 255; i++) {
-					if (IsKeyDown(i)) {
-						triggerbot_key = i;
-						binding_trigger = false;
-						break;
-					}
-				}
-			}
+			ImGui::Text("(Left SHIFT)");
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::EndTabItem();

@@ -677,37 +677,6 @@ if (bhop && SuperKey) {
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
-    // Special long zoom delay for Kraber and Sentinel
-    if (weaponId == 98 || weaponId == 1) { // KRABER, SENTINEL
-        if (zoomElapsedMs < 950)
-            return false; // Not ready to shoot yet
-    } else {
-        // All other weapons need 600ms after zoom
-        if (zoomElapsedMs < 600)
-            return false; // Not ready yet
-    }
-
-    // List of allowed weapons
-    return (
-        weaponId == 98 ||   // KRABER
-        weaponId == 117 ||  // WINGMAN
-        weaponId == 89 ||   // LONGBOW
-        weaponId == 1   ||  // SENTINEL
-        weaponId == 95  ||  // G7 SCOUT
-        weaponId == 96  ||  // HEMLOCK
-        weaponId == 120 ||  // 30-30
-        weaponId == 116 ||  // TRIPLE TAKE
-        weaponId == 182 ||  // BOCEK
-        weaponId == 2   ||  // THROWING KNIFE
-        weaponId == 114 ||  // P2020
-        weaponId == 103 ||  // MOZAMBIQUE
-        weaponId == 92  ||  // EVA-8
-        weaponId == 111 ||  // PEACEKEEPER
-        weaponId == 101 ||  // MASTIFF
-        weaponId == 122     // NEMESIS
-    );
-}
 
 bool IsInCrossHair(Entity& target)
 {
@@ -1027,10 +996,6 @@ static void AimbotLoop()
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
 
-	// Zoom tracking
-	static auto zoomStartTime = std::chrono::steady_clock::now();
-	static bool wasZooming = false;
-
 	aim_t = true;
 	while (aim_t)
 	{
@@ -1044,44 +1009,36 @@ static void AimbotLoop()
 			if (LocalPlayer == 0) continue;
 			Entity LPlayer = getEntity(LocalPlayer);
 
-			// Update zoom timing
-			bool isZooming = LPlayer.isZooming();
-			auto now = std::chrono::steady_clock::now();
-			if (isZooming && !wasZooming) {
-				zoomStartTime = now;
-			}
-			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
-			wasZooming = isZooming;
-
-			// Triggerbot logic
-			if (triggerbot && triggerbot_aiming) {
-				if (isZooming && aimentity != 0) {
-					Entity Target = getEntity(aimentity);
-					int weaponId = LPlayer.getCurrentWeaponId();
-					if (isAllowedWeapon(weaponId, zoomElapsedMs) && IsInCrossHair(Target)) {
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-					}
-				}
-			}
-
-			// Flickbot logic
-			if (flickbot && flickbot_aiming && aimentity != 0) {
+			// Combined Flickbot and Triggerbot logic
+			if ((flickbot_aiming || triggerbot_aiming) && aimentity != 0) {
 				Entity Target = getEntity(aimentity);
 				if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
 					float fov = CalculateFov(LPlayer, Target);
-					if (fov <= flickbot_fov) {
+
+					if (flickbot && flickbot_aiming && fov <= flickbot_fov) {
+						// Flickbot logic
 						QAngle old_angles = LPlayer.GetViewAngles();
 						QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
 						if (aim_angles.x != 0 || aim_angles.y != 0) {
 							LPlayer.SetViewAngles(aim_angles);
-							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-							std::this_thread::sleep_for(std::chrono::milliseconds(50));
-							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+
+							if (triggerbot) { // Triggerbot combined with flick
+								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+								std::this_thread::sleep_for(std::chrono::milliseconds(50));
+								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+							}
+
 							std::this_thread::sleep_for(std::chrono::milliseconds(10));
 							LPlayer.SetViewAngles(old_angles);
 							std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
+						}
+					}
+					else if (triggerbot && triggerbot_aiming) {
+						// Triggerbot logic (fire if target in crosshair)
+						if (IsInCrossHair(Target)) {
+							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+							std::this_thread::sleep_for(std::chrono::milliseconds(20));
+							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 						}
 					}
 				}

@@ -652,7 +652,9 @@ int main(int argc, char** argv)
 			aiming = false;
 		}
 
-		if (flickbot && IsKeyDown(flickbot_key))
+		bool isShiftDown = IsKeyDown(VK_LSHIFT);
+
+		if (flickbot && isShiftDown)
 		{
 			flickbot_aiming = true;
 		}
@@ -661,7 +663,7 @@ int main(int argc, char** argv)
 			flickbot_aiming = false;
 		}
 
-		if (triggerbot && IsKeyDown(triggerbot_key))
+		if (triggerbot && isShiftDown)
 		{
 			triggerbot_aiming = true;
 		}
