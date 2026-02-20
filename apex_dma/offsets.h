@@ -38,13 +38,13 @@
 
 #define OFFSET_IN_DUCKSTATE 0x2abc //[RecvTable.DT_Player].m_duckState updated 2026/02/11
 
-#define OFFSET_IN_DUCK 0x03f39378 //[Buttons].in_duck updated 2026/02/11
+#define OFFSET_IN_DUCK 0x03f39558 //[Buttons].in_duck updated 2026/02/20
 #define OFFSET_TRAVERSAL_PROGRESS 0x2bcc //[DataMap.DT_Player].m_traversalProgress updated 2026/02/07
 #define OFFSET_TRAVERSAL_STARTTIME 0x2bd4 //[DataMap.DT_Player].m_traversalStartTime updated 2026/02/07
 #define OFFSET_TRAVERSAL_RELEASE_TIME 0x2bdc //[RecvTable.DT_LocalPlayerExclusive].m_traversalReleaseTime updated 2026/02/07
 
-#define OFFSET_IN_JUMP 0x3f39270 //[Buttons].in_jump updated 2026/02/11
-#define OFFSET_IN_TOGGLE_DUCK 0x03f391a8 //[Buttons].in_toggle_duck updated 2026/02/11
+#define OFFSET_IN_JUMP 0x3f39460 //[Buttons].in_jump updated 2026/02/20
+#define OFFSET_IN_TOGGLE_DUCK 0x03f39388 //[Buttons].in_toggle_duck updated 2026/02/20
  
 #define OFFSET_WEAPON_NAME 0x1850 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/02/18
 #define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/02/18
@@ -52,10 +52,10 @@
 #define OFFSET_WALL_RUN_CLEAR_TIME 0x3710 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/02/11
 
 #define OFFSET_FLAGS 0x00c8 //[DataMap.DT_Player].m_fFlags updated 2026/02/07
-#define OFFSET_IN_ATTACK 0x03f389e8 //[Buttons].in_attack updated 2026/02/11
-#define OFFSET_IN_ZOOM 0x03f39300 //[Buttons].in_zoom updated 2026/02/11
-#define OFFSET_IN_FORWARD 0x03f393b8 //[Buttons].in_forward updated 2026/02/11
-#define OFFSET_IN_BACKWARD 0x03f393e0 //[Buttons].in_backward updated 2026/02/11
+#define OFFSET_IN_ATTACK 0x03f38bd0 //[Buttons].in_attack updated 2026/02/20
+#define OFFSET_IN_ZOOM 0x03f394e0 //[Buttons].in_zoom updated 2026/02/20
+#define OFFSET_IN_FORWARD 0x03f39598 //[Buttons].in_forward updated 2026/02/20
+#define OFFSET_IN_BACKWARD 0x03f395c0 //[Buttons].in_backward updated 2026/02/20
  
 #define OFFSET_LIFE_STATE 0x0690 //[RecvTable.DT_Player].m_lifeState updated 2026/02/11
 #define OFFSET_BLEED_OUT_STATE 0x27c0 //[RecvTable.DT_Player].m_bleedoutState updated 2026/02/11
@@ -88,7 +88,7 @@
  
 //#define OFFSET_GLOW_T1 0x292 //16256 = enabled, 0 = disabled
 //#define OFFSET_GLOW_T2 0x30c //1193322764 = enabled, 0 = disabled
-#define OFFSET_GLOW_ENABLE 0x28C //0x0299 - 0x1 //0x299 //[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x1 updated 2026/02/11
+#define OFFSET_GLOW_ENABLE 0x0298 //0x0299 - 0x1 //0x299 //[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x1 updated 2026/02/11
 #define OFFSET_GLOW_THROUGH_WALLS 0x26c //- 0x21 //[RecvTable.DT_HighlightSettings.m_highlightGenericContexts - 0x21 updated 2024/07/23
  
 #define OFFSET_TIME_BASE 0x2168 //[DataMap.DT_Player].m_currentFramePlayer.timeBase updated 2025/02/18
