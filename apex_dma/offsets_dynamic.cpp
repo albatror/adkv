@@ -86,6 +86,26 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
 
     if (con_data.count("[ConVars]host_map")) offsets.HostMap = con_data["[ConVars]host_map"] + 0x58;
 
+    // Load Weapon IDs
+    if (off_data.count("[WeaponIds]mp_weapon_kraber")) offsets.ID_KRABER = off_data["[WeaponIds]mp_weapon_kraber"]; else offsets.ID_KRABER = 98;
+    if (off_data.count("[WeaponIds]mp_weapon_sentinel")) offsets.ID_SENTINEL = off_data["[WeaponIds]mp_weapon_sentinel"]; else offsets.ID_SENTINEL = 1;
+    if (off_data.count("[WeaponIds]mp_weapon_wingman")) offsets.ID_WINGMAN = off_data["[WeaponIds]mp_weapon_wingman"]; else offsets.ID_WINGMAN = 117;
+    if (off_data.count("[WeaponIds]mp_weapon_sniper")) offsets.ID_LONGBOW = off_data["[WeaponIds]mp_weapon_sniper"];
+    else if (off_data.count("[WeaponIds]mp_weapon_dmr")) offsets.ID_LONGBOW = off_data["[WeaponIds]mp_weapon_dmr"];
+    else offsets.ID_LONGBOW = 89;
+    if (off_data.count("[WeaponIds]mp_weapon_g7")) offsets.ID_G7 = off_data["[WeaponIds]mp_weapon_g7"]; else offsets.ID_G7 = 95;
+    if (off_data.count("[WeaponIds]mp_weapon_hemlok")) offsets.ID_HEMLOCK = off_data["[WeaponIds]mp_weapon_hemlok"]; else offsets.ID_HEMLOCK = 96;
+    if (off_data.count("[WeaponIds]mp_weapon_3030")) offsets.ID_3030 = off_data["[WeaponIds]mp_weapon_3030"]; else offsets.ID_3030 = 120;
+    if (off_data.count("[WeaponIds]mp_weapon_triple_take")) offsets.ID_TRIPLE_TAKE = off_data["[WeaponIds]mp_weapon_triple_take"]; else offsets.ID_TRIPLE_TAKE = 116;
+    if (off_data.count("[WeaponIds]mp_weapon_bow")) offsets.ID_BOCEK = off_data["[WeaponIds]mp_weapon_bow"]; else offsets.ID_BOCEK = 182;
+    if (off_data.count("[WeaponIds]mp_weapon_throwing_knife")) offsets.ID_THROWING_KNIFE = off_data["[WeaponIds]mp_weapon_throwing_knife"]; else offsets.ID_THROWING_KNIFE = 2;
+    if (off_data.count("[WeaponIds]mp_weapon_p2020")) offsets.ID_P2020 = off_data["[WeaponIds]mp_weapon_p2020"]; else offsets.ID_P2020 = 114;
+    if (off_data.count("[WeaponIds]mp_weapon_mozambique")) offsets.ID_MOZAMBIQUE = off_data["[WeaponIds]mp_weapon_mozambique"]; else offsets.ID_MOZAMBIQUE = 103;
+    if (off_data.count("[WeaponIds]mp_weapon_eva8")) offsets.ID_EVA8 = off_data["[WeaponIds]mp_weapon_eva8"]; else offsets.ID_EVA8 = 92;
+    if (off_data.count("[WeaponIds]mp_weapon_peacekeeper")) offsets.ID_PEACEKEEPER = off_data["[WeaponIds]mp_weapon_peacekeeper"]; else offsets.ID_PEACEKEEPER = 111;
+    if (off_data.count("[WeaponIds]mp_weapon_mastiff")) offsets.ID_MASTIFF = off_data["[WeaponIds]mp_weapon_mastiff"]; else offsets.ID_MASTIFF = 101;
+    if (off_data.count("[WeaponIds]mp_weapon_nemesis")) offsets.ID_NEMESIS = off_data["[WeaponIds]mp_weapon_nemesis"]; else offsets.ID_NEMESIS = 122;
+
     printf("Offsets updated from INI files.\n");
     return true;
 }

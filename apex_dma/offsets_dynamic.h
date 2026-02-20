@@ -74,6 +74,24 @@ struct DynamicOffsets {
     uint64_t Grapple;
     uint64_t GrappleAttached;
     uint64_t m_xp;
+
+    // Weapon IDs for Triggerbot
+    uint64_t ID_KRABER;
+    uint64_t ID_SENTINEL;
+    uint64_t ID_WINGMAN;
+    uint64_t ID_LONGBOW;
+    uint64_t ID_G7;
+    uint64_t ID_HEMLOCK;
+    uint64_t ID_3030;
+    uint64_t ID_TRIPLE_TAKE;
+    uint64_t ID_BOCEK;
+    uint64_t ID_THROWING_KNIFE;
+    uint64_t ID_P2020;
+    uint64_t ID_MOZAMBIQUE;
+    uint64_t ID_EVA8;
+    uint64_t ID_PEACEKEEPER;
+    uint64_t ID_MASTIFF;
+    uint64_t ID_NEMESIS;
 };
 
 extern DynamicOffsets offsets;

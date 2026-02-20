@@ -635,10 +635,15 @@ std::cout << "\n[WeaponSettingsMeta]\n";
                     weaponDataFieldName -= g_base;
                     if (weaponDataFieldName < memoryBytesSize) {
                         auto weaponName = (char*)(memoryBytes + weaponDataFieldName);
-                        std::cout << weaponName << " = 0x" << weaponDataField->offset << "\n";
+                        std::cout << weaponName << " = 0x" << weaponDataField->offset << " (index " << std::dec << weaponDataField->index << ")\n";
                         std::string fullName = formStr("[WeaponSettings]" + std::string(weaponName));
                         if (mapOffsets[fullName] == 0)
                             mapOffsets[fullName] = weaponDataField->offset;
+
+                        std::string idName = formStr("[WeaponIds]" + std::string(weaponName));
+                        if (mapOffsets[idName] == 0)
+                            mapOffsets[idName] = weaponDataField->index;
+
                         weaponSettingsCount++;
                     }
                 }
