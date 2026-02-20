@@ -13,6 +13,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <cmath>
+#include "stuffbot.h"
 ////////////////////////
 ////////////////////////
 
@@ -109,6 +110,8 @@ bool actions_t = false;
 bool esp_t = false;
 bool aim_t = false;
 bool vars_t = false;
+bool stuff_t = false;
+
 //bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
@@ -253,13 +256,17 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		is_aimentity_visible = visible;
 	}
 
+	float effective_max_fov = max_fov;
+	if (flickbot && flickbot_fov > effective_max_fov) effective_max_fov = flickbot_fov;
+	if (triggerbot && triggerbot_fov > effective_max_fov) effective_max_fov = triggerbot_fov;
+
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
 	else if (aim == 2)
 	{
-		if (visible && fov <= max_fov)
+		if (visible && fov <= effective_max_fov)
 		{
 			if (fov < max)
 			{
@@ -277,7 +284,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov)
+		if (fov <= effective_max_fov)
 		{
 			if (fov < max)
 			{
@@ -677,64 +684,6 @@ if (bhop && SuperKey) {
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool isAllowedWeapon(const char* name, int zoomElapsedMs) {
-    if (name == nullptr) return false;
-
-    // Special long zoom delay for Kraber and Sentinel
-    if (strstr(name, "kraber") || strstr(name, "sentinel")) {
-        if (zoomElapsedMs < 950)
-            return false; // Not ready to shoot yet
-    } else {
-        // All other weapons need 600ms after zoom
-        if (zoomElapsedMs < 600)
-            return false; // Not ready yet
-    }
-
-    // List of allowed weapons based on model name substrings from UC
-    return (
-        strstr(name, "kraber") ||
-        strstr(name, "wingman") || strstr(name, "b3wing") ||
-        strstr(name, "rspn101_dmr") || // LONGBOW
-        strstr(name, "sentinel") ||
-        strstr(name, "g7") || strstr(name, "g2") ||
-        strstr(name, "hemlock") || strstr(name, "hemlok") ||
-        strstr(name, "3030repeater") || strstr(name, "repeater3030") ||
-        strstr(name, "tripletake") || strstr(name, "doubletake") ||
-        strstr(name, "compound") || strstr(name, "bow") ||
-        strstr(name, "throw") || // THROWING KNIFE
-        strstr(name, "p2020") || strstr(name, "p2011") ||
-        strstr(name, "mozambique") || strstr(name, "pstl_sa3") ||
-        strstr(name, "eva8") ||
-        strstr(name, "peacekeeper") ||
-        strstr(name, "mastiff") ||
-        strstr(name, "nemesis")
-    );
-}
-
-bool IsInCrossHair(Entity& target)
-{
-    static std::unordered_map<uint64_t, float> lastTimes;  // per target
-
-    float now_crosshair_target_time = target.lastCrossHairTime();
-
-    if (std::isnan(now_crosshair_target_time)) {
-        // printf("[DEBUG] Invalid crosshair time (nan) for target 0x%lx\n", target.ptr);
-        return false;
-    }
-
-    bool triggered = false;
-
-    float last_time = lastTimes[target.ptr];  // 0 if first time seen
-
-    if (now_crosshair_target_time > last_time) {
-        triggered = true;
-    }
-
-    lastTimes[target.ptr] = now_crosshair_target_time;  // update for next check
-
-    return triggered;
-}
-
 player players[toRead];
 
 static void EspLoop()
@@ -1029,10 +978,6 @@ static void AimbotLoop()
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
 
-	// Zoom tracking
-	static auto zoomStartTime = std::chrono::steady_clock::now();
-	static bool wasZooming = false;
-
 	aim_t = true;
 	while (aim_t)
 	{
@@ -1040,60 +985,6 @@ static void AimbotLoop()
 		while (g_Base != 0 && c_Base != 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-			uint64_t LocalPlayer = 0;
-			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
-			if (LocalPlayer == 0) continue;
-			Entity LPlayer = getEntity(LocalPlayer);
-
-			// Update zoom timing
-			bool isZooming = LPlayer.isZooming();
-			auto now = std::chrono::steady_clock::now();
-			if (isZooming && !wasZooming) {
-				zoomStartTime = now;
-			}
-			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
-			wasZooming = isZooming;
-
-			// Triggerbot logic
-			if (triggerbot && triggerbot_aiming) {
-				if (isZooming && aimentity != 0) {
-					Entity Target = getEntity(aimentity);
-					char weaponName[64] = { 0 };
-					LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
-					if (isAllowedWeapon(weaponName, zoomElapsedMs) && IsInCrossHair(Target)) {
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-					}
-				}
-			}
-
-			// Flickbot logic
-			if (flickbot && flickbot_aiming && aimentity != 0) {
-				char weaponName[64] = { 0 };
-				LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
-				if (isAllowedWeapon(weaponName, zoomElapsedMs)) {
-					Entity Target = getEntity(aimentity);
-					if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
-						float fov = CalculateFov(LPlayer, Target);
-						if (fov <= flickbot_fov) {
-							QAngle old_angles = LPlayer.GetViewAngles();
-							QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-							if (aim_angles.x != 0 || aim_angles.y != 0) {
-								LPlayer.SetViewAngles(aim_angles);
-								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-								std::this_thread::sleep_for(std::chrono::milliseconds(50));
-								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-								std::this_thread::sleep_for(std::chrono::milliseconds(10));
-								LPlayer.SetViewAngles(old_angles);
-								std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
-							}
-						}
-					}
-				}
-			}
-
 			if (aim > 0)
 			{
 				if (aimentity == 0 || !aiming)
@@ -1128,9 +1019,21 @@ static void AimbotLoop()
 					current_smooth = smooth * 2.0f;
 				}
 
+				uint64_t LocalPlayer = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+
+				if (LocalPlayer == 0)
+					continue;
+
+				Entity LPlayer = getEntity(LocalPlayer);
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+
+				float effective_fov = max_fov;
+				if (flickbot && flickbot_fov > effective_fov) effective_fov = flickbot_fov;
+				if (triggerbot && triggerbot_fov > effective_fov) effective_fov = triggerbot_fov;
+
+				if (fov > effective_fov)
 				{
 					if (!shooting) {
 						lock = false;
@@ -1138,6 +1041,11 @@ static void AimbotLoop()
 						last_locked_entity = 0;
 						aimentity = 0;
 					}
+					continue;
+				}
+
+				if (fov > max_fov)
+				{
 					continue;
 				}
 
@@ -1560,6 +1468,7 @@ int main(int argc, char *argv[])
 	std::thread esp_thr;
 	std::thread actions_thr;
 	//std::thread itemglow_thr;
+	std::thread stuffbot_thr;
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
@@ -1572,12 +1481,14 @@ int main(int argc, char *argv[])
 				aim_t = false;
 				esp_t = false;
 				actions_t = false;
+				stuff_t = false;
 				//item_t = false;
 				g_Base = 0;
 
 				aimbot_thr.~thread();
 				esp_thr.~thread();
 				actions_thr.~thread();
+				stuffbot_thr.~thread();
 				//itemglow_thr.~thread();
 
 			}
@@ -1606,10 +1517,12 @@ int main(int argc, char *argv[])
 				esp_thr = std::thread(EspLoop);
 				actions_thr = std::thread(DoActions);
 				//itemglow_thr = std::thread(item_glow_t);
+				stuffbot_thr = std::thread(StuffbotLoop);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				//itemglow_thr.detach();
+				stuffbot_thr.detach();
 			}
 		}
 		else
