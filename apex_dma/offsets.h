@@ -1,3 +1,4 @@
+#pragma once
 #include "offsets_dynamic.h"
 
 #define GameVersion v0.3.24 //[Miscellaneous].GameVersion updated 2026/02/11

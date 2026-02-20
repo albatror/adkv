@@ -1,3 +1,4 @@
+#pragma once
 #include "memflow.hpp"
 #include <cstring>
 #include <stdio.h>

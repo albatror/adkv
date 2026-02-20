@@ -1,3 +1,4 @@
+#pragma once
 #ifndef OFFSETS_DYNAMIC_H
 #define OFFSETS_DYNAMIC_H
 
