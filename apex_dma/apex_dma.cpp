@@ -8,6 +8,7 @@
 #include <cfloat>
 #include "offsets_dynamic.h"
 #include "Game.h"
+#include "stuff.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -60,17 +61,6 @@ int grappleAttached;
 
 //Firing Range 1v1 toggle
 bool onevone = false;
-
-bool flickbot = false;
-int flickbot_key = 0xA0; // VK_LSHIFT
-bool flickbot_aiming = false;
-float flickbot_fov = 10.0f;
-float flickbot_smooth = 20.0f;
-
-bool triggerbot = false;
-int triggerbot_key = 0xA0; // VK_LSHIFT
-bool triggerbot_aiming = false;
-float triggerbot_fov = 10.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -677,62 +667,6 @@ if (bhop && SuperKey) {
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
-    // Special long zoom delay for Kraber and Sentinel
-    if (weaponId == 98 || weaponId == 1) { // KRABER, SENTINEL
-        if (zoomElapsedMs < 950)
-            return false; // Not ready to shoot yet
-    } else {
-        // All other weapons need 600ms after zoom
-        if (zoomElapsedMs < 600)
-            return false; // Not ready yet
-    }
-
-    // List of allowed weapons
-    return (
-        weaponId == 98 ||   // KRABER
-        weaponId == 117 ||  // WINGMAN
-        weaponId == 89 ||   // LONGBOW
-        weaponId == 1   ||  // SENTINEL
-        weaponId == 95  ||  // G7 SCOUT
-        weaponId == 96  ||  // HEMLOCK
-        weaponId == 120 ||  // 30-30
-        weaponId == 116 ||  // TRIPLE TAKE
-        weaponId == 182 ||  // BOCEK
-        weaponId == 2   ||  // THROWING KNIFE
-        weaponId == 114 ||  // P2020
-        weaponId == 103 ||  // MOZAMBIQUE
-        weaponId == 92  ||  // EVA-8
-        weaponId == 111 ||  // PEACEKEEPER
-        weaponId == 101 ||  // MASTIFF
-        weaponId == 122     // NEMESIS
-    );
-}
-
-bool IsInCrossHair(Entity& target)
-{
-    static std::unordered_map<uint64_t, float> lastTimes;  // per target
-
-    float now_crosshair_target_time = target.lastCrossHairTime();
-
-    if (std::isnan(now_crosshair_target_time)) {
-        // printf("[DEBUG] Invalid crosshair time (nan) for target 0x%lx\n", target.ptr);
-        return false;
-    }
-
-    bool triggered = false;
-
-    float last_time = lastTimes[target.ptr];  // 0 if first time seen
-
-    if (now_crosshair_target_time > last_time) {
-        triggered = true;
-    }
-
-    lastTimes[target.ptr] = now_crosshair_target_time;  // update for next check
-
-    return triggered;
-}
-
 player players[toRead];
 
 static void EspLoop()
@@ -1027,10 +961,6 @@ static void AimbotLoop()
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
 
-	// Zoom tracking
-	static auto zoomStartTime = std::chrono::steady_clock::now();
-	static bool wasZooming = false;
-
 	aim_t = true;
 	while (aim_t)
 	{
@@ -1038,55 +968,6 @@ static void AimbotLoop()
 		while (g_Base != 0 && c_Base != 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-			uint64_t LocalPlayer = 0;
-			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
-			if (LocalPlayer == 0) continue;
-			Entity LPlayer = getEntity(LocalPlayer);
-
-			// Update zoom timing
-			bool isZooming = LPlayer.isZooming();
-			auto now = std::chrono::steady_clock::now();
-			if (isZooming && !wasZooming) {
-				zoomStartTime = now;
-			}
-			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
-			wasZooming = isZooming;
-
-			// Triggerbot logic
-			if (triggerbot && triggerbot_aiming) {
-				if (isZooming && aimentity != 0) {
-					Entity Target = getEntity(aimentity);
-					int weaponId = LPlayer.getCurrentWeaponId();
-					if (isAllowedWeapon(weaponId, zoomElapsedMs) && IsInCrossHair(Target)) {
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-					}
-				}
-			}
-
-			// Flickbot logic
-			if (flickbot && flickbot_aiming && aimentity != 0) {
-				Entity Target = getEntity(aimentity);
-				if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
-					float fov = CalculateFov(LPlayer, Target);
-					if (fov <= flickbot_fov) {
-						QAngle old_angles = LPlayer.GetViewAngles();
-						QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-						if (aim_angles.x != 0 || aim_angles.y != 0) {
-							LPlayer.SetViewAngles(aim_angles);
-							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-							std::this_thread::sleep_for(std::chrono::milliseconds(50));
-							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-							std::this_thread::sleep_for(std::chrono::milliseconds(10));
-							LPlayer.SetViewAngles(old_angles);
-							std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
-						}
-					}
-				}
-			}
-
 			if (aim > 0)
 			{
 				if (aimentity == 0 || !aiming)
@@ -1121,6 +1002,13 @@ static void AimbotLoop()
 					current_smooth = smooth * 2.0f;
 				}
 
+				uint64_t LocalPlayer = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+
+				if (LocalPlayer == 0)
+					continue;
+
+				Entity LPlayer = getEntity(LocalPlayer);
 
 				float fov = CalculateFov(LPlayer, Target);
 				if (fov > max_fov)
@@ -1463,23 +1351,7 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
-        uint64_t flickbot_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, flickbot_addr);
-        if (flickbot_addr) client_mem.Read<bool>(flickbot_addr, flickbot);
-
-
-        uint64_t flickbot_aiming_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, flickbot_aiming_addr);
-        if (flickbot_aiming_addr) client_mem.Read<bool>(flickbot_aiming_addr, flickbot_aiming);
-
-        uint64_t triggerbot_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr);
-        if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
-
-
-        uint64_t triggerbot_aiming_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, triggerbot_aiming_addr);
-        if (triggerbot_aiming_addr) client_mem.Read<bool>(triggerbot_aiming_addr, triggerbot_aiming);
+        UpdateStuffVars(add_addr);
 
         uint64_t superglide_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 40, superglide_addr);
@@ -1496,18 +1368,6 @@ while (vars_t)
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
-
-        uint64_t flickbot_fov_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, flickbot_fov_addr);
-        if (flickbot_fov_addr) client_mem.Read<float>(flickbot_fov_addr, flickbot_fov);
-
-        uint64_t flickbot_smooth_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, flickbot_smooth_addr);
-        if (flickbot_smooth_addr) client_mem.Read<float>(flickbot_smooth_addr, flickbot_smooth);
-
-        uint64_t triggerbot_fov_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
-        if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
         if (esp && next)
         {
@@ -1550,6 +1410,7 @@ int main(int argc, char *argv[])
 	//Client "add" offset
 	uint64_t add_off = 0x000000;
 	std::thread aimbot_thr;
+	std::thread stuff_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
 	//std::thread itemglow_thr;
@@ -1563,12 +1424,14 @@ int main(int argc, char *argv[])
 			if (aim_t)
 			{
 				aim_t = false;
+				stuff_t = false;
 				esp_t = false;
 				actions_t = false;
 				//item_t = false;
 				g_Base = 0;
 
 				aimbot_thr.~thread();
+				stuff_thr.~thread();
 				esp_thr.~thread();
 				actions_thr.~thread();
 				//itemglow_thr.~thread();
@@ -1596,10 +1459,12 @@ int main(int argc, char *argv[])
 				}
 
 				aimbot_thr = std::thread(AimbotLoop);
+				stuff_thr = std::thread(FlickbotTriggerbotLoop);
 				esp_thr = std::thread(EspLoop);
 				actions_thr = std::thread(DoActions);
 				//itemglow_thr = std::thread(item_glow_t);
 				aimbot_thr.detach();
+				stuff_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				//itemglow_thr.detach();
