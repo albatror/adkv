@@ -253,13 +253,17 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		is_aimentity_visible = visible;
 	}
 
+	float effective_max_fov = max_fov;
+	if (flickbot) effective_max_fov = std::max(effective_max_fov, flickbot_fov);
+	if (triggerbot) effective_max_fov = std::max(effective_max_fov, triggerbot_fov);
+
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || flickbot || triggerbot)
 	{
-		if (visible && fov <= max_fov)
+		if (visible && fov <= effective_max_fov)
 		{
 			if (fov < max)
 			{
@@ -269,7 +273,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		}
 		else
 		{
-			if (aimentity == target.ptr && !shooting)
+			if (aimentity == target.ptr && !shooting && !flickbot_aiming && !triggerbot_aiming)
 			{
 				aimentity = tmp_aimentity = lastaimentity = 0;
 			}
@@ -277,7 +281,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov)
+		if (fov <= effective_max_fov)
 		{
 			if (fov < max)
 			{
@@ -1003,10 +1007,10 @@ static void AimbotLoop()
 	aim_t = true;
 	while (aim_t)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		while (g_Base != 0 && c_Base != 0)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
 			uint64_t LocalPlayer = 0;
 			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
@@ -1029,25 +1033,23 @@ static void AimbotLoop()
 					float fov = CalculateFov(LPlayer, Target);
 
 					if (flickbot && flickbot_aiming && fov <= flickbot_fov) {
-						// Flickbot logic
-						QAngle old_angles = LPlayer.GetViewAngles();
+						// Flickbot logic: smoothly move towards target
 						QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
 						if (aim_angles.x != 0 || aim_angles.y != 0) {
 							LPlayer.SetViewAngles(aim_angles);
+						}
 
-							if (triggerbot && (!isZooming || zoomElapsedMs >= 600)) { // Triggerbot combined with flick
+						// If Triggerbot is also on, fire when reached (IsInCrossHair)
+						if (triggerbot && triggerbot_aiming) {
+							if (IsInCrossHair(Target) && (!isZooming || zoomElapsedMs >= 600)) {
 								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-								std::this_thread::sleep_for(std::chrono::milliseconds(50));
+								std::this_thread::sleep_for(std::chrono::milliseconds(20));
 								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 							}
-
-							std::this_thread::sleep_for(std::chrono::milliseconds(10));
-							LPlayer.SetViewAngles(old_angles);
-							std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
 						}
 					}
 					else if (triggerbot && triggerbot_aiming) {
-						// Triggerbot logic (fire if target in crosshair)
+						// Standalone Triggerbot logic (fire if target in crosshair)
 						if (IsInCrossHair(Target) && (!isZooming || zoomElapsedMs >= 600)) {
 							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
 							std::this_thread::sleep_for(std::chrono::milliseconds(20));
