@@ -677,9 +677,11 @@ if (bhop && SuperKey) {
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
+bool isAllowedWeapon(const char* name, int zoomElapsedMs) {
+    if (name == nullptr) return false;
+
     // Special long zoom delay for Kraber and Sentinel
-    if (weaponId == 98 || weaponId == 1) { // KRABER, SENTINEL
+    if (strstr(name, "kraber") || strstr(name, "sentinel")) {
         if (zoomElapsedMs < 950)
             return false; // Not ready to shoot yet
     } else {
@@ -688,24 +690,24 @@ bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
             return false; // Not ready yet
     }
 
-    // List of allowed weapons
+    // List of allowed weapons based on model name substrings from UC
     return (
-        weaponId == 98 ||   // KRABER
-        weaponId == 117 ||  // WINGMAN
-        weaponId == 89 ||   // LONGBOW
-        weaponId == 1   ||  // SENTINEL
-        weaponId == 95  ||  // G7 SCOUT
-        weaponId == 96  ||  // HEMLOCK
-        weaponId == 120 ||  // 30-30
-        weaponId == 116 ||  // TRIPLE TAKE
-        weaponId == 182 ||  // BOCEK
-        weaponId == 2   ||  // THROWING KNIFE
-        weaponId == 114 ||  // P2020
-        weaponId == 103 ||  // MOZAMBIQUE
-        weaponId == 92  ||  // EVA-8
-        weaponId == 111 ||  // PEACEKEEPER
-        weaponId == 101 ||  // MASTIFF
-        weaponId == 122     // NEMESIS
+        strstr(name, "kraber") ||
+        strstr(name, "wingman") || strstr(name, "b3wing") ||
+        strstr(name, "rspn101_dmr") || // LONGBOW
+        strstr(name, "sentinel") ||
+        strstr(name, "g7") || strstr(name, "g2") ||
+        strstr(name, "hemlock") || strstr(name, "hemlok") ||
+        strstr(name, "3030repeater") || strstr(name, "repeater3030") ||
+        strstr(name, "tripletake") || strstr(name, "doubletake") ||
+        strstr(name, "compound") || strstr(name, "bow") ||
+        strstr(name, "throw") || // THROWING KNIFE
+        strstr(name, "p2020") || strstr(name, "p2011") ||
+        strstr(name, "mozambique") || strstr(name, "pstl_sa3") ||
+        strstr(name, "eva8") ||
+        strstr(name, "peacekeeper") ||
+        strstr(name, "mastiff") ||
+        strstr(name, "nemesis")
     );
 }
 
@@ -1057,8 +1059,9 @@ static void AimbotLoop()
 			if (triggerbot && triggerbot_aiming) {
 				if (isZooming && aimentity != 0) {
 					Entity Target = getEntity(aimentity);
-					int weaponId = LPlayer.getCurrentWeaponId();
-					if (isAllowedWeapon(weaponId, zoomElapsedMs) && IsInCrossHair(Target)) {
+					char weaponName[64] = { 0 };
+					LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
+					if (isAllowedWeapon(weaponName, zoomElapsedMs) && IsInCrossHair(Target)) {
 						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
@@ -1068,20 +1071,24 @@ static void AimbotLoop()
 
 			// Flickbot logic
 			if (flickbot && flickbot_aiming && aimentity != 0) {
-				Entity Target = getEntity(aimentity);
-				if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
-					float fov = CalculateFov(LPlayer, Target);
-					if (fov <= flickbot_fov) {
-						QAngle old_angles = LPlayer.GetViewAngles();
-						QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-						if (aim_angles.x != 0 || aim_angles.y != 0) {
-							LPlayer.SetViewAngles(aim_angles);
-							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-							std::this_thread::sleep_for(std::chrono::milliseconds(50));
-							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-							std::this_thread::sleep_for(std::chrono::milliseconds(10));
-							LPlayer.SetViewAngles(old_angles);
-							std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
+				char weaponName[64] = { 0 };
+				LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
+				if (isAllowedWeapon(weaponName, zoomElapsedMs)) {
+					Entity Target = getEntity(aimentity);
+					if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
+						float fov = CalculateFov(LPlayer, Target);
+						if (fov <= flickbot_fov) {
+							QAngle old_angles = LPlayer.GetViewAngles();
+							QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
+							if (aim_angles.x != 0 || aim_angles.y != 0) {
+								LPlayer.SetViewAngles(aim_angles);
+								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+								std::this_thread::sleep_for(std::chrono::milliseconds(50));
+								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+								std::this_thread::sleep_for(std::chrono::milliseconds(10));
+								LPlayer.SetViewAngles(old_angles);
+								std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
+							}
 						}
 					}
 				}

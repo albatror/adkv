@@ -376,6 +376,26 @@ void Entity::get_name(uint64_t g_Base, char* name)
 	apex_mem.ReadArray<char>(name_ptr, name, 32);
 }
 
+void Entity::getWeaponModelName(char* name, int max_len)
+{
+	uint64_t wep_handle = 0;
+	apex_mem.Read<uint64_t>(ptr + OFFSET_WEAPON, wep_handle);
+	wep_handle &= 0xffff;
+	uint64_t wep_entity = 0;
+	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + (wep_handle << 5), wep_entity);
+	if (!wep_entity) {
+		strncpy(name, "unknown", max_len);
+		return;
+	}
+	uint64_t model_name_ptr = 0;
+	apex_mem.Read<uint64_t>(wep_entity + OFFSET_MODELNAME, model_name_ptr);
+	if (model_name_ptr) {
+		apex_mem.ReadArray<char>(model_name_ptr, name, max_len);
+	} else {
+		strncpy(name, "unknown", max_len);
+	}
+}
+
 ////test////
     int Entity::read_xp_level() {
 

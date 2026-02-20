@@ -73,6 +73,7 @@ public:
 	bool Observing(uint64_t local);
 	void get_name(uint64_t g_Base, char* name);
 	//void get_name(char *name);
+	void getWeaponModelName(char* name, int max_len);
 	float lastCrossHairTime();
 	int getCurrentWeaponId();
 	////test////
