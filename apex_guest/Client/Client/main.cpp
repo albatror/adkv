@@ -43,13 +43,13 @@ int aim_key = VK_LBUTTON;
 int aim_key2 = VK_RBUTTON;
 
 bool flickbot = false;
-int flickbot_key = VK_LBUTTON;
+int flickbot_key = VK_LSHIFT;
 bool flickbot_aiming = false;
 float flickbot_fov = 10.0f;
 float flickbot_smooth = 20.0f;
 
 bool triggerbot = false;
-int triggerbot_key = 0x06;
+int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 

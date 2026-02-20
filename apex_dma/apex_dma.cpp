@@ -62,13 +62,13 @@ int grappleAttached;
 bool onevone = false;
 
 bool flickbot = false;
-int flickbot_key = 0;
+int flickbot_key = 0xA0; // VK_LSHIFT
 bool flickbot_aiming = false;
 float flickbot_fov = 10.0f;
 float flickbot_smooth = 20.0f;
 
 bool triggerbot = false;
-int triggerbot_key = 0;
+int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
@@ -1467,9 +1467,6 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, flickbot_addr);
         if (flickbot_addr) client_mem.Read<bool>(flickbot_addr, flickbot);
 
-        uint64_t flickbot_key_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, flickbot_key_addr);
-        if (flickbot_key_addr) client_mem.Read<int>(flickbot_key_addr, flickbot_key);
 
         uint64_t flickbot_aiming_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, flickbot_aiming_addr);
@@ -1479,9 +1476,6 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr);
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
 
-        uint64_t triggerbot_key_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 38, triggerbot_key_addr);
-        if (triggerbot_key_addr) client_mem.Read<int>(triggerbot_key_addr, triggerbot_key);
 
         uint64_t triggerbot_aiming_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, triggerbot_aiming_addr);
