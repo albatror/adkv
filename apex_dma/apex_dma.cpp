@@ -996,6 +996,10 @@ static void AimbotLoop()
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
 
+	// Zoom tracking
+	static auto zoomStartTime = std::chrono::steady_clock::now();
+	static bool wasZooming = false;
+
 	aim_t = true;
 	while (aim_t)
 	{
@@ -1008,6 +1012,15 @@ static void AimbotLoop()
 			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
 			if (LocalPlayer == 0) continue;
 			Entity LPlayer = getEntity(LocalPlayer);
+
+			// Update zoom timing
+			bool isZooming = LPlayer.isZooming();
+			auto now = std::chrono::steady_clock::now();
+			if (isZooming && !wasZooming) {
+				zoomStartTime = now;
+			}
+			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
+			wasZooming = isZooming;
 
 			// Combined Flickbot and Triggerbot logic
 			if ((flickbot_aiming || triggerbot_aiming) && aimentity != 0) {
@@ -1022,7 +1035,7 @@ static void AimbotLoop()
 						if (aim_angles.x != 0 || aim_angles.y != 0) {
 							LPlayer.SetViewAngles(aim_angles);
 
-							if (triggerbot) { // Triggerbot combined with flick
+							if (triggerbot && (!isZooming || zoomElapsedMs >= 600)) { // Triggerbot combined with flick
 								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
 								std::this_thread::sleep_for(std::chrono::milliseconds(50));
 								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
@@ -1035,7 +1048,7 @@ static void AimbotLoop()
 					}
 					else if (triggerbot && triggerbot_aiming) {
 						// Triggerbot logic (fire if target in crosshair)
-						if (IsInCrossHair(Target)) {
+						if (IsInCrossHair(Target) && (!isZooming || zoomElapsedMs >= 600)) {
 							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
 							std::this_thread::sleep_for(std::chrono::milliseconds(20));
 							apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
