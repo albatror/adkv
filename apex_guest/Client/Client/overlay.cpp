@@ -10,6 +10,7 @@ extern bool esp;
 //extern bool item_glow;
 extern bool player_glow;
 extern bool aim_no_recoil;
+extern bool lock_target;
 extern bool ready;
 extern bool use_nvidia;
 extern float max_dist;
@@ -176,6 +177,8 @@ void Overlay::RenderMenu()
 			{
 				ImGui::SameLine();
 				ImGui::Checkbox(XorStr("Visibility check"), &vis_check);
+				ImGui::SameLine();
+				ImGui::Checkbox(XorStr("Lock Target"), &lock_target);
 				ImGui::SameLine();
 				ImGui::Checkbox(XorStr("No recoil/sway"), &aim_no_recoil);
 				if (vis_check)

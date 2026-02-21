@@ -36,6 +36,7 @@ bool skeleton = false;
 //bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
+bool lock_target = false;
 bool aiming = false;
 
 extern float smooth;
@@ -1114,7 +1115,11 @@ static void AimbotLoop()
 					continue;
 				}
 
-				lock = true;
+				if (lock_target)
+					lock = true;
+				else
+					lock = false;
+
 				lastaimentity = aimentity;
 
 				if (aimentity != last_locked_entity) {
@@ -1499,6 +1504,10 @@ while (vars_t)
         uint64_t walljump_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, walljump_addr);
         if (walljump_addr) client_mem.Read<bool>(walljump_addr, walljump);
+
+        uint64_t lock_target_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr);
+        if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
 
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);

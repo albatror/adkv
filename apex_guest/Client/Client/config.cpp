@@ -14,6 +14,7 @@ extern int aim;
 extern bool esp;
 extern bool player_glow;
 extern bool aim_no_recoil;
+extern bool lock_target;
 extern float max_dist;
 extern float default_smooth;
 extern float default_fov;
@@ -70,6 +71,7 @@ void SaveConfig(const std::string& filename) {
     file << "esp " << std::boolalpha << esp << "\n";
     file << "player_glow " << std::boolalpha << player_glow << "\n";
     file << "aim_no_recoil " << std::boolalpha << aim_no_recoil << "\n";
+    file << "lock_target " << std::boolalpha << lock_target << "\n";
     file << "max_dist " << max_dist << "\n";
     file << "default_smooth " << default_smooth << "\n";
     file << "default_fov " << default_fov << "\n";
@@ -135,6 +137,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "esp") ss >> std::boolalpha >> esp;
         else if (key == "player_glow") ss >> std::boolalpha >> player_glow;
         else if (key == "aim_no_recoil") ss >> std::boolalpha >> aim_no_recoil;
+        else if (key == "lock_target") ss >> std::boolalpha >> lock_target;
         else if (key == "max_dist") ss >> max_dist;
         else if (key == "default_smooth") ss >> default_smooth;
         else if (key == "default_fov") ss >> default_fov;
