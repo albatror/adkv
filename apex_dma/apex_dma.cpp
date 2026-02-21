@@ -179,38 +179,43 @@ std::array<float, 3> highlightParameter;
 // Inside SetPlayerGlow function
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
-    	if (player_glow >= 1)
-    	{
-    			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
-    				float currentEntityTime = 5000.f;
-    				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
-    					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
-    					{
-    						contextId = 5;
-    						settingIndex = 80;
-    						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
-    					}
-    					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
-    					{
-    						contextId = 6;
-    						settingIndex = 81;
-    						highlightParameter = { glowrviz, glowgviz, glowbviz };
-    					}
-    					else 
-    					{
-    						contextId = 7;
-    						settingIndex = 82;
-    						highlightParameter = { glowr, glowg, glowb };
-    					}
-    					Target.enableGlow();
-    				}
-    			}
-    	}
-    	//////////////////////////////////////////////////////////////////////////////////////////////////
-		else if((player_glow == 0) && Target.isGlowing())
-		{
-			Target.disableGlow();
-		}
+    if (player_glow >= 1)
+    {
+        int entity_team = Target.getTeamId();
+        if (!firing_range && !onevone && entity_team == team_player)
+        {
+            if (Target.isGlowing()) Target.disableGlow();
+            return;
+        }
+
+        int newContextId = 7;
+        std::array<float, 3> newHighlightParameter = { glowr, glowg, glowb };
+
+        if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
+        {
+            newContextId = 5;
+            newHighlightParameter = { glowrknocked, glowgknocked, glowbknocked };
+        }
+        else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+        {
+            newContextId = 6;
+            newHighlightParameter = { glowrviz, glowgviz, glowbviz };
+        }
+
+        int currentContextId = *(int*)(Target.buffer + OFFSET_GLOW_ENABLE);
+        int currentVisType = *(int*)(Target.buffer + OFFSET_GLOW_THROUGH_WALLS);
+
+        if (currentContextId != newContextId || currentVisType != 2)
+        {
+            contextId = newContextId;
+            highlightParameter = newHighlightParameter;
+            Target.enableGlow();
+        }
+    }
+    else if (Target.isGlowing())
+    {
+        Target.disableGlow();
+    }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -238,14 +243,21 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector EntityPosition = target.getPosition();
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
-		if (dist > max_dist)
+
+	if (dist < 1000.0f * 40.0f) {
+		SetPlayerGlow(LPlayer, target, index);
+	}
+
+	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	lastvis_aim[index] = target.lastVisTime();
+
+	if (dist > max_dist)
 		return;
 
 	if(!firing_range && !onevone)
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
 	
-	bool visible = (target.lastVisTime() > lastvis_aim[index]);
 	float fov = CalculateFov(LPlayer, target);
 
 	if (target.ptr == aimentity)
@@ -286,10 +298,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			}
 		}
 	}
-	////
-	SetPlayerGlow(LPlayer, target, index);
-	////
-	lastvis_aim[index] = target.lastVisTime();
 }
 
 ////////////////////////////////////////
@@ -613,15 +621,6 @@ if (bhop && SuperKey) {
 						continue;
 					}
 
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.disableGlow();
-					}
-
 					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
 					c++;
 				}
@@ -643,22 +642,6 @@ if (bhop && SuperKey) {
 					}
 					
 					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
-
-					int entity_team = Target.getTeamId();
-					if (entity_team == team_player && !onevone)
-					{
-						continue;
-					}
-
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.enableGlow();
-						//Target.disableGlow();
-					}
 				}
 			}
 
