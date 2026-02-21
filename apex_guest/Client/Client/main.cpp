@@ -162,7 +162,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[47];//47
+uint64_t add[48];//48
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -380,14 +380,18 @@ void Overlay::RenderEsp()
 			}
 
 			if (active_idx != -1) {
-				if (v.target_indicator) {
+				if (v.target_indicator || (v.skynade && aiming)) {
 					float dx = players[active_idx].b_x - cx;
 					float dy = (players[active_idx].b_y + players[active_idx].h_y) / 2.0f - cy;
 					float d = sqrt(dx * dx + dy * dy);
 
 					if (d < v.target_indicator_fov) { // Condition: near crosshair (inside FOV)
 						ImColor color = players[active_idx].visible ? GREEN : RED;
-						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, color, 12, 2.0f);
+						if (v.skynade && aiming) {
+							ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 15.0f, color, 12, 2.0f);
+						} else {
+							ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, color, 12, 2.0f);
+						}
 					}
 				}
 				float distRatio = players[active_idx].dist / max_dist;
@@ -475,6 +479,7 @@ int main(int argc, char** argv)
 	add[44] = (uintptr_t)&flickbot_fov;
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
+	add[47] = (uintptr_t)&v.skynade;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
