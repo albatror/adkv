@@ -332,7 +332,7 @@ bool Entity::isZooming()
 		//apex_mem.Write<float>(ptr + 0x264, 8.0E+4);
 
 		//apex_mem.Write(g_Base + OFFSET_GLOW_FIX, 1);
-		apex_mem.Write<float>(ptr + GLOW_DISTANCE, 88888);
+		apex_mem.Write<float>(ptr + GLOW_DISTANCE, 88888.0f);
 
 
 
