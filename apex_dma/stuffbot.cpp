@@ -59,10 +59,10 @@ void StuffbotLoop()
 	stuff_t = true;
 	while (stuff_t)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		while (g_Base != 0 && c_Base != 0)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
 			if (aimentity == 0) continue;
 
@@ -88,7 +88,12 @@ void StuffbotLoop()
 					QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
 					if (Angles.x != 0 || Angles.y != 0)
 					{
-						LPlayer.SetViewAngles(Angles);
+						QAngle current_angles = LPlayer.GetViewAngles();
+						double angular_delta = Math::GetFov(current_angles, Angles);
+						if (angular_delta > 0.001)
+						{
+							LPlayer.SetViewAngles(Angles);
+						}
 					}
 				}
 			}

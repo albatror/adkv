@@ -672,8 +672,9 @@ if (bhop && SuperKey) {
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
 
-			if (!lock){
+			if (!lock && !flickbot_aiming && !triggerbot_aiming){
 				aimentity = tmp_aimentity;
+				lastaimentity = aimentity;
 			}else{
 				aimentity = lastaimentity;
 			}
