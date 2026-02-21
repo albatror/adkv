@@ -714,26 +714,41 @@ bool isAllowedWeapon(const char* name, int zoomElapsedMs) {
 
 bool IsInCrossHair(Entity& target)
 {
-    static std::unordered_map<uint64_t, float> lastTimes;  // per target
+	static uintptr_t last_t = 0;
+	static float last_crosshair_target_time = -1.f;
+	float now_crosshair_target_time = target.lastCrossHairTime();
+	bool is_trigger = false;
 
-    float now_crosshair_target_time = target.lastCrossHairTime();
+	if (std::isnan(now_crosshair_target_time))
+		return false;
 
-    if (std::isnan(now_crosshair_target_time)) {
-        // printf("[DEBUG] Invalid crosshair time (nan) for target 0x%lx\n", target.ptr);
-        return false;
-    }
-
-    bool triggered = false;
-
-    float last_time = lastTimes[target.ptr];  // 0 if first time seen
-
-    if (now_crosshair_target_time > last_time) {
-        triggered = true;
-    }
-
-    lastTimes[target.ptr] = now_crosshair_target_time;  // update for next check
-
-    return triggered;
+	if (last_t == target.ptr)
+	{
+		if (last_crosshair_target_time != -1.f)
+		{
+			if (now_crosshair_target_time > last_crosshair_target_time)
+			{
+				is_trigger = true;
+				last_crosshair_target_time = -1.f;
+			}
+			else
+			{
+				is_trigger = false;
+				last_crosshair_target_time = now_crosshair_target_time;
+			}
+		}
+		else
+		{
+			is_trigger = false;
+			last_crosshair_target_time = now_crosshair_target_time;
+		}
+	}
+	else
+	{
+		last_t = target.ptr;
+		last_crosshair_target_time = -1.f;
+	}
+	return is_trigger;
 }
 
 player players[toRead];
@@ -1056,46 +1071,53 @@ static void AimbotLoop()
 			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
 			wasZooming = isZooming;
 
+			// Shared Triggerbot firing state
+			static bool isFiring = false;
+			static std::chrono::steady_clock::time_point fireStartTime;
+
+			// Triggerbot firing logic (Non-blocking)
+			if (isFiring) {
+				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fireStartTime).count();
+				if (elapsed >= 60) {
+					apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+					isFiring = false;
+				}
+			}
+
 			// Triggerbot logic
-			if (triggerbot && triggerbot_aiming) {
-				if (isZooming && aimentity != 0) {
-					Entity Target = getEntity(aimentity);
-					char weaponName[64] = { 0 };
-					LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
-					if (isAllowedWeapon(weaponName, zoomElapsedMs) && IsInCrossHair(Target)) {
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-					}
+			if (triggerbot && triggerbot_aiming && aimentity != 0 && !isFiring) {
+				Entity Target = getEntity(aimentity);
+				if (IsInCrossHair(Target)) {
+					apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+					fireStartTime = std::chrono::steady_clock::now();
+					isFiring = true;
 				}
 			}
 
 			// Flickbot logic
+			bool flickbot_active = false;
 			if (flickbot && flickbot_aiming && aimentity != 0) {
-				char weaponName[64] = { 0 };
-				LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
-				if (isAllowedWeapon(weaponName, zoomElapsedMs)) {
-					Entity Target = getEntity(aimentity);
-					if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
-						float fov = CalculateFov(LPlayer, Target);
-						if (fov <= flickbot_fov) {
-							QAngle old_angles = LPlayer.GetViewAngles();
-							QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-							if (aim_angles.x != 0 || aim_angles.y != 0) {
-								LPlayer.SetViewAngles(aim_angles);
+				Entity Target = getEntity(aimentity);
+				if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
+					float fov = CalculateFov(LPlayer, Target);
+					if (fov <= flickbot_fov) {
+						QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
+						if (aim_angles.x != 0 || aim_angles.y != 0) {
+							LPlayer.SetViewAngles(aim_angles);
+							flickbot_active = true;
+
+							// Flickbot integrated triggerbot
+							if (triggerbot && !isFiring && IsInCrossHair(Target)) {
 								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-								std::this_thread::sleep_for(std::chrono::milliseconds(50));
-								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-								std::this_thread::sleep_for(std::chrono::milliseconds(10));
-								LPlayer.SetViewAngles(old_angles);
-								std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
+								fireStartTime = std::chrono::steady_clock::now();
+								isFiring = true;
 							}
 						}
 					}
 				}
 			}
 
-			if (aim > 0)
+			if (aim > 0 && !flickbot_active)
 			{
 				if (aimentity == 0 || !aiming)
 				{
