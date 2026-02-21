@@ -67,6 +67,7 @@ bool esp = false; //read
 //bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
+bool lock_target = false;
 bool aiming = false; //read
 uint64_t g_Base = 0; //write
 float max_dist = 120.0f * 40.0f;
@@ -162,7 +163,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[47];//47
+uint64_t add[48];//48
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -475,6 +476,7 @@ int main(int argc, char** argv)
 	add[44] = (uintptr_t)&flickbot_fov;
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
+	add[47] = (uintptr_t)&lock_target;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
