@@ -180,33 +180,36 @@ std::array<float, 3> highlightParameter;
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
 	if (player_glow)
-    	{
-			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS] != 2) {
-    					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
-    					{
-    						contextId = 5;
-    						settingIndex = 80;
-    						highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
-    					}
-    					else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
-    					{
-    						contextId = 6;
-    						settingIndex = 81;
-    						highlightParameter = { glowrviz, glowgviz, glowbviz };
-    					}
-    					else 
-    					{
-    						contextId = 7;
-    						settingIndex = 82;
-    						highlightParameter = { glowr, glowg, glowb };
-    					}
-    					Target.enableGlow();
-    			}
-    	}
-		else if(Target.isGlowing())
+	{
+		int newContextId;
+		if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
 		{
-			Target.disableGlow();
+			newContextId = 5;
+			highlightParameter = { glowrknocked, glowgknocked, glowbknocked };
 		}
+		else if (Target.lastVisTime() > lastvis_aim[index] || (Target.lastVisTime() < 0.f && lastvis_aim[index] > 0.f))
+		{
+			newContextId = 6;
+			highlightParameter = { glowrviz, glowgviz, glowbviz };
+		}
+		else
+		{
+			newContextId = 7;
+			highlightParameter = { glowr, glowg, glowb };
+		}
+
+		int currentContextId = *(int*)(Target.buffer + OFFSET_GLOW_ENABLE);
+		int currentVisType = *(int*)(Target.buffer + OFFSET_GLOW_THROUGH_WALLS);
+
+		if (currentContextId != newContextId || currentVisType != 2) {
+			contextId = newContextId;
+			Target.enableGlow();
+		}
+	}
+	else if(Target.isGlowing())
+	{
+		Target.disableGlow();
+	}
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
