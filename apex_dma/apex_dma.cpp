@@ -179,11 +179,9 @@ std::array<float, 3> highlightParameter;
 // Inside SetPlayerGlow function
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
-    	if (player_glow >= 1)
+	if (player_glow)
     	{
-    			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
-    				float currentEntityTime = 5000.f;
-    				if (!isnan(currentEntityTime) && currentEntityTime > 0.f) {
+			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS] != 2) {
     					if (!(firing_range) && (Target.isKnocked() || !Target.isAlive()))
     					{
     						contextId = 5;
@@ -203,11 +201,9 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
     						highlightParameter = { glowr, glowg, glowb };
     					}
     					Target.enableGlow();
-    				}
     			}
     	}
-    	//////////////////////////////////////////////////////////////////////////////////////////////////
-		else if((player_glow == 0) && Target.isGlowing())
+		else if(Target.isGlowing())
 		{
 			Target.disableGlow();
 		}
@@ -644,20 +640,9 @@ if (bhop && SuperKey) {
 					
 					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
 
-					int entity_team = Target.getTeamId();
-					if (entity_team == team_player && !onevone)
+					if (!player_glow && Target.isGlowing())
 					{
-						continue;
-					}
-
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.enableGlow();
-						//Target.disableGlow();
+						Target.disableGlow();
 					}
 				}
 			}
