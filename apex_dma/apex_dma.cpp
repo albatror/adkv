@@ -238,7 +238,24 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector EntityPosition = target.getPosition();
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
-		if (dist > max_dist)
+
+	// Visibility tracking and player glow should work for all entities within a reasonable visual range (~1000m).
+	// This ensures visibility-based glow works even if the entity is beyond the aimbot's max_dist.
+	if (dist < 40000.0f)
+	{
+		// Team check: Do not glow teammates unless in firing range or 1v1 mode.
+		if (!firing_range && !onevone && entity_team == team_player)
+		{
+			if (target.isGlowing()) target.disableGlow();
+		}
+		else
+		{
+			SetPlayerGlow(LPlayer, target, index);
+		}
+		lastvis_aim[index] = target.lastVisTime();
+	}
+
+	if (dist > max_dist)
 		return;
 
 	if(!firing_range && !onevone)
@@ -286,10 +303,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			}
 		}
 	}
-	////
-	SetPlayerGlow(LPlayer, target, index);
-	////
-	lastvis_aim[index] = target.lastVisTime();
 }
 
 ////////////////////////////////////////
@@ -613,15 +626,6 @@ if (bhop && SuperKey) {
 						continue;
 					}
 
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.disableGlow();
-					}
-
 					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
 					c++;
 				}
@@ -643,22 +647,6 @@ if (bhop && SuperKey) {
 					}
 					
 					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
-
-					int entity_team = Target.getTeamId();
-					if (entity_team == team_player && !onevone)
-					{
-						continue;
-					}
-
-					if (player_glow && !Target.isGlowing())
-					{
-						Target.enableGlow();
-					}
-					else if (!player_glow && Target.isGlowing())
-					{
-						Target.enableGlow();
-						//Target.disableGlow();
-					}
 				}
 			}
 
