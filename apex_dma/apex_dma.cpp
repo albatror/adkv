@@ -8,6 +8,7 @@
 #include <cfloat>
 #include "offsets_dynamic.h"
 #include "Game.h"
+#include "StuffBot.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -676,66 +677,6 @@ if (bhop && SuperKey) {
 
 	actions_t = false;
 }
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool isAllowedWeapon(const char* name, int zoomElapsedMs) {
-    if (name == nullptr) return false;
-
-    // Special long zoom delay for Kraber and Sentinel
-    if (strstr(name, "kraber") || strstr(name, "sentinel")) {
-        if (zoomElapsedMs < 950)
-            return false; // Not ready to shoot yet
-    } else {
-        // All other weapons need 600ms after zoom
-        if (zoomElapsedMs < 600)
-            return false; // Not ready yet
-    }
-
-    // List of allowed weapons based on model name substrings from UC
-    return (
-        strstr(name, "kraber") ||
-        strstr(name, "wingman") || strstr(name, "b3wing") ||
-        strstr(name, "rspn101_dmr") || // LONGBOW
-        strstr(name, "sentinel") ||
-        strstr(name, "g7") || strstr(name, "g2") ||
-        strstr(name, "hemlock") || strstr(name, "hemlok") ||
-        strstr(name, "3030repeater") || strstr(name, "repeater3030") ||
-        strstr(name, "tripletake") || strstr(name, "doubletake") ||
-        strstr(name, "compound") || strstr(name, "bow") ||
-        strstr(name, "throw") || // THROWING KNIFE
-        strstr(name, "p2020") || strstr(name, "p2011") ||
-        strstr(name, "mozambique") || strstr(name, "pstl_sa3") ||
-        strstr(name, "eva8") ||
-        strstr(name, "peacekeeper") ||
-        strstr(name, "mastiff") ||
-        strstr(name, "nemesis")
-    );
-}
-
-bool IsInCrossHair(Entity& target)
-{
-    static std::unordered_map<uint64_t, float> lastTimes;  // per target
-
-    float now_crosshair_target_time = target.lastCrossHairTime();
-
-    if (std::isnan(now_crosshair_target_time)) {
-        // printf("[DEBUG] Invalid crosshair time (nan) for target 0x%lx\n", target.ptr);
-        return false;
-    }
-
-    bool triggered = false;
-
-    float last_time = lastTimes[target.ptr];  // 0 if first time seen
-
-    if (now_crosshair_target_time > last_time) {
-        triggered = true;
-    }
-
-    lastTimes[target.ptr] = now_crosshair_target_time;  // update for next check
-
-    return triggered;
-}
-
 player players[toRead];
 
 static void EspLoop()
@@ -1056,44 +997,6 @@ static void AimbotLoop()
 			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
 			wasZooming = isZooming;
 
-			// Triggerbot logic
-			if (triggerbot && triggerbot_aiming) {
-				if (isZooming && aimentity != 0) {
-					Entity Target = getEntity(aimentity);
-					char weaponName[64] = { 0 };
-					LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
-					if (isAllowedWeapon(weaponName, zoomElapsedMs) && IsInCrossHair(Target)) {
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-						std::this_thread::sleep_for(std::chrono::milliseconds(20));
-						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-					}
-				}
-			}
-
-			// Flickbot logic
-			if (flickbot && flickbot_aiming && aimentity != 0) {
-				char weaponName[64] = { 0 };
-				LPlayer.getWeaponModelName(weaponName, sizeof(weaponName));
-				if (isAllowedWeapon(weaponName, zoomElapsedMs)) {
-					Entity Target = getEntity(aimentity);
-					if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible) {
-						float fov = CalculateFov(LPlayer, Target);
-						if (fov <= flickbot_fov) {
-							QAngle old_angles = LPlayer.GetViewAngles();
-							QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-							if (aim_angles.x != 0 || aim_angles.y != 0) {
-								LPlayer.SetViewAngles(aim_angles);
-								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-								std::this_thread::sleep_for(std::chrono::milliseconds(50));
-								apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-								std::this_thread::sleep_for(std::chrono::milliseconds(10));
-								LPlayer.SetViewAngles(old_angles);
-								std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Cooldown
-							}
-						}
-					}
-				}
-			}
 
 			if (aim > 0)
 			{
@@ -1569,6 +1472,7 @@ int main(int argc, char *argv[])
 	std::thread esp_thr;
 	std::thread actions_thr;
 	//std::thread itemglow_thr;
+	std::thread stuffbot_thr;
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
@@ -1582,12 +1486,15 @@ int main(int argc, char *argv[])
 				esp_t = false;
 				actions_t = false;
 				//item_t = false;
+				extern bool stuff_t;
+				stuff_t = false;
 				g_Base = 0;
 
 				aimbot_thr.~thread();
 				esp_thr.~thread();
 				actions_thr.~thread();
 				//itemglow_thr.~thread();
+				stuffbot_thr.~thread();
 
 			}
 
@@ -1614,10 +1521,12 @@ int main(int argc, char *argv[])
 				aimbot_thr = std::thread(AimbotLoop);
 				esp_thr = std::thread(EspLoop);
 				actions_thr = std::thread(DoActions);
+				stuffbot_thr = std::thread(StuffBotLoop);
 				//itemglow_thr = std::thread(item_glow_t);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
+				stuffbot_thr.detach();
 				//itemglow_thr.detach();
 			}
 		}
