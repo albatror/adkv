@@ -3,7 +3,7 @@
 
 std::unique_ptr<ConnectorInstance<>> conn = nullptr;
 std::unique_ptr<OsInstance<>> kernel = nullptr;
-std::mutex conn_mutex;
+std::recursive_mutex conn_mutex;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -178,7 +178,7 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
-	std::lock_guard<std::mutex> l(conn_mutex);
+	std::lock_guard<std::recursive_mutex> l(conn_mutex);
 
 	if (!conn)
 	{
@@ -327,7 +327,7 @@ bool Memory::Dump(const char *filename)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
-	std::lock_guard<std::mutex> l(conn_mutex);
+	std::lock_guard<std::recursive_mutex> l(conn_mutex);
 	if (kernel) {
 		auto view = kernel->phys_view();
 		if (view.container.instance.instance)
@@ -343,7 +343,7 @@ bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 
 bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
 {
-	std::lock_guard<std::mutex> l(conn_mutex);
+	std::lock_guard<std::recursive_mutex> l(conn_mutex);
 	if (kernel) {
 		auto view = kernel->phys_view();
 		if (view.container.instance.instance)
@@ -359,7 +359,7 @@ bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
 
 uint64_t Memory::GetMaxPhysicalAddress()
 {
-	std::lock_guard<std::mutex> l(conn_mutex);
+	std::lock_guard<std::recursive_mutex> l(conn_mutex);
 	if (kernel) {
 		auto view = kernel->phys_view();
 		if (view.container.instance.instance)
