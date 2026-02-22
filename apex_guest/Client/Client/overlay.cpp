@@ -219,7 +219,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);
 			ImGui::Checkbox(XorStr("1v1"), &onevone);
 			ImGui::Separator();
-			ImGui::TextDisabled("HWID Spoofing is controlled by Server");
+			ImGui::Checkbox(XorStr("Guest HWID Masking"), &disrupt_wmi);
+			ImGui::TextDisabled("Full Spoofing orchestrated by Server");
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))

@@ -1375,7 +1375,7 @@ int main(int argc, char *argv[])
 	}
 
 	const char* cl_proc = "Client.exe";
-	const char* ap_proc = "r5apex_dx12.ex";
+	const char* ap_proc = "r5apex_dx12.exe";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset

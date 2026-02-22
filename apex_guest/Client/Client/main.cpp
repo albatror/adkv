@@ -59,7 +59,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
-bool disrupt_wmi = false;
+bool disrupt_wmi = true;
 bool hwid_trigger = false;
 
 bool use_nvidia = false;
