@@ -1,11 +1,15 @@
 #include "overlay.h"
 #include "config.h"
-#include "wmi_disrupt.h"
 #include <fstream>
 #include <iomanip>
 
 
 using namespace std;
+
+// Forward declarations to resolve C3861
+extern void ApplyRegistrySpoofs(const char* spoof_mguid, const char* spoof_hwid);
+extern bool DisruptWMI();
+
 extern int aim;
 extern bool esp;
 //extern bool item_glow;
