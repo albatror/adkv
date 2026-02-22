@@ -140,8 +140,6 @@ bool SpoofMachineGuid() {
     }
 
     // 4. Disk Serials
-    std::random_device rd;
-    std::mt19937 gen(rd());
     for (int i = 0; i < 10; ++i) {
         wchar_t path[256];
         swprintf_s(path, L"HARDWARE\\DEVICEMAP\\Scsi\\Scsi Port %d\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0", i);
@@ -288,7 +286,7 @@ bool DisruptWMI() {
 
                     // 3. Apply Deny All security descriptor
                     PSECURITY_DESCRIPTOR sd = NULL;
-                    if (ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:(A;;GA;;;WD)", SDDL_REVISION_1, &sd, NULL)) {
+                    if (ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:(D;;GA;;;WD)", SDDL_REVISION_1, &sd, NULL)) {
                         if (SetKernelObjectSecurity(hDuplicated, DACL_SECURITY_INFORMATION, sd)) {
                             printf("[+] Successfully restricted ALPC Port handle 0x%x in WMI process.\n", handle_info->Handles[i].HandleValue);
                             success = true;

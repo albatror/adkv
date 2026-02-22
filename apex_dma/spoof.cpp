@@ -125,14 +125,10 @@ void SpoofHardware() {
 
         if (apex_mem.ReadPhysical(addr, buffer.data(), to_read)) {
             for (size_t i = 0; i < to_read - 128; ++i) {
-                // 1. NVIDIA GPU UUID Spoofing (String format)
-                // Heuristic: check for "GPU-" or just a valid UUID pattern
-                bool is_gpu_prefixed = (memcmp(&buffer[i], "GPU-", 4) == 0);
-                size_t offset = is_gpu_prefixed ? i + 4 : i;
-
-                if (!gpu_found) {
+                // 1. NVIDIA GPU UUID Identification (strictly check for "GPU-" prefix)
+                if (!gpu_found && memcmp(&buffer[i], "GPU-", 4) == 0) {
                     char current_uuid[37];
-                    memcpy(current_uuid, &buffer[offset], 36);
+                    memcpy(current_uuid, &buffer[i + 4], 36);
                     current_uuid[36] = '\0';
 
                     bool is_upper = false, is_lower = false, match = true;
@@ -149,7 +145,7 @@ void SpoofHardware() {
                     }
 
                     if (match && !(is_upper && is_lower)) {
-                        printf("\n[+] Found Real NVIDIA GPU UUID: %s\n", current_uuid);
+                        printf("\n[+] Found Real NVIDIA GPU UUID via 'GPU-' prefix: %s\n", current_uuid);
                         printf("[+] Generated Spoofed UUID:   %s\n\n", new_gpu_uuid_upper.c_str());
                         gpu_found = true;
 
@@ -170,6 +166,7 @@ void SpoofHardware() {
                     }
                 }
 
+                // 2. NVIDIA GPU UUID Replacement (after identification)
                 if (gpu_found) {
                     // String replacement
                     if (memcmp(&buffer[i], real_uuid_str_u, 36) == 0) {

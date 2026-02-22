@@ -78,6 +78,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool disrupt_wmi = false;
 
 ///////////
 //bool medbackpack = true;
@@ -339,7 +340,7 @@ void DoActions()
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-		while (g_Base != 0 && c_Base != 0)
+		while (g_Base != 0 && c_Base != 0 && actions_t)
 		{
 ///////////////
 			char MapName[200] = { 0 };
@@ -686,7 +687,7 @@ static void EspLoop()
 	while (esp_t)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		while(g_Base != 0 && c_Base != 0)
+		while(g_Base != 0 && c_Base != 0 && esp_t)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			if (esp)
@@ -980,7 +981,7 @@ static void AimbotLoop()
 	while (aim_t)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		while (g_Base != 0 && c_Base != 0)
+		while (g_Base != 0 && c_Base != 0 && aim_t)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
@@ -1409,6 +1410,10 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, walljump_addr);
         if (walljump_addr) client_mem.Read<bool>(walljump_addr, walljump);
 
+        uint64_t disrupt_wmi_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, disrupt_wmi_addr);
+        if (disrupt_wmi_addr) client_mem.Read<bool>(disrupt_wmi_addr, disrupt_wmi);
+
         uint64_t lock_target_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr);
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
@@ -1512,7 +1517,8 @@ int main(int argc, char *argv[])
 				std::this_thread::sleep_for(std::chrono::seconds(2));
 
 				// Perform HWID Spoofing once connected to client, before starting the game
-				SpoofHardware();
+				if (disrupt_wmi)
+					SpoofHardware();
 			}
 		}
 		else
