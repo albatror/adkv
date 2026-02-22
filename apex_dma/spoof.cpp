@@ -7,6 +7,8 @@
 #include <chrono>
 #include <string>
 #include <cstdio>
+#include <fstream>
+#include <sstream>
 
 extern Memory apex_mem;
 
@@ -68,68 +70,80 @@ void ToUnicode(const char* src, uint8_t* dst, int len) {
     }
 }
 
+void SaveHardwareInfos(const std::string& filename, const std::string& mac, const std::string& gpu_uuid) {
+    std::ofstream file(filename);
+    if (file.is_open()) {
+        file << "MAC: " << mac << "\n";
+        file << "GPU: " << gpu_uuid << "\n";
+        file.close();
+    }
+}
+
+bool LoadHardwareInfos(const std::string& filename, std::string& mac, std::string& gpu_uuid) {
+    std::ifstream file(filename);
+    if (!file.is_open()) return false;
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.find("MAC: ") == 0) mac = line.substr(5);
+        else if (line.find("GPU: ") == 0) gpu_uuid = line.substr(5);
+    }
+    return !mac.empty() && !gpu_uuid.empty();
+}
+
+void MacToBytes(const std::string& mac_str, uint8_t* bytes) {
+    int values[6];
+    if (6 == sscanf(mac_str.c_str(), "%x:%x:%x:%x:%x:%x", &values[0], &values[1], &values[2], &values[3], &values[4], &values[5])) {
+        for (int i = 0; i < 6; ++i) bytes[i] = (uint8_t)values[i];
+    }
+}
+
+std::string MacToString(const uint8_t* bytes) {
+    char buf[20];
+    snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X", bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]);
+    return std::string(buf);
+}
+
 void SpoofHardware() {
     printf("------------------------------------------\n");
-    printf("Starting HWID Spoofing...\n");
+    printf("Starting HWID Spoofing System...\n");
 
+    std::string real_mac_str = "";
     if (g_real_mac[0] != 0 || g_real_mac[1] != 0) {
-        printf("[+] Real MAC from client: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            g_real_mac[0], g_real_mac[1], g_real_mac[2], g_real_mac[3], g_real_mac[4], g_real_mac[5]);
+        real_mac_str = MacToString(g_real_mac);
+    }
+
+    std::string stored_real_mac, stored_real_gpu;
+    bool has_real_file = LoadHardwareInfos("Real-infos.txt", stored_real_mac, stored_real_gpu);
+
+    std::string stored_spoofed_mac, stored_spoofed_gpu;
+    bool has_spoofed_file = LoadHardwareInfos("spoofed-infos.txt", stored_spoofed_mac, stored_spoofed_gpu);
+
+    // If we have real MAC from client and no real file, save it
+    if (!real_mac_str.empty() && !has_real_file) {
+        // We still need the real GPU UUID to save the full real file.
+        // We'll proceed with scanning.
     }
 
     uint64_t max_addr = apex_mem.GetMaxPhysicalAddress();
-    if (max_addr == 0 || max_addr < 0x100000000) max_addr = MAX_PHYADDR; // Scan at least 64GB if metadata is weird
+    if (max_addr == 0 || max_addr < 0x100000000) max_addr = MAX_PHYADDR;
 
-    printf("Scanning guest physical memory (up to %.2f GB)...\n", (double)max_addr / (1024.0 * 1024.0 * 1024.0));
+    printf("Scanning guest physical memory...\n");
 
-    const size_t chunk_size = 1024 * 1024 * 16; // 16MB chunks for speed
+    const size_t chunk_size = 1024 * 1024 * 16;
     std::vector<uint8_t> buffer(chunk_size);
 
-    std::string new_gpu_uuid_upper = GenerateRandomUUID(true);
-    std::string new_gpu_uuid_lower = new_gpu_uuid_upper;
-    std::transform(new_gpu_uuid_lower.begin(), new_gpu_uuid_lower.end(), new_gpu_uuid_lower.begin(), ::tolower);
+    bool real_gpu_found = false;
+    std::string found_gpu_uuid = "";
 
-    std::string new_gpu_uuid_no_dashes_u = new_gpu_uuid_upper;
-    new_gpu_uuid_no_dashes_u.erase(std::remove(new_gpu_uuid_no_dashes_u.begin(), new_gpu_uuid_no_dashes_u.end(), '-'), new_gpu_uuid_no_dashes_u.end());
-    std::string new_gpu_uuid_no_dashes_l = new_gpu_uuid_no_dashes_u;
-    std::transform(new_gpu_uuid_no_dashes_l.begin(), new_gpu_uuid_no_dashes_l.end(), new_gpu_uuid_no_dashes_l.begin(), ::tolower);
-
-    uint8_t new_gpu_bytes_be[16];
-    UUIDToBytes(new_gpu_uuid_upper.c_str(), new_gpu_bytes_be, false);
-    uint8_t new_gpu_bytes_le[16];
-    UUIDToBytes(new_gpu_uuid_upper.c_str(), new_gpu_bytes_le, true);
-
-    uint8_t new_gpu_unicode_u[72], new_gpu_unicode_l[72];
-    ToUnicode(new_gpu_uuid_upper.c_str(), new_gpu_unicode_u, 36);
-    ToUnicode(new_gpu_uuid_lower.c_str(), new_gpu_unicode_l, 36);
-
-    bool gpu_found = false;
-    char real_uuid_str_u[37] = {0}, real_uuid_str_l[37] = {0};
-    char real_uuid_no_dashes_u[33] = {0}, real_uuid_no_dashes_l[33] = {0};
-    uint8_t real_gpu_bytes_be[16] = {0}, real_gpu_bytes_le[16] = {0};
-    uint8_t real_gpu_unicode_u[72] = {0}, real_gpu_unicode_l[72] = {0};
-
-    uint8_t new_mac[6];
-    std::random_device rd_mac;
-    std::mt19937 gen_mac(rd_mac());
-    std::uniform_int_distribution<> dis_mac(0, 255);
-    for (int i = 0; i < 6; ++i) new_mac[i] = dis_mac(gen_mac);
-    new_mac[0] &= 0xFE; // Unicast
-
-    int spoof_count = 0;
-    int mac_count = 0;
-
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    // Scan physical memory
+    // First pass or combined: identify REAL GPU UUID if not known
     for (uint64_t addr = 0; addr < max_addr; addr += chunk_size - 2048) {
         size_t to_read = (addr + chunk_size > max_addr) ? (size_t)(max_addr - addr) : chunk_size;
         if (to_read < 128) break;
 
         if (apex_mem.ReadPhysical(addr, buffer.data(), to_read)) {
             for (size_t i = 0; i < to_read - 128; ++i) {
-                // 1. NVIDIA GPU UUID Identification (strictly check for "GPU-" prefix)
-                if (!gpu_found && memcmp(&buffer[i], "GPU-", 4) == 0) {
+                // Heuristic for GPU UUID
+                if (memcmp(&buffer[i], "GPU-", 4) == 0) {
                     char current_uuid[37];
                     memcpy(current_uuid, &buffer[i + 4], 36);
                     current_uuid[36] = '\0';
@@ -148,81 +162,139 @@ void SpoofHardware() {
                     }
 
                     if (match && !(is_upper && is_lower)) {
-                        printf("\n[+] Found Real NVIDIA GPU UUID via 'GPU-' prefix: %s\n", current_uuid);
-                        printf("[+] Generated Spoofed UUID:   %s\n\n", new_gpu_uuid_upper.c_str());
-                        gpu_found = true;
+                        std::string uuid_str = "GPU-" + std::string(current_uuid);
+                        // Check if this matches our spoofed UUID
+                        if (has_spoofed_file && uuid_str == stored_spoofed_gpu) {
+                            printf("[!] Detected ALREADY SPOOFED GPU UUID: %s\n", uuid_str.c_str());
+                            printf("[!] Skipping physical memory spoofing as it's already done.\n");
+                            printf("------------------------------------------\n");
+                            return;
+                        }
 
-                        strncpy(real_uuid_str_u, current_uuid, 36);
-                        std::transform(real_uuid_str_u, real_uuid_str_u + 36, real_uuid_str_u, ::toupper);
-                        strncpy(real_uuid_str_l, real_uuid_str_u, 36);
-                        std::transform(real_uuid_str_l, real_uuid_str_l + 36, real_uuid_str_l, ::tolower);
-
-                        UUIDToBytes(real_uuid_str_u, real_gpu_bytes_be, false);
-                        UUIDToBytes(real_uuid_str_u, real_gpu_bytes_le, true);
-                        ToUnicode(real_uuid_str_u, real_gpu_unicode_u, 36);
-                        ToUnicode(real_uuid_str_l, real_gpu_unicode_l, 36);
-
-                        int k = 0;
-                        for(int j=0; j<36; j++) if(real_uuid_str_u[j] != '-') real_uuid_no_dashes_u[k++] = real_uuid_str_u[j];
-                        k = 0;
-                        for(int j=0; j<36; j++) if(real_uuid_str_l[j] != '-') real_uuid_no_dashes_l[k++] = real_uuid_str_l[j];
-                    }
-                }
-
-                // 2. NVIDIA GPU UUID Replacement (after identification)
-                if (gpu_found) {
-                    // String replacement
-                    if (memcmp(&buffer[i], real_uuid_str_u, 36) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_uuid_upper.c_str(), 36)) spoof_count++;
-                    } else if (memcmp(&buffer[i], real_uuid_str_l, 36) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_uuid_lower.c_str(), 36)) spoof_count++;
-                    }
-                    // No dashes replacement
-                    else if (memcmp(&buffer[i], real_uuid_no_dashes_u, 32) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_uuid_no_dashes_u.c_str(), 32)) spoof_count++;
-                    } else if (memcmp(&buffer[i], real_uuid_no_dashes_l, 32) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_uuid_no_dashes_l.c_str(), 32)) spoof_count++;
-                    }
-                    // Unicode replacement
-                    else if (memcmp(&buffer[i], real_gpu_unicode_u, 72) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_unicode_u, 72)) spoof_count++;
-                    } else if (memcmp(&buffer[i], real_gpu_unicode_l, 72) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_unicode_l, 72)) spoof_count++;
-                    }
-                    // Raw bytes replacement
-                    else if (memcmp(&buffer[i], real_gpu_bytes_be, 16) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_bytes_be, 16)) spoof_count++;
-                    } else if (memcmp(&buffer[i], real_gpu_bytes_le, 16) == 0) {
-                        if (apex_mem.WritePhysical(addr + i, new_gpu_bytes_le, 16)) spoof_count++;
-                    }
-                }
-
-                // 4. MAC Address Spoofing
-                if (g_real_mac[0] != 0 && memcmp(&buffer[i], g_real_mac, 6) == 0) {
-                    if (apex_mem.WritePhysical(addr + i, new_mac, 6)) {
-                        mac_count++;
+                        if (!real_gpu_found) {
+                            found_gpu_uuid = uuid_str;
+                            real_gpu_found = true;
+                            printf("[+] Found Real NVIDIA GPU UUID: %s\n", found_gpu_uuid.c_str());
+                        }
                     }
                 }
             }
         }
-
-        if (addr % (1024LL * 1024 * 1024 * 4) == 0 && addr > 0) {
-            printf("Progress: %lu GB scanned...\n", addr / (1024 * 1024 * 1024));
-        }
+        if (real_gpu_found) break;
     }
 
-    if (gpu_found) {
-        printf("\n[+] HWID Spoofing completed. Replaced %d occurrences of GPU UUID (Strings and Raw Bytes).\n", spoof_count);
+    if (!real_gpu_found) {
+        printf("[-] Could not find any NVIDIA GPU UUID in physical memory.\n");
+        printf("------------------------------------------\n");
+        return;
+    }
+
+    // Save Real Infos if not present
+    if (!has_real_file) {
+        SaveHardwareInfos("Real-infos.txt", real_mac_str, found_gpu_uuid);
+        printf("[+] Saved real identifiers to Real-infos.txt\n");
+    }
+
+    // Generate or use stored Spoofed Infos
+    std::string new_gpu_uuid_upper;
+    std::string new_mac_str;
+
+    if (has_spoofed_file) {
+        new_gpu_uuid_upper = stored_spoofed_gpu;
+        new_mac_str = stored_spoofed_mac;
+        printf("[+] Using previously generated spoofed identifiers from spoofed-infos.txt\n");
     } else {
-        printf("\n[-] NVIDIA GPU UUID not found in physical memory.\n");
+        new_gpu_uuid_upper = "GPU-" + GenerateRandomUUID(true);
+
+        uint8_t rand_mac[6];
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, 255);
+        for (int i = 0; i < 6; ++i) rand_mac[i] = dis(gen);
+        rand_mac[0] &= 0xFE; // Unicast
+        new_mac_str = MacToString(rand_mac);
+
+        SaveHardwareInfos("spoofed-infos.txt", new_mac_str, new_gpu_uuid_upper);
+        printf("[+] Generated and saved new spoofed identifiers to spoofed-infos.txt\n");
     }
 
-    if (mac_count > 0) {
-        printf("[+] Replaced %d occurrences of MAC address.\n", mac_count);
+    printf("\n[SPOOFER] REAL MAC:   %s\n", real_mac_str.c_str());
+    printf("[SPOOFER] SPOOF MAC: %s\n", new_mac_str.c_str());
+    printf("[SPOOFER] REAL GPU:   %s\n", found_gpu_uuid.c_str());
+    printf("[SPOOFER] SPOOF GPU: %s\n\n", new_gpu_uuid_upper.c_str());
+
+    // Prepare bytes for replacement
+    std::string real_uuid_no_prefix = found_gpu_uuid.substr(4);
+    std::string new_uuid_no_prefix = new_gpu_uuid_upper.substr(4);
+
+    std::string real_uuid_str_u = real_uuid_no_prefix;
+    std::transform(real_uuid_str_u.begin(), real_uuid_str_u.end(), real_uuid_str_u.begin(), ::toupper);
+    std::string real_uuid_str_l = real_uuid_str_u;
+    std::transform(real_uuid_str_l.begin(), real_uuid_str_l.end(), real_uuid_str_l.begin(), ::tolower);
+
+    std::string new_uuid_str_u = new_uuid_no_prefix;
+    std::transform(new_uuid_str_u.begin(), new_uuid_str_u.end(), new_uuid_str_u.begin(), ::toupper);
+    std::string new_uuid_str_l = new_uuid_str_u;
+    std::transform(new_uuid_str_l.begin(), new_uuid_str_l.end(), new_uuid_str_l.begin(), ::tolower);
+
+    uint8_t real_gpu_bytes_be[16], real_gpu_bytes_le[16];
+    UUIDToBytes(real_uuid_str_u.c_str(), real_gpu_bytes_be, false);
+    UUIDToBytes(real_uuid_str_u.c_str(), real_gpu_bytes_le, true);
+
+    uint8_t new_gpu_bytes_be[16], new_gpu_bytes_le[16];
+    UUIDToBytes(new_uuid_str_u.c_str(), new_gpu_bytes_be, false);
+    UUIDToBytes(new_uuid_str_u.c_str(), new_gpu_bytes_le, true);
+
+    uint8_t real_mac_bytes[6], new_mac_bytes[6];
+    MacToBytes(real_mac_str, real_mac_bytes);
+    MacToBytes(new_mac_str, new_mac_bytes);
+
+    int spoof_count = 0;
+    int mac_count = 0;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // Actual replacement pass
+    for (uint64_t addr = 0; addr < max_addr; addr += chunk_size - 2048) {
+        size_t to_read = (addr + chunk_size > max_addr) ? (size_t)(max_addr - addr) : chunk_size;
+        if (to_read < 128) break;
+
+        if (apex_mem.ReadPhysical(addr, buffer.data(), to_read)) {
+            bool chunk_modified = false;
+            for (size_t i = 0; i < to_read - 128; ++i) {
+                // GPU String replacement
+                if (memcmp(&buffer[i], real_uuid_str_u.c_str(), 36) == 0) {
+                    memcpy(&buffer[i], new_uuid_str_u.c_str(), 36);
+                    apex_mem.WritePhysical(addr + i, new_uuid_str_u.c_str(), 36);
+                    spoof_count++;
+                } else if (memcmp(&buffer[i], real_uuid_str_l.c_str(), 36) == 0) {
+                    memcpy(&buffer[i], new_uuid_str_l.c_str(), 36);
+                    apex_mem.WritePhysical(addr + i, new_uuid_str_l.c_str(), 36);
+                    spoof_count++;
+                }
+                // GPU Bytes replacement
+                else if (memcmp(&buffer[i], real_gpu_bytes_be, 16) == 0) {
+                    memcpy(&buffer[i], new_gpu_bytes_be, 16);
+                    apex_mem.WritePhysical(addr + i, new_gpu_bytes_be, 16);
+                    spoof_count++;
+                } else if (memcmp(&buffer[i], real_gpu_bytes_le, 16) == 0) {
+                    memcpy(&buffer[i], new_gpu_bytes_le, 16);
+                    apex_mem.WritePhysical(addr + i, new_gpu_bytes_le, 16);
+                    spoof_count++;
+                }
+                // MAC Address Spoofing
+                if (real_mac_bytes[0] != 0 && memcmp(&buffer[i], real_mac_bytes, 6) == 0) {
+                    memcpy(&buffer[i], new_mac_bytes, 6);
+                    apex_mem.WritePhysical(addr + i, new_mac_bytes, 6);
+                    mac_count++;
+                }
+            }
+        }
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
     double duration = std::chrono::duration<double>(end_time - start_time).count();
-    printf("[+] Spoofing process took %.2f seconds.\n", duration);
+    printf("[+] Spoofing completed in %.2f seconds.\n", duration);
+    printf("[+] Replaced %d GPU occurrences and %d MAC occurrences.\n", spoof_count, mac_count);
     printf("------------------------------------------\n");
 }

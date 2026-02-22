@@ -87,6 +87,7 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
+		conn.reset();
 		return false;
 	}
 	else
@@ -100,6 +101,7 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
 		mf_connector_drop(conn.get());
 		kernel.reset();
+		conn.reset();
 		return false;
 	}
 
@@ -176,6 +178,9 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
+	extern std::mutex conn_mutex;
+	std::lock_guard<std::mutex> l(conn_mutex);
+
 	if (!conn)
 	{
 		conn = std::make_unique<ConnectorInstance<>>();
@@ -194,7 +199,8 @@ void Memory::open_proc(const char *name)
 			}
 		}
 
-		printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
+		if (kernel)
+			printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
 	}
 
 

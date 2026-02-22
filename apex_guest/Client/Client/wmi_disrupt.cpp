@@ -80,11 +80,61 @@ bool IsUserAdmin() {
     return bRet;
 }
 
+bool GetRegistryString(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, std::wstring& out) {
+    HKEY hKey;
+    if (RegOpenKeyExW(hRoot, lpSubKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        wchar_t buf[256];
+        DWORD size = sizeof(buf);
+        if (RegQueryValueExW(hKey, lpValueName, NULL, NULL, (LPBYTE)buf, &size) == ERROR_SUCCESS) {
+            out = buf;
+            RegCloseKey(hKey);
+            return true;
+        }
+        RegCloseKey(hKey);
+    }
+    return false;
+}
+
+extern uint8_t real_mac[6];
+std::string MacToString(const uint8_t* bytes); // Define if needed or use local
+
+extern uint8_t spoof_mac[6];
+
+void LogHardwareIdentifiers(bool real) {
+    printf("------------------------------------------\n");
+    printf(real ? "REAL Hardware Identifiers (GUEST):\n" : "SPOOFED Hardware Identifiers (GUEST):\n");
+
+    if (real) {
+        printf("[MAC] Real MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+            real_mac[0], real_mac[1], real_mac[2], real_mac[3], real_mac[4], real_mac[5]);
+    } else {
+        printf("[MAC] Spoof MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+            spoof_mac[0], spoof_mac[1], spoof_mac[2], spoof_mac[3], spoof_mac[4], spoof_mac[5]);
+    }
+
+    std::wstring val;
+    if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", val))
+        printf("[REG] MachineGuid: %ws\n", val.c_str());
+
+    if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", L"HwProfileGuid", val))
+        printf("[REG] HwProfileGuid: %ws\n", val.c_str());
+
+    if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\SQMClient", L"MachineId", val))
+        printf("[REG] MachineId: %ws\n", val.c_str());
+
+    if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\SystemInformation", L"ComputerHardwareId", val))
+        printf("[REG] ComputerHardwareId: %ws\n", val.c_str());
+
+    printf("------------------------------------------\n");
+}
+
 bool SpoofMachineGuid() {
     if (!IsUserAdmin()) {
         printf("\n[!] WARNING: Client is NOT running as Administrator.\n");
         printf("[!] Registry spoofing and WMI disruption will likely fail.\n\n");
     }
+
+    LogHardwareIdentifiers(true);
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -160,6 +210,8 @@ bool SpoofMachineGuid() {
     }
 
     printf("[+] Registry Spoofing completed successfully.\n");
+
+    LogHardwareIdentifiers(false);
 
     return true;
 }

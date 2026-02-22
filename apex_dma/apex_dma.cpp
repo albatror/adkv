@@ -79,6 +79,7 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 bool disrupt_wmi = false;
+bool auto_spoof = true; // Set to true to automatically spoof HWID on server start
 
 ///////////
 //bool medbackpack = true;
@@ -1072,10 +1073,10 @@ static void AimbotLoop()
 static void set_vars(uint64_t add_addr)
 {
     printf("Reading client vars...\n");
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    uint64_t add_ptrs[50] = { 0 };
-    if (!client_mem.ReadArray<uint64_t>(add_addr, add_ptrs, 50)) {
+    uint64_t add_ptrs[64] = { 0 };
+    if (!client_mem.ReadArray<uint64_t>(add_addr, add_ptrs, 64)) {
         printf("[-] Failed to read address array from client.\n");
         return;
     }
@@ -1133,6 +1134,8 @@ static void set_vars(uint64_t add_addr)
     uint64_t lock_target_addr = add_ptrs[47];
     uint64_t real_mac_addr = add_ptrs[48];
     uint64_t disrupt_wmi_addr = add_ptrs[49];
+    uint64_t hwid_trigger_addr = add_ptrs[50]; // Index 50 for HWID trigger
+    uint64_t spoof_mac_addr = add_ptrs[51];
 
 //
 //uint64_t min_max_fov_addr = 0;
@@ -1260,22 +1263,47 @@ while (vars_t)
         if (bhop_addr) client_mem.Read<bool>(bhop_addr, bhop);
         if (walljump_addr) client_mem.Read<bool>(walljump_addr, walljump);
 
-        if (disrupt_wmi_addr) {
-            bool current_toggle = false;
-            if (client_mem.Read<bool>(disrupt_wmi_addr, current_toggle)) {
-                static bool spoofed = false;
-                if (current_toggle && !spoofed) {
-                    printf("[+] HWID Spoofing triggered via Client UI toggle. Address: 0x%lx\n", disrupt_wmi_addr);
-                    SpoofHardware();
-                    spoofed = true;
-                } else if (!current_toggle) {
-                    if (spoofed) printf("[+] HWID Spoofing toggle reset.\n");
-                    spoofed = false; // Allow re-spoofing if toggled off then on
+        static bool host_spoofed = false;
+        bool guest_triggered = false;
+        if (disrupt_wmi_addr) client_mem.Read<bool>(disrupt_wmi_addr, guest_triggered);
+
+        static bool mac_received = false;
+        if (!mac_received && real_mac_addr) {
+            extern uint8_t g_real_mac[6];
+            if (client_mem.ReadArray<uint8_t>(real_mac_addr, g_real_mac, 6)) {
+                if (g_real_mac[0] != 0 || g_real_mac[1] != 0) {
+                    printf("[+] Real MAC received: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                        g_real_mac[0], g_real_mac[1], g_real_mac[2], g_real_mac[3], g_real_mac[4], g_real_mac[5]);
+                    mac_received = true;
                 }
-                disrupt_wmi = current_toggle;
-            } else {
-                // Failed to read toggle, might be client crash
             }
+        }
+
+        if ((auto_spoof || guest_triggered) && !host_spoofed && mac_received) {
+            printf("[+] HWID Spoofing triggered (Auto: %s, Guest: %s)\n",
+                auto_spoof ? "Yes" : "No", guest_triggered ? "Yes" : "No");
+
+            SpoofHardware();
+
+            // Tell guest to perform Registry/WMI spoofing
+            if (hwid_trigger_addr) {
+                // Also write spoofed MAC for guest logging
+                if (spoof_mac_addr) {
+                    std::string smac, sgpu;
+                    if (LoadHardwareInfos("spoofed-infos.txt", smac, sgpu)) {
+                        uint8_t smac_bytes[6];
+                        MacToBytes(smac, smac_bytes);
+                        client_mem.WriteArray<uint8_t>(spoof_mac_addr, smac_bytes, 6);
+                    }
+                }
+
+                printf("[+] Sending HWID trigger to guest at 0x%lx\n", hwid_trigger_addr);
+                client_mem.Write<bool>(hwid_trigger_addr, true);
+            }
+
+            host_spoofed = true;
+        } else if (!auto_spoof && !guest_triggered) {
+            host_spoofed = false; // Reset if both are disabled
         }
 
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
@@ -1284,17 +1312,6 @@ while (vars_t)
         if (flickbot_smooth_addr) client_mem.Read<float>(flickbot_smooth_addr, flickbot_smooth);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
-        if (real_mac_addr) {
-            static bool mac_read = false;
-            extern uint8_t g_real_mac[6];
-            if (client_mem.ReadArray<uint8_t>(real_mac_addr, g_real_mac, 6)) {
-                if (!mac_read && (g_real_mac[0] != 0 || g_real_mac[1] != 0)) {
-                    printf("[+] Real MAC received: %02X:%02X:%02X:%02X:%02X:%02X\n",
-                        g_real_mac[0], g_real_mac[1], g_real_mac[2], g_real_mac[3], g_real_mac[4], g_real_mac[5]);
-                    mac_read = true;
-                }
-            }
-        }
 
         if (esp && next && g_Base != 0)
         {

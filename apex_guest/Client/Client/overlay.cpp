@@ -219,14 +219,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);
 			ImGui::Checkbox(XorStr("1v1"), &onevone);
 			ImGui::Separator();
-			if (ImGui::Checkbox(XorStr("Disrupt WMI (Bypass)"), &disrupt_wmi)) {
-				if (disrupt_wmi) {
-					extern bool DisruptWMI();
-					extern bool SpoofMachineGuid();
-					DisruptWMI();
-					SpoofMachineGuid();
-				}
-			}
+			ImGui::TextDisabled("HWID Spoofing is controlled by Server");
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))

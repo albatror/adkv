@@ -60,6 +60,7 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 bool disrupt_wmi = false;
+bool hwid_trigger = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -168,8 +169,9 @@ bool next = false; //read write
 int index = 0;
 
 uint8_t real_mac[6] = { 0 };
+uint8_t spoof_mac[6] = { 0 };
 
-uint64_t add[50];//50
+uint64_t add[64];//64
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -513,6 +515,8 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&real_mac[0];
 	add[49] = (uintptr_t)&disrupt_wmi;
+	add[50] = (uintptr_t)&hwid_trigger;
+	add[51] = (uintptr_t)&spoof_mac[0];
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -549,6 +553,13 @@ int main(int argc, char** argv)
 	while (active)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+		if (hwid_trigger) {
+			printf("[+] HWID Trigger received from server.\n");
+			DisruptWMI();
+			SpoofMachineGuid();
+			hwid_trigger = false; // Reset trigger
+		}
 
 		if (!esp) {
 			smooth = default_smooth;
