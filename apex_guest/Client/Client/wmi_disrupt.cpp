@@ -28,19 +28,71 @@ std::wstring GenerateRandomUUIDW() {
     return uuid;
 }
 
+bool SetRegistryString(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, LPCWSTR lpData) {
+    HKEY hKey;
+    LSTATUS status = RegOpenKeyExW(hRoot, lpSubKey, 0, KEY_SET_VALUE, &hKey);
+    if (status == ERROR_SUCCESS) {
+        status = RegSetValueExW(hKey, lpValueName, 0, REG_SZ, (LPBYTE)lpData, (lstrlenW(lpData) + 1) * sizeof(wchar_t));
+        RegCloseKey(hKey);
+        return (status == ERROR_SUCCESS);
+    }
+    return false;
+}
+
+std::wstring GenerateRandomDiskSerial() {
+    static const wchar_t chars[] = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    std::wstring serial = L"";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 35);
+    for (int i = 0; i < 20; ++i) serial += chars[dis(gen)];
+    return serial;
+}
+
 bool SpoofMachineGuid() {
     std::wstring new_guid = GenerateRandomUUIDW();
-    HKEY hKey;
-    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
-        if (RegSetValueExW(hKey, L"MachineGuid", 0, REG_SZ, (LPBYTE)new_guid.c_str(), (new_guid.length() + 1) * sizeof(wchar_t)) == ERROR_SUCCESS) {
-            printf("[+] Spoofed MachineGuid: %ws\n", new_guid.c_str());
-            RegCloseKey(hKey);
-            return true;
+    std::wstring new_guid_braces = L"{" + new_guid + L"}";
+
+    printf("Starting Registry Spoofing...\n");
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", new_guid.c_str()))
+        printf("[+] Spoofed MachineGuid: %ws\n", new_guid.c_str());
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", L"HwProfileGuid", new_guid_braces.c_str()))
+        printf("[+] Spoofed HwProfileGuid: %ws\n", new_guid_braces.c_str());
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\SQMClient", L"MachineId", new_guid_braces.c_str()))
+        printf("[+] Spoofed SQM MachineId: %ws\n", new_guid_braces.c_str());
+
+    // NVIDIA Spoofing
+    std::wstring nv_uuid = GenerateRandomUUIDW();
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"ClientUUID", nv_uuid.c_str()))
+        printf("[+] Spoofed NVIDIA ClientUUID: %ws\n", nv_uuid.c_str());
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"PersistenceIdentifier", nv_uuid.c_str()))
+        printf("[+] Spoofed NVIDIA PersistenceIdentifier: %ws\n", nv_uuid.c_str());
+
+    // Disk Serials
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    for (int i = 0; i < 10; ++i) {
+        wchar_t path[256];
+        swprintf_s(path, L"HARDWARE\\DEVICEMAP\\Scsi\\Scsi Port %d\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0", i);
+        std::wstring serial = GenerateRandomDiskSerial();
+        if (SetRegistryString(HKEY_LOCAL_MACHINE, path, L"SerialNumber", serial.c_str())) {
+            printf("[+] Spoofed Disk Serial for Port %d: %ws\n", i, serial.c_str());
         }
-        RegCloseKey(hKey);
+
+        // Also spoof Identifier in HARDWARE\DESCRIPTION\System\MultifunctionAdapter
+        swprintf_s(path, L"HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\%d", i);
+        wchar_t ident[64];
+        swprintf_s(ident, L"%08x-%08x-A", (unsigned int)gen(), (unsigned int)gen());
+        if (SetRegistryString(HKEY_LOCAL_MACHINE, path, L"Identifier", ident)) {
+            printf("[+] Spoofed Disk Identifier for Peripheral %d: %ws\n", i, ident);
+        }
     }
-    printf("[-] Failed to spoof MachineGuid. Ensure running as Administrator.\n");
-    return false;
+
+    return true;
 }
 
 bool EnablePrivilege(LPCWSTR lpPrivilege) {

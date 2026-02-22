@@ -100,6 +100,7 @@ public:
 
 	bool ReadPhysical(uint64_t address, void* buffer, size_t size);
 	bool WritePhysical(uint64_t address, const void* buffer, size_t size);
+	uint64_t GetMaxPhysicalAddress();
 };
 
 template <typename T>

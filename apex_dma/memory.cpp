@@ -329,3 +329,10 @@ bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
 	if (!kernel) return false;
 	return kernel->phys_view().write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
 }
+
+uint64_t Memory::GetMaxPhysicalAddress()
+{
+	std::lock_guard<std::mutex> l(m);
+	if (!kernel) return 0;
+	return kernel->phys_view().metadata().max_address;
+}
