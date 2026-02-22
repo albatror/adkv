@@ -81,6 +81,8 @@ void SaveHardwareInfos(const std::string& filename, const HardwareIdentifiers& i
         file << "GPU: " << infos.gpu_uuid << "\n";
         file << "MachineGuid: " << infos.machine_guid << "\n";
         file << "HwProfileGuid: " << infos.hw_profile_guid << "\n";
+        file << "DiskSerial: " << infos.disk_serial << "\n";
+        file << "SMBIOSSerial: " << infos.smbios_serial << "\n";
         file.close();
     }
 }
@@ -98,6 +100,8 @@ bool LoadHardwareInfos(const std::string& filename, HardwareIdentifiers& infos) 
         else if (line.find("GPU: ") == 0 && line.size() > 5) infos.gpu_uuid = line.substr(5);
         else if (line.find("MachineGuid: ") == 0 && line.size() > 13) infos.machine_guid = line.substr(13);
         else if (line.find("HwProfileGuid: ") == 0 && line.size() > 15) infos.hw_profile_guid = line.substr(15);
+        else if (line.find("DiskSerial: ") == 0 && line.size() > 12) infos.disk_serial = line.substr(12);
+        else if (line.find("SMBIOSSerial: ") == 0 && line.size() > 14) infos.smbios_serial = line.substr(14);
     }
     return !infos.mac.empty();
 }
@@ -236,9 +240,16 @@ void SpoofHardware() {
 
         g_spoofed_infos.machine_guid = GenerateRandomUUID(false); // Registry usually doesn't have {}
         g_spoofed_infos.hw_profile_guid = GenerateRandomGUID();
+        g_spoofed_infos.disk_serial = GenerateRandomUUID(true).substr(0, 20); // 20 chars
+        g_spoofed_infos.smbios_serial = GenerateRandomUUID(true).substr(0, 12);
 
         SaveHardwareInfos("spoofed-infos.txt", g_spoofed_infos);
         printf("[+] Generated new spoofed identifiers and saved to spoofed-infos.txt\n");
+    }
+
+    // Use guest-reported IDs if physical scan didn't find them but guest did
+    if (real_infos.disk_serial.empty()) {
+        // We might want to wait for guest or use a default if we are doing auto-spoof
     }
 
     printf("\n[SPOOFER] IDENTIFIERS SUMMARY:\n");
@@ -247,7 +258,9 @@ void SpoofHardware() {
     printf("    REAL GPU:   %s\n", found_gpu_uuid.c_str());
     printf("    SPOOF GPU: %s\n", g_spoofed_infos.gpu_uuid.c_str());
     printf("    SPOOF MGUID: %s\n", g_spoofed_infos.machine_guid.c_str());
-    printf("    SPOOF HWID:  %s\n\n", g_spoofed_infos.hw_profile_guid.c_str());
+    printf("    SPOOF HWID:  %s\n", g_spoofed_infos.hw_profile_guid.c_str());
+    printf("    SPOOF DISK: %s\n", g_spoofed_infos.disk_serial.c_str());
+    printf("    SPOOF SMB:  %s\n\n", g_spoofed_infos.smbios_serial.c_str());
 
     if (found_gpu_uuid.size() < 40 || g_spoofed_infos.gpu_uuid.size() < 40) {
         printf("[-] Error: GPU UUID strings are too short. Aborting replacement pass.\n");
@@ -281,6 +294,7 @@ void SpoofHardware() {
 
     int spoof_count = 0;
     int mac_count = 0;
+    int disk_count = 0;
 
     printf("[SPOOFER] Starting physical memory replacement pass...\n");
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -312,13 +326,39 @@ void SpoofHardware() {
                     apex_mem.WritePhysical(addr + i, new_mac_bytes, 6);
                     mac_count++;
                 }
+                // Disk Serial Spoofing (ASCII)
+                if (!real_infos.disk_serial.empty() && memcmp(&buffer[i], real_infos.disk_serial.c_str(), real_infos.disk_serial.size()) == 0) {
+                    apex_mem.WritePhysical(addr + i, g_spoofed_infos.disk_serial.c_str(), g_spoofed_infos.disk_serial.size());
+                    disk_count++;
+                }
             }
+        }
+    }
+
+    // SMBIOS Patching (Targeted scan in BIOS region)
+    printf("[SPOOFER] Scanning for SMBIOS tables in 0xF0000-0xFFFFF...\n");
+    uint8_t smbios_buf[0x10000];
+    if (apex_mem.ReadPhysical(0xF0000, smbios_buf, 0x10000)) {
+        for (int i = 0; i < 0x10000 - 32; i += 16) {
+            if (memcmp(&smbios_buf[i], "_SM_", 4) == 0 || memcmp(&smbios_buf[i], "_SM3_", 5) == 0) {
+                printf("[+] Found SMBIOS Entry Point at 0x%X\n", 0xF0000 + i);
+                // Here we could parse the table, but a simple replacement of the real serial string in the whole BIOS region is often enough
+            }
+        }
+
+        if (!real_infos.smbios_serial.empty()) {
+             for (int i = 0; i < 0x10000 - real_infos.smbios_serial.size(); ++i) {
+                 if (memcmp(&smbios_buf[i], real_infos.smbios_serial.c_str(), real_infos.smbios_serial.size()) == 0) {
+                     apex_mem.WritePhysical(0xF0000 + i, g_spoofed_infos.smbios_serial.c_str(), g_spoofed_infos.smbios_serial.size());
+                     printf("[+] Patched SMBIOS serial occurrence in BIOS region.\n");
+                 }
+             }
         }
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
     double duration = std::chrono::duration<double>(end_time - start_time).count();
     printf("[SPOOFER] Physical replacement pass completed in %.2f seconds.\n", duration);
-    printf("[SPOOFER] Replaced %d GPU occurrences and %d MAC occurrences.\n", spoof_count, mac_count);
+    printf("[SPOOFER] Replaced %d GPU occurrences, %d MAC occurrences, and %d Disk occurrences.\n", spoof_count, mac_count, disk_count);
     printf("------------------------------------------\n");
 }

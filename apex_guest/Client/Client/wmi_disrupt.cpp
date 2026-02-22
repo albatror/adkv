@@ -66,6 +66,85 @@ void GetRealRegistryIDs(char* mguid, char* hwid) {
     }
 }
 
+void GetRealDiskSerial(char* serial) {
+    HANDLE hDevice = CreateFileW(L"\\\\.\\PhysicalDrive0", 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    if (hDevice != INVALID_HANDLE_VALUE) {
+        STORAGE_PROPERTY_QUERY query;
+        memset(&query, 0, sizeof(query));
+        query.PropertyId = StorageDeviceProperty;
+        query.QueryType = PropertyStandardQuery;
+
+        char buffer[1024];
+        DWORD bytes;
+        if (DeviceIoControl(hDevice, IOCTL_STORAGE_QUERY_PROPERTY, &query, sizeof(query), &buffer, sizeof(buffer), &bytes, NULL)) {
+            STORAGE_DEVICE_DESCRIPTOR* desc = (STORAGE_DEVICE_DESCRIPTOR*)buffer;
+            if (desc->SerialNumberOffset != 0) {
+                const char* sn = buffer + desc->SerialNumberOffset;
+                // Trim leading/trailing spaces often found in disk serials
+                while (*sn == ' ') sn++;
+                strcpy(serial, sn);
+                char* end = serial + strlen(serial) - 1;
+                while (end > serial && *end == ' ') { *end = '\0'; end--; }
+            }
+        }
+        CloseHandle(hDevice);
+    }
+
+    // Fallback to registry if IOCTL fails
+    if (serial[0] == 0) {
+        std::wstring val;
+        if (GetRegistryString(HKEY_LOCAL_MACHINE, L"HARDWARE\\DEVICEMAP\\Scsi\\Scsi Port 0\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0", L"SerialNumber", val)) {
+             sprintf(serial, "%ws", val.c_str());
+        }
+    }
+}
+
+typedef struct _RawSmbiosData {
+    BYTE Used20CallingMethod;
+    BYTE MajorVersion;
+    BYTE MinorVersion;
+    BYTE DmiRevision;
+    DWORD Length;
+    BYTE SMBIOSTableData[1];
+} RawSmbiosData, *PRawSmbiosData;
+
+void GetRealSMBIOSSerial(char* serial) {
+    DWORD size = GetSystemFirmwareTable('RSMB', 0, NULL, 0);
+    if (size > 0) {
+        PRawSmbiosData data = (PRawSmbiosData)malloc(size);
+        if (GetSystemFirmwareTable('RSMB', 0, data, size) > 0) {
+            BYTE* ptr = data->SMBIOSTableData;
+            while (ptr < data->SMBIOSTableData + data->Length) {
+                BYTE type = ptr[0];
+                BYTE length = ptr[1];
+                if (type == 2) { // Baseboard Information
+                    BYTE sn_idx = ptr[7];
+                    if (sn_idx != 0) {
+                        char* strings = (char*)ptr + length;
+                        for (int i = 1; i < sn_idx; i++) {
+                            strings += strlen(strings) + 1;
+                        }
+                        strcpy(serial, strings);
+                        break;
+                    }
+                }
+                ptr += length;
+                while (*ptr != 0 || *(ptr + 1) != 0) ptr++;
+                ptr += 2;
+            }
+        }
+        free(data);
+    }
+
+    // Fallback to registry
+    if (serial[0] == 0) {
+        std::wstring val;
+        if (GetRegistryString(HKEY_LOCAL_MACHINE, L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"BaseBoardSerialNumber", val)) {
+            sprintf(serial, "%ws", val.c_str());
+        }
+    }
+}
+
 bool SetRegistryDWORD(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, DWORD dwData) {
     HKEY hKey;
     LSTATUS status = RegOpenKeyExW(hRoot, lpSubKey, 0, KEY_SET_VALUE, &hKey);

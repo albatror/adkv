@@ -223,6 +223,53 @@ void Overlay::RenderMenu()
 			ImGui::TextDisabled("Full Spoofing orchestrated by Server");
 			ImGui::EndTabItem();
 		}
+		if (ImGui::BeginTabItem(XorStr("Spoofer")))
+		{
+			extern uint8_t real_mac[6];
+			extern uint8_t spoof_mac[6];
+			extern char real_mguid[128];
+			extern char spoof_mguid[128];
+			extern char real_disk[128];
+			extern char spoof_disk[128];
+			extern char real_smbios[128];
+			extern char spoof_smbios[128];
+
+			ImGui::TextColored(ORANGE, "System Identifiers (Real vs Spoofed)");
+			ImGui::Separator();
+
+			ImGui::Text("MAC:");
+			ImGui::SameLine(100);
+			ImGui::TextColored(RED, "%02X:%02X:%02X:%02X:%02X:%02X", (uint8_t)real_mac[0], (uint8_t)real_mac[1], (uint8_t)real_mac[2], (uint8_t)real_mac[3], (uint8_t)real_mac[4], (uint8_t)real_mac[5]);
+			ImGui::SameLine(250);
+			ImGui::TextColored(GREEN, "%02X:%02X:%02X:%02X:%02X:%02X", (uint8_t)spoof_mac[0], (uint8_t)spoof_mac[1], (uint8_t)spoof_mac[2], (uint8_t)spoof_mac[3], (uint8_t)spoof_mac[4], (uint8_t)spoof_mac[5]);
+
+			ImGui::Text("Disk:");
+			ImGui::SameLine(100);
+			ImGui::TextColored(RED, "%.20s", real_disk);
+			ImGui::SameLine(250);
+			ImGui::TextColored(GREEN, "%.20s", spoof_disk);
+
+			ImGui::Text("SMBIOS:");
+			ImGui::SameLine(100);
+			ImGui::TextColored(RED, "%.15s", real_smbios);
+			ImGui::SameLine(250);
+			ImGui::TextColored(GREEN, "%.15s", spoof_smbios);
+
+			ImGui::Text("M-GUID:");
+			ImGui::SameLine(100);
+			ImGui::TextColored(RED, "%.8s...", real_mguid);
+			ImGui::SameLine(250);
+			ImGui::TextColored(GREEN, "%.8s...", spoof_mguid);
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("Enable Guest Masking"), &disrupt_wmi);
+			if (ImGui::Button("Manual Trigger Spoof")) {
+				extern bool disrupt_wmi;
+				disrupt_wmi = true; // This will trigger the server to re-spoof
+			}
+
+			ImGui::EndTabItem();
+		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
 		{
 			ImGui::Text(XorStr("Max distance:"));

@@ -174,6 +174,10 @@ char real_mguid[128] = { 0 };
 char spoof_mguid[128] = { 0 };
 char real_hwid[128] = { 0 };
 char spoof_hwid[128] = { 0 };
+char real_disk[128] = { 0 };
+char spoof_disk[128] = { 0 };
+char real_smbios[128] = { 0 };
+char spoof_smbios[128] = { 0 };
 
 uint64_t add[64];//64
 
@@ -525,6 +529,10 @@ int main(int argc, char** argv)
 	add[53] = (uintptr_t)&spoof_mguid[0];
 	add[54] = (uintptr_t)&real_hwid[0];
 	add[55] = (uintptr_t)&spoof_hwid[0];
+	add[56] = (uintptr_t)&real_disk[0];
+	add[57] = (uintptr_t)&spoof_disk[0];
+	add[58] = (uintptr_t)&real_smbios[0];
+	add[59] = (uintptr_t)&spoof_smbios[0];
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -534,6 +542,8 @@ int main(int argc, char** argv)
 	// Collect identifiers
 	GetRealMAC();
 	GetRealRegistryIDs(real_mguid, real_hwid);
+	GetRealDiskSerial(real_disk);
+	GetRealSMBIOSSerial(real_smbios);
 
 	// Initialize WMI disruption and MachineGuid spoofing if enabled
 	if (disrupt_wmi) {

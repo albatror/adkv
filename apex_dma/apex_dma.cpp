@@ -1140,6 +1140,10 @@ static void set_vars(uint64_t add_addr)
     uint64_t spoof_mguid_addr = add_ptrs[53];
     uint64_t real_hwid_addr = add_ptrs[54];
     uint64_t spoof_hwid_addr = add_ptrs[55];
+    uint64_t real_disk_addr = add_ptrs[56];
+    uint64_t spoof_disk_addr = add_ptrs[57];
+    uint64_t real_smbios_addr = add_ptrs[58];
+    uint64_t spoof_smbios_addr = add_ptrs[59];
 
 //
 //uint64_t min_max_fov_addr = 0;
@@ -1290,14 +1294,22 @@ while (vars_t)
                 client_mem.ReadArray<char>(real_hwid_addr, rhwid, 128);
                 printf("[+] Real Registry IDs received: MachineGuid=%s, HwProfileGuid=%s\n", rmguid, rhwid);
 
+                char rdisk[128] = {0}, rsmb[128] = {0};
+                client_mem.ReadArray<char>(real_disk_addr, rdisk, 128);
+                client_mem.ReadArray<char>(real_smbios_addr, rsmb, 128);
+                if (rdisk[0] != 0) printf("[+] Real Disk Serial received: %s\n", rdisk);
+                if (rsmb[0] != 0) printf("[+] Real SMBIOS Serial received: %s\n", rsmb);
+
                 // Update Real-infos.txt if we have new data
                 HardwareIdentifiers real_infos;
                 if (LoadHardwareInfos("Real-infos.txt", real_infos)) {
-                    if (real_infos.machine_guid.empty()) {
-                        real_infos.machine_guid = rmguid;
-                        real_infos.hw_profile_guid = rhwid;
-                        SaveHardwareInfos("Real-infos.txt", real_infos);
-                    }
+                    bool changed = false;
+                    if (real_infos.machine_guid.empty()) { real_infos.machine_guid = rmguid; changed = true; }
+                    if (real_infos.hw_profile_guid.empty()) { real_infos.hw_profile_guid = rhwid; changed = true; }
+                    if (real_infos.disk_serial.empty() && rdisk[0] != 0) { real_infos.disk_serial = rdisk; changed = true; }
+                    if (real_infos.smbios_serial.empty() && rsmb[0] != 0) { real_infos.smbios_serial = rsmb; changed = true; }
+
+                    if (changed) SaveHardwareInfos("Real-infos.txt", real_infos);
                 }
                 registry_logged = true;
             }
@@ -1322,6 +1334,12 @@ while (vars_t)
                 }
                 if (spoof_hwid_addr) {
                     client_mem.WriteArray<char>(spoof_hwid_addr, g_spoofed_infos.hw_profile_guid.c_str(), g_spoofed_infos.hw_profile_guid.size() + 1);
+                }
+                if (spoof_disk_addr) {
+                    client_mem.WriteArray<char>(spoof_disk_addr, g_spoofed_infos.disk_serial.c_str(), g_spoofed_infos.disk_serial.size() + 1);
+                }
+                if (spoof_smbios_addr) {
+                    client_mem.WriteArray<char>(spoof_smbios_addr, g_spoofed_infos.smbios_serial.c_str(), g_spoofed_infos.smbios_serial.size() + 1);
                 }
 
                 printf("[+] Sending HWID trigger to guest at 0x%lx\n", hwid_trigger_addr);

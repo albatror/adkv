@@ -7,6 +7,8 @@ struct HardwareIdentifiers {
     std::string gpu_uuid;
     std::string machine_guid;
     std::string hw_profile_guid;
+    std::string disk_serial;
+    std::string smbios_serial;
 };
 
 extern HardwareIdentifiers g_spoofed_infos;
