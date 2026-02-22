@@ -3,6 +3,7 @@
 
 std::unique_ptr<ConnectorInstance<>> conn = nullptr;
 std::unique_ptr<OsInstance<>> kernel = nullptr;
+std::mutex conn_mutex;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -321,21 +322,24 @@ bool Memory::Dump(const char *filename)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
-	std::lock_guard<std::mutex> l(m);
+	extern std::mutex conn_mutex;
+	std::lock_guard<std::mutex> l(conn_mutex);
 	if (!conn) return false;
 	return conn->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
 }
 
 bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
 {
-	std::lock_guard<std::mutex> l(m);
+	extern std::mutex conn_mutex;
+	std::lock_guard<std::mutex> l(conn_mutex);
 	if (!conn) return false;
 	return conn->phys_view().write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
 }
 
 uint64_t Memory::GetMaxPhysicalAddress()
 {
-	std::lock_guard<std::mutex> l(m);
+	extern std::mutex conn_mutex;
+	std::lock_guard<std::mutex> l(conn_mutex);
 	if (!conn) return 0;
 	return conn->phys_view().metadata().max_address;
 }
