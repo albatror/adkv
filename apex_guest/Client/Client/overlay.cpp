@@ -1,5 +1,6 @@
 #include "overlay.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <fstream>
 #include <iomanip>
 

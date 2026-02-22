@@ -547,11 +547,8 @@ int main(int argc, char** argv)
 
 	// Initialize WMI disruption and MachineGuid spoofing if enabled
 	if (disrupt_wmi) {
+		ApplyRegistrySpoofs(nullptr, nullptr);
 		DisruptWMI();
-		if (spoof_mguid[0] != 0)
-			ApplyRegistrySpoofs(spoof_mguid, spoof_hwid);
-		else
-			SpoofMachineGuid();
 	}
 
 	Overlay ov1 = Overlay();

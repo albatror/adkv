@@ -2,7 +2,6 @@
 #include <Windows.h>
 
 bool DisruptWMI();
-bool SpoofMachineGuid();
 void GetRealRegistryIDs(char* mguid, char* hwid);
 void GetRealDiskSerial(char* serial);
 void GetRealSMBIOSSerial(char* serial);
