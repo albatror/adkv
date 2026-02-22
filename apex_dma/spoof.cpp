@@ -137,12 +137,22 @@ void SpoofHardware() {
 
     printf("[SPOOFER] Retrieving max physical address...\n");
     uint64_t max_addr = apex_mem.GetMaxPhysicalAddress();
-    if (max_addr == 0 || max_addr < 0x100000000) max_addr = MAX_PHYADDR;
-    printf("[SPOOFER] Max physical address: 0x%lx\n", max_addr);
+    if (max_addr == 0 || max_addr < 0x100000000) {
+        printf("[!] Warning: Could not retrieve valid max physical address from Memflow. Using fallback: 0x%lx\n", MAX_PHYADDR);
+        max_addr = MAX_PHYADDR;
+    } else {
+        printf("[+] Max physical address retrieved: 0x%lx\n", max_addr);
+    }
 
     const size_t chunk_size = 1024 * 1024 * 16;
-    std::vector<uint8_t> buffer(chunk_size);
-    printf("[SPOOFER] Allocated scan buffer (16MB)\n");
+    std::vector<uint8_t> buffer;
+    try {
+        buffer.resize(chunk_size);
+        printf("[SPOOFER] Allocated scan buffer (16MB)\n");
+    } catch (const std::exception& e) {
+        printf("[!] Error: Failed to allocate scan buffer: %s\n", e.what());
+        return;
+    }
 
     bool real_gpu_found = false;
     std::string found_gpu_uuid = "";

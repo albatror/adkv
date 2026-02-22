@@ -84,7 +84,8 @@ void Memory::check_proc()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
-	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
+	auto new_conn = std::make_unique<ConnectorInstance<>>();
+	if (mf_inventory_create_connector(inv, connector_name, "", new_conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -94,15 +95,16 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	kernel = std::make_unique<OsInstance<>>();
-	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
+	auto new_kernel = std::make_unique<OsInstance<>>();
+	if (mf_inventory_create_os(inv, "win32", "", new_conn.get(), new_kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		// mf_connector_drop(conn.get()); // kernel_create_os might have dropped it on failure
-		kernel.reset();
 		return false;
 	}
 
+	std::lock_guard<std::mutex> l(conn_mutex);
+	conn = std::move(new_conn);
+	kernel = std::move(new_kernel);
 	return true;
 }
 
@@ -326,26 +328,47 @@ bool Memory::Dump(const char *filename)
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
 	std::lock_guard<std::mutex> l(conn_mutex);
-	if (!conn) return false;
-	auto view = conn->phys_view();
-	if (!view.container.instance.instance) return false;
-	return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	if (kernel) {
+		auto view = kernel->phys_view();
+		if (view.container.instance.instance)
+			return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	}
+	if (conn) {
+		auto view = conn->phys_view();
+		if (view.container.instance.instance)
+			return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	}
+	return false;
 }
 
 bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
 {
 	std::lock_guard<std::mutex> l(conn_mutex);
-	if (!conn) return false;
-	auto view = conn->phys_view();
-	if (!view.container.instance.instance) return false;
-	return view.write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
+	if (kernel) {
+		auto view = kernel->phys_view();
+		if (view.container.instance.instance)
+			return view.write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
+	}
+	if (conn) {
+		auto view = conn->phys_view();
+		if (view.container.instance.instance)
+			return view.write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
+	}
+	return false;
 }
 
 uint64_t Memory::GetMaxPhysicalAddress()
 {
 	std::lock_guard<std::mutex> l(conn_mutex);
-	if (!conn) return 0;
-	auto view = conn->phys_view();
-	if (!view.container.instance.instance) return 0;
-	return view.metadata().max_address;
+	if (kernel) {
+		auto view = kernel->phys_view();
+		if (view.container.instance.instance)
+			return view.metadata().max_address;
+	}
+	if (conn) {
+		auto view = conn->phys_view();
+		if (view.container.instance.instance)
+			return view.metadata().max_address;
+	}
+	return 0;
 }
