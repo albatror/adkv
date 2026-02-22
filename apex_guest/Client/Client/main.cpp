@@ -482,6 +482,9 @@ int main(int argc, char** argv)
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
+	// Load config before initializing features
+	LoadConfig("Settings.txt");
+
 	// Initialize WMI disruption and MachineGuid spoofing if enabled
 	if (disrupt_wmi) {
 		DisruptWMI();
@@ -524,10 +527,6 @@ int main(int argc, char** argv)
 			active = false;
 		}
 
-		//Load at start for saved settings to take effect.
-		for (static bool once = true; once; once = false) {
-			LoadConfig("Settings.txt");
-		}
 
 		if (IsKeyDown(VK_F1) && k_f1 == 0)
 		{

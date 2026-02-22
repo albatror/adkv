@@ -43,6 +43,37 @@ bool SpoofMachineGuid() {
     return false;
 }
 
+bool EnablePrivilege(LPCWSTR lpPrivilege) {
+    HANDLE hToken;
+    LUID luid;
+    TOKEN_PRIVILEGES tp;
+
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
+        return false;
+
+    if (!LookupPrivilegeValueW(NULL, lpPrivilege, &luid)) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    tp.PrivilegeCount = 1;
+    tp.Privileges[0].Luid = luid;
+    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL)) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    if (GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    CloseHandle(hToken);
+    return true;
+}
+
 // NT internal definitions
 #define SystemHandleInformation 16
 
@@ -78,6 +109,13 @@ typedef NTSTATUS (NTAPI *pNtQueryObject)(
 
 bool DisruptWMI() {
     printf("Attempting to disrupt WMI...\n");
+
+    // Enable SeDebugPrivilege to allow opening system processes
+    if (!EnablePrivilege(SE_DEBUG_NAME)) {
+        printf("[-] Failed to enable SeDebugPrivilege. WMI disruption might fail.\n");
+    } else {
+        printf("[+] SeDebugPrivilege enabled.\n");
+    }
 
     // 1. Identify WMI Service PID
     DWORD wmi_pid = 0;
