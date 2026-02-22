@@ -1,6 +1,9 @@
 #include "memory.h"
 #include <unistd.h>
 
+std::unique_ptr<ConnectorInstance<>> conn = nullptr;
+std::unique_ptr<OsInstance<>> kernel = nullptr;
+
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
 {

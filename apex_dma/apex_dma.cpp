@@ -1429,6 +1429,13 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
+        uint64_t real_mac_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, real_mac_addr);
+        if (real_mac_addr) {
+            extern uint8_t g_real_mac[6];
+            client_mem.ReadArray<uint8_t>(real_mac_addr, g_real_mac, 6);
+        }
+
         if (esp && next)
         {
             if (valid)
@@ -1500,11 +1507,14 @@ int main(int argc, char *argv[])
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
 
-				// Perform HWID Spoofing once connected to client, before starting the game
-				SpoofHardware();
-
 				vars_thr = std::thread(set_vars, c_Base + add_off);
 				vars_thr.detach();
+
+				// Wait a moment for client vars to be read (like MAC)
+				std::this_thread::sleep_for(std::chrono::seconds(2));
+
+				// Perform HWID Spoofing once connected to client, before starting the game
+				SpoofHardware();
 			}
 		}
 		else

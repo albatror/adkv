@@ -49,12 +49,32 @@ std::wstring GenerateRandomDiskSerial() {
     return serial;
 }
 
+bool IsUserAdmin() {
+    BOOL bRet = FALSE;
+    HANDLE hToken = NULL;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+        TOKEN_ELEVATION elevation;
+        DWORD size = sizeof(TOKEN_ELEVATION);
+        if (GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &size)) {
+            bRet = elevation.TokenIsElevated;
+        }
+    }
+    if (hToken) CloseHandle(hToken);
+    return bRet;
+}
+
 bool SpoofMachineGuid() {
+    if (!IsUserAdmin()) {
+        printf("\n[!] WARNING: Client is NOT running as Administrator.\n");
+        printf("[!] Registry spoofing and WMI disruption will likely fail.\n\n");
+    }
+
     std::wstring new_guid = GenerateRandomUUIDW();
     std::wstring new_guid_braces = L"{" + new_guid + L"}";
 
     printf("Starting Registry Spoofing...\n");
 
+    // 1. Machine identifiers
     if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", new_guid.c_str()))
         printf("[+] Spoofed MachineGuid: %ws\n", new_guid.c_str());
 
@@ -64,7 +84,7 @@ bool SpoofMachineGuid() {
     if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\SQMClient", L"MachineId", new_guid_braces.c_str()))
         printf("[+] Spoofed SQM MachineId: %ws\n", new_guid_braces.c_str());
 
-    // NVIDIA Spoofing
+    // 2. NVIDIA Spoofing
     std::wstring nv_uuid = GenerateRandomUUIDW();
     if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"ClientUUID", nv_uuid.c_str()))
         printf("[+] Spoofed NVIDIA ClientUUID: %ws\n", nv_uuid.c_str());
@@ -72,7 +92,16 @@ bool SpoofMachineGuid() {
     if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"PersistenceIdentifier", nv_uuid.c_str()))
         printf("[+] Spoofed NVIDIA PersistenceIdentifier: %ws\n", nv_uuid.c_str());
 
-    // Disk Serials
+    // 3. Display identifiers
+    for (int i = 0; i < 5; ++i) {
+        wchar_t subkey[256];
+        swprintf_s(subkey, L"SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Configuration\\SIMULATED_8086_0412_00000000_00020000_1010101_%d", i);
+        if (SetRegistryString(HKEY_LOCAL_MACHINE, subkey, L"Timestamp", L"0")) {
+             printf("[+] Reset Display Config Timestamp %d\n", i);
+        }
+    }
+
+    // 4. Disk Serials
     std::random_device rd;
     std::mt19937 gen(rd());
     for (int i = 0; i < 10; ++i) {

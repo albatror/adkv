@@ -3,6 +3,8 @@
 #include "wmi_disrupt.h"
 #include <random>
 #include <Windows.h>
+#include <iphlpapi.h>
+#pragma comment(lib, "iphlpapi.lib")
 //#include <chrono>
 //test
 #include <string>
@@ -165,7 +167,9 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint8_t real_mac[6] = { 0 };
+
+uint64_t add[50];//50
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -183,6 +187,34 @@ bool k_f11 = 0;
 bool IsKeyDown(int vk)
 {
 	return (GetAsyncKeyState(vk) & 0x8000) != 0;
+}
+
+void GetRealMAC() {
+	PIP_ADAPTER_INFO pAdapterInfo;
+	PIP_ADAPTER_INFO pAdapter = NULL;
+	DWORD dwRetVal = 0;
+	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
+
+	pAdapterInfo = (IP_ADAPTER_INFO*)malloc(sizeof(IP_ADAPTER_INFO));
+	if (pAdapterInfo == NULL) return;
+
+	if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) {
+		free(pAdapterInfo);
+		pAdapterInfo = (IP_ADAPTER_INFO*)malloc(ulOutBufLen);
+		if (pAdapterInfo == NULL) return;
+	}
+
+	if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) {
+		pAdapter = pAdapterInfo;
+		while (pAdapter) {
+			if (pAdapter->Type == MIB_IF_TYPE_ETHERNET && pAdapter->AddressLength == 6) {
+				memcpy(real_mac, pAdapter->Address, 6);
+				break;
+			}
+			pAdapter = pAdapter->Next;
+		}
+	}
+	if (pAdapterInfo) free(pAdapterInfo);
 }
 
 player players[100];
@@ -479,11 +511,16 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[48] = (uintptr_t)&real_mac[0];
+	add[49] = (uintptr_t)&disrupt_wmi;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
 	// Load config before initializing features
 	LoadConfig("Settings.txt");
+
+	// Collect identifiers
+	GetRealMAC();
 
 	// Initialize WMI disruption and MachineGuid spoofing if enabled
 	if (disrupt_wmi) {
