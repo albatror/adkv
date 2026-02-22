@@ -1492,8 +1492,6 @@ int main(int argc, char *argv[])
 			{
 				vars_t = false;
 				c_Base = 0;
-
-				vars_thr.~thread();
 			}
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1534,11 +1532,6 @@ int main(int argc, char *argv[])
 				stuff_t = false;
 				g_Base = 0;
 
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				//itemglow_thr.~thread();
-				stuffbot_thr.~thread();
 
 			}
 
