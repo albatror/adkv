@@ -45,6 +45,7 @@ extern bool triggerbot;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool disrupt_wmi;
 extern float flickbot_fov;
 extern float flickbot_smooth;
 extern float triggerbot_fov;
@@ -113,6 +114,7 @@ void SaveConfig(const std::string& filename) {
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
+    file << "disrupt_wmi " << std::boolalpha << disrupt_wmi << "\n";
     file << "flickbot_fov " << flickbot_fov << "\n";
     file << "flickbot_smooth " << flickbot_smooth << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
@@ -181,6 +183,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;
+        else if (key == "disrupt_wmi") ss >> std::boolalpha >> disrupt_wmi;
         else if (key == "flickbot_fov") ss >> flickbot_fov;
         else if (key == "flickbot_smooth") ss >> flickbot_smooth;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;

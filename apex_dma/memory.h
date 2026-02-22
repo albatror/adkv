@@ -97,6 +97,9 @@ public:
 	bool testDtbValue(const uint64_t &dtb_val);
 
 	bool Dump(const char *filename);
+
+	bool ReadPhysical(uint64_t address, void* buffer, size_t size);
+	bool WritePhysical(uint64_t address, const void* buffer, size_t size);
 };
 
 template <typename T>

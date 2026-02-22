@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>
@@ -56,6 +57,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool disrupt_wmi = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -479,6 +481,12 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&lock_target;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
+
+	// Initialize WMI disruption and MachineGuid spoofing if enabled
+	if (disrupt_wmi) {
+		DisruptWMI();
+		SpoofMachineGuid();
+	}
 
 	Overlay ov1 = Overlay();
 	ov1.Start();

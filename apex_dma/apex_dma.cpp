@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -1478,6 +1479,39 @@ int main(int argc, char *argv[])
 	bool proc_not_found = false;
 	while (active)
 	{
+		if (client_mem.get_proc_status() != process_status::FOUND_READY)
+		{
+			if (vars_t)
+			{
+				vars_t = false;
+				c_Base = 0;
+
+				vars_thr.~thread();
+			}
+
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			printf("Searching for client process...\n");
+
+			client_mem.open_proc(cl_proc);
+
+			if (client_mem.get_proc_status() == process_status::FOUND_READY)
+			{
+				c_Base = client_mem.get_proc_baseaddr();
+				printf("\nClient process found\n");
+				printf("Base: %lx\n", c_Base);
+
+				// Perform HWID Spoofing once connected to client, before starting the game
+				SpoofHardware();
+
+				vars_thr = std::thread(set_vars, c_Base + add_off);
+				vars_thr.detach();
+			}
+		}
+		else
+		{
+			client_mem.check_proc();
+		}
+
 		if (apex_mem.get_proc_status() != process_status::FOUND_READY)
 		{
 			if (aim_t)
@@ -1533,36 +1567,6 @@ int main(int argc, char *argv[])
 		else
 		{
 			apex_mem.check_proc();
-		}
-
-		if (client_mem.get_proc_status() != process_status::FOUND_READY)
-		{
-			if (vars_t)
-			{
-				vars_t = false;
-				c_Base = 0;
-
-				vars_thr.~thread();
-			}
-			
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			printf("Searching for client process...\n");
-
-			client_mem.open_proc(cl_proc);
-
-			if (client_mem.get_proc_status() == process_status::FOUND_READY)
-			{
-				c_Base = client_mem.get_proc_baseaddr();
-				printf("\nClient process found\n");
-				printf("Base: %lx\n", c_Base);
-
-				vars_thr = std::thread(set_vars, c_Base + add_off);
-				vars_thr.detach();
-			}
-		}
-		else
-		{
-			client_mem.check_proc();
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));

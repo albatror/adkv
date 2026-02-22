@@ -35,6 +35,7 @@ extern float triggerbot_fov;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool disrupt_wmi;
 
 //extern float esp_distance;
 
@@ -217,6 +218,15 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);
 			ImGui::Checkbox(XorStr("1v1"), &onevone);
+			ImGui::Separator();
+			if (ImGui::Checkbox(XorStr("Disrupt WMI (Bypass)"), &disrupt_wmi)) {
+				if (disrupt_wmi) {
+					extern bool DisruptWMI();
+					extern bool SpoofMachineGuid();
+					DisruptWMI();
+					SpoofMachineGuid();
+				}
+			}
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))

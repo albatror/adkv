@@ -315,3 +315,17 @@ bool Memory::Dump(const char *filename)
 	free(buffer);
 	return false;
 }
+
+bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
+{
+	std::lock_guard<std::mutex> l(m);
+	if (!kernel) return false;
+	return kernel->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+}
+
+bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
+{
+	std::lock_guard<std::mutex> l(m);
+	if (!kernel) return false;
+	return kernel->phys_view().write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
+}
