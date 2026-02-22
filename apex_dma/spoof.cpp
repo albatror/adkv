@@ -4,6 +4,9 @@
 #include <random>
 #include <algorithm>
 #include <cstring>
+#include <chrono>
+#include <string>
+#include <cstdio>
 
 extern Memory apex_mem;
 

@@ -1080,6 +1080,9 @@ static void set_vars(uint64_t add_addr)
         return;
     }
 
+    printf("[+] Addresses read from client:\n");
+    printf("    Check: 0x%lx, MAC: 0x%lx, WMI: 0x%lx\n", add_ptrs[0], add_ptrs[48], add_ptrs[49]);
+
     uint64_t check_addr = add_ptrs[0];
     uint64_t aim_addr = add_ptrs[1];
     uint64_t esp_addr = add_ptrs[2];
@@ -1258,16 +1261,20 @@ while (vars_t)
         if (walljump_addr) client_mem.Read<bool>(walljump_addr, walljump);
 
         if (disrupt_wmi_addr) {
-            bool old_val = disrupt_wmi;
-            client_mem.Read<bool>(disrupt_wmi_addr, disrupt_wmi);
-
-            static bool spoofed = false;
-            if (disrupt_wmi && !spoofed) {
-                printf("[+] HWID Spoofing triggered via Client UI toggle.\n");
-                SpoofHardware();
-                spoofed = true;
-            } else if (!disrupt_wmi) {
-                spoofed = false; // Allow re-spoofing if toggled off then on
+            bool current_toggle = false;
+            if (client_mem.Read<bool>(disrupt_wmi_addr, current_toggle)) {
+                static bool spoofed = false;
+                if (current_toggle && !spoofed) {
+                    printf("[+] HWID Spoofing triggered via Client UI toggle. Address: 0x%lx\n", disrupt_wmi_addr);
+                    SpoofHardware();
+                    spoofed = true;
+                } else if (!current_toggle) {
+                    if (spoofed) printf("[+] HWID Spoofing toggle reset.\n");
+                    spoofed = false; // Allow re-spoofing if toggled off then on
+                }
+                disrupt_wmi = current_toggle;
+            } else {
+                // Failed to read toggle, might be client crash
             }
         }
 

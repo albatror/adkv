@@ -5,6 +5,8 @@
 #include <winternl.h>
 #include <string>
 #include <random>
+#include <cstdio>
+#include <cwchar>
 
 #pragma comment(lib, "advapi32.lib")
 
@@ -107,8 +109,8 @@ bool SpoofMachineGuid() {
         printf("[+] Spoofed ComputerHardwareId: %ws\n", new_guid_braces.c_str());
 
     // Windows NT version info (spoof InstallDate/Time and ProductId)
-    wchar_t random_pid[30];
-    swprintf_s(random_pid, L"%05u-%05u-%05u-%05u", (unsigned int)gen(), (unsigned int)gen(), (unsigned int)gen(), (unsigned int)gen());
+    wchar_t random_pid[128];
+    swprintf_s(random_pid, L"%010u-%010u-%010u-%010u", (unsigned int)gen(), (unsigned int)gen(), (unsigned int)gen(), (unsigned int)gen());
     SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"ProductId", random_pid);
 
     // Spoof InstallDate (Unix timestamp)
@@ -150,12 +152,14 @@ bool SpoofMachineGuid() {
 
         // Also spoof Identifier in HARDWARE\DESCRIPTION\System\MultifunctionAdapter
         swprintf_s(path, L"HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\%d", i);
-        wchar_t ident[64];
+        wchar_t ident[128];
         swprintf_s(ident, L"%08x-%08x-A", (unsigned int)gen(), (unsigned int)gen());
         if (SetRegistryString(HKEY_LOCAL_MACHINE, path, L"Identifier", ident)) {
             printf("[+] Spoofed Disk Identifier for Peripheral %d: %ws\n", i, ident);
         }
     }
+
+    printf("[+] Registry Spoofing completed successfully.\n");
 
     return true;
 }
@@ -259,8 +263,15 @@ bool DisruptWMI() {
 
     ULONG size = 0x10000;
     PSYSTEM_HANDLE_INFORMATION handle_info = (PSYSTEM_HANDLE_INFORMATION)malloc(size);
-    while (NtQuerySystemInformation((SYSTEM_INFORMATION_CLASS)SystemHandleInformation, handle_info, size, &size) == 0xC0000004) { // STATUS_INFO_LENGTH_MISMATCH
+    NTSTATUS status;
+    while ((status = NtQuerySystemInformation((SYSTEM_INFORMATION_CLASS)SystemHandleInformation, handle_info, size, &size)) == 0xC0000004) { // STATUS_INFO_LENGTH_MISMATCH
         handle_info = (PSYSTEM_HANDLE_INFORMATION)realloc(handle_info, size);
+    }
+
+    if (status != 0) { // STATUS_SUCCESS
+        printf("[-] NtQuerySystemInformation failed with status 0x%08X\n", status);
+        free(handle_info);
+        return false;
     }
 
     HANDLE hProcess = OpenProcess(PROCESS_DUP_HANDLE, FALSE, wmi_pid);
