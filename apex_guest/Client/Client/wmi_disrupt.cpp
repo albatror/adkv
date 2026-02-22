@@ -41,6 +41,21 @@ bool SetRegistryString(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, LPCWST
     return false;
 }
 
+bool GetRegistryString(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, std::wstring& out) {
+    HKEY hKey;
+    if (RegOpenKeyExW(hRoot, lpSubKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        wchar_t buf[256];
+        DWORD size = sizeof(buf);
+        if (RegQueryValueExW(hKey, lpValueName, NULL, NULL, (LPBYTE)buf, &size) == ERROR_SUCCESS) {
+            out = buf;
+            RegCloseKey(hKey);
+            return true;
+        }
+        RegCloseKey(hKey);
+    }
+    return false;
+}
+
 void GetRealRegistryIDs(char* mguid, char* hwid) {
     std::wstring val;
     if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", val)) {
@@ -90,20 +105,6 @@ bool IsUserAdmin() {
     return bRet;
 }
 
-bool GetRegistryString(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, std::wstring& out) {
-    HKEY hKey;
-    if (RegOpenKeyExW(hRoot, lpSubKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        wchar_t buf[256];
-        DWORD size = sizeof(buf);
-        if (RegQueryValueExW(hKey, lpValueName, NULL, NULL, (LPBYTE)buf, &size) == ERROR_SUCCESS) {
-            out = buf;
-            RegCloseKey(hKey);
-            return true;
-        }
-        RegCloseKey(hKey);
-    }
-    return false;
-}
 
 extern uint8_t real_mac[6];
 std::string MacToString(const uint8_t* bytes); // Define if needed or use local
