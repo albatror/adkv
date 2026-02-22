@@ -9,7 +9,6 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
-#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -79,7 +78,6 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 bool disrupt_wmi = false;
-bool auto_spoof = true; // Set to true to automatically spoof HWID on server start
 
 ///////////
 //bool medbackpack = true;
@@ -1271,84 +1269,23 @@ while (vars_t)
         if (bhop_addr) client_mem.Read<bool>(bhop_addr, bhop);
         if (walljump_addr) client_mem.Read<bool>(walljump_addr, walljump);
 
-        static bool host_spoofed = false;
-        bool guest_triggered = false;
-        if (disrupt_wmi_addr) client_mem.Read<bool>(disrupt_wmi_addr, guest_triggered);
-
-        static bool mac_received = false;
-        if (!mac_received && real_mac_addr) {
-            extern uint8_t g_real_mac[6];
-            if (client_mem.ReadArray<uint8_t>(real_mac_addr, g_real_mac, 6)) {
-                if (g_real_mac[0] != 0 || g_real_mac[1] != 0) {
-                    printf("[+] Real MAC received: %02X:%02X:%02X:%02X:%02X:%02X\n",
-                        g_real_mac[0], g_real_mac[1], g_real_mac[2], g_real_mac[3], g_real_mac[4], g_real_mac[5]);
-                    mac_received = true;
-                }
-            }
-        }
-
         static bool registry_logged = false;
         if (!registry_logged && real_mguid_addr && real_hwid_addr) {
             char rmguid[128] = {0}, rhwid[128] = {0};
             if (client_mem.ReadArray<char>(real_mguid_addr, rmguid, 128) && rmguid[0] != 0) {
                 client_mem.ReadArray<char>(real_hwid_addr, rhwid, 128);
                 printf("[+] Real Registry IDs received: MachineGuid=%s, HwProfileGuid=%s\n", rmguid, rhwid);
-
-                char rdisk[128] = {0}, rsmb[128] = {0};
-                client_mem.ReadArray<char>(real_disk_addr, rdisk, 128);
-                client_mem.ReadArray<char>(real_smbios_addr, rsmb, 128);
-                if (rdisk[0] != 0) printf("[+] Real Disk Serial received: %s\n", rdisk);
-                if (rsmb[0] != 0) printf("[+] Real SMBIOS Serial received: %s\n", rsmb);
-
-                // Update Real-infos.txt if we have new data
-                HardwareIdentifiers real_infos;
-                if (LoadHardwareInfos("Real-infos.txt", real_infos)) {
-                    bool changed = false;
-                    if (real_infos.machine_guid.empty()) { real_infos.machine_guid = rmguid; changed = true; }
-                    if (real_infos.hw_profile_guid.empty()) { real_infos.hw_profile_guid = rhwid; changed = true; }
-                    if (real_infos.disk_serial.empty() && rdisk[0] != 0) { real_infos.disk_serial = rdisk; changed = true; }
-                    if (real_infos.smbios_serial.empty() && rsmb[0] != 0) { real_infos.smbios_serial = rsmb; changed = true; }
-
-                    if (changed) SaveHardwareInfos("Real-infos.txt", real_infos);
-                }
                 registry_logged = true;
             }
         }
 
-        if ((auto_spoof || guest_triggered) && !host_spoofed && mac_received) {
-            printf("[+] HWID Spoofing triggered (Auto: %s, Guest: %s)\n",
-                auto_spoof ? "Yes" : "No", guest_triggered ? "Yes" : "No");
-
-            SpoofHardware();
-
-            // Tell guest to perform Registry/WMI spoofing
-            if (hwid_trigger_addr) {
-                // Write spoofed identifiers to guest memory for guest-side application
-                if (spoof_mac_addr) {
-                    uint8_t smac_bytes[6];
-                    MacToBytes(g_spoofed_infos.mac, smac_bytes);
-                    client_mem.WriteArray<uint8_t>(spoof_mac_addr, smac_bytes, 6);
-                }
-                if (spoof_mguid_addr) {
-                    client_mem.WriteArray<char>(spoof_mguid_addr, g_spoofed_infos.machine_guid.c_str(), g_spoofed_infos.machine_guid.size() + 1);
-                }
-                if (spoof_hwid_addr) {
-                    client_mem.WriteArray<char>(spoof_hwid_addr, g_spoofed_infos.hw_profile_guid.c_str(), g_spoofed_infos.hw_profile_guid.size() + 1);
-                }
-                if (spoof_disk_addr) {
-                    client_mem.WriteArray<char>(spoof_disk_addr, g_spoofed_infos.disk_serial.c_str(), g_spoofed_infos.disk_serial.size() + 1);
-                }
-                if (spoof_smbios_addr) {
-                    client_mem.WriteArray<char>(spoof_smbios_addr, g_spoofed_infos.smbios_serial.c_str(), g_spoofed_infos.smbios_serial.size() + 1);
-                }
-
-                printf("[+] Sending HWID trigger to guest at 0x%lx\n", hwid_trigger_addr);
-                client_mem.Write<bool>(hwid_trigger_addr, true);
-            }
-
-            host_spoofed = true;
-        } else if (!auto_spoof && !guest_triggered) {
-            host_spoofed = false; // Reset if both are disabled
+        if (disrupt_wmi_addr) {
+             bool guest_triggered = false;
+             client_mem.Read<bool>(disrupt_wmi_addr, guest_triggered);
+             if (guest_triggered && hwid_trigger_addr) {
+                 client_mem.Write<bool>(hwid_trigger_addr, true);
+                 client_mem.Write<bool>(disrupt_wmi_addr, false);
+             }
         }
 
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);

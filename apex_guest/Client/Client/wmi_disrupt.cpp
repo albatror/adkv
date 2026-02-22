@@ -227,28 +227,27 @@ void ApplyRegistrySpoofs(const char* spoof_mguid, const char* spoof_hwid) {
     LogHardwareIdentifiers(true);
 
     wchar_t wmguid[128], whwid[128];
-    swprintf(wmguid, 128, L"%hs", spoof_mguid);
-    swprintf(whwid, 128, L"%hs", spoof_hwid);
+    if (spoof_mguid && spoof_mguid[0] != 0)
+        swprintf(wmguid, 128, L"%hs", spoof_mguid);
+    else
+        swprintf(wmguid, 128, L"%ws", GenerateRandomUUIDW().c_str());
 
-    printf("Starting Synchronized Registry Spoofing...\n");
+    if (spoof_hwid && spoof_hwid[0] != 0)
+        swprintf(whwid, 128, L"%hs", spoof_hwid);
+    else
+        swprintf(whwid, 128, L"{%ws}", GenerateRandomUUIDW().c_str());
 
-    // 1. Machine identifiers from server
-    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", wmguid))
-        printf("[+] Spoofed MachineGuid: %ws\n", wmguid);
+    printf("Starting Registry Masking...\n");
 
-    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", L"HwProfileGuid", whwid))
-        printf("[+] Spoofed HwProfileGuid: %ws\n", whwid);
+    // 1. Machine identifiers
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", wmguid);
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", L"HwProfileGuid", whwid);
 
-    // Apply other random spoofs as well for depth
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::wstring new_guid_braces = whwid; // Already has braces from server usually
 
-    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\SQMClient", L"MachineId", new_guid_braces.c_str()))
-        printf("[+] Spoofed SQM MachineId: %ws\n", new_guid_braces.c_str());
-
-    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\SystemInformation", L"ComputerHardwareId", new_guid_braces.c_str()))
-        printf("[+] Spoofed ComputerHardwareId: %ws\n", new_guid_braces.c_str());
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\SQMClient", L"MachineId", whwid);
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\SystemInformation", L"ComputerHardwareId", whwid);
 
     // ProductId, InstallDate, BIOS, etc.
     wchar_t random_pid[128];
@@ -261,10 +260,27 @@ void ApplyRegistrySpoofs(const char* spoof_mguid, const char* spoof_hwid) {
     SetRegistryString(HKEY_LOCAL_MACHINE, L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"SystemSerialNumber", bios_serial.c_str());
     SetRegistryString(HKEY_LOCAL_MACHINE, L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"BaseBoardSerialNumber", bios_serial.c_str());
 
-    // 2. NVIDIA Spoofing
-    std::wstring nv_uuid = GenerateRandomUUIDW();
-    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"ClientUUID", nv_uuid.c_str());
-    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"PersistenceIdentifier", nv_uuid.c_str());
+    // 2. NVIDIA Spoofing (Comprehensive)
+    std::wstring nv_uuid = L"GPU-" + GenerateRandomUUIDW();
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"ClientUUID", nv_uuid.substr(4).c_str());
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"PersistenceIdentifier", nv_uuid.substr(4).c_str());
+
+    // Iterate through Video adapters to find NVIDIA GPU UUID keys
+    for (int i = 0; i < 20; i++) {
+        wchar_t video_key[512];
+        swprintf_s(video_key, L"SYSTEM\\CurrentControlSet\\Control\\Video");
+        HKEY hVideo;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, video_key, 0, KEY_READ, &hVideo) == ERROR_SUCCESS) {
+             wchar_t guid_name[256];
+             DWORD name_size = 256;
+             if (RegEnumKeyExW(hVideo, i, guid_name, &name_size, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+                 wchar_t adapter_key[512];
+                 swprintf_s(adapter_key, L"SYSTEM\\CurrentControlSet\\Control\\Video\\%ws\\0000", guid_name);
+                 SetRegistryString(HKEY_LOCAL_MACHINE, adapter_key, L"GPU-UUID", nv_uuid.c_str());
+             }
+             RegCloseKey(hVideo);
+        }
+    }
 
     // 4. Disk Serials
     for (int i = 0; i < 10; ++i) {
@@ -274,7 +290,7 @@ void ApplyRegistrySpoofs(const char* spoof_mguid, const char* spoof_hwid) {
         SetRegistryString(HKEY_LOCAL_MACHINE, path, L"SerialNumber", serial.c_str());
     }
 
-    printf("[+] Synchronized Registry Spoofing completed.\n");
+    printf("[+] Registry Masking completed.\n");
     LogHardwareIdentifiers(false);
 }
 

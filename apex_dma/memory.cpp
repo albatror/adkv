@@ -82,6 +82,7 @@ void Memory::check_proc()
 	}
 }
 
+// Must be called with conn_mutex held
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
 	auto new_conn = std::make_unique<ConnectorInstance<>>();
@@ -102,7 +103,6 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		return false;
 	}
 
-	std::lock_guard<std::mutex> l(conn_mutex);
 	conn = std::move(new_conn);
 	kernel = std::move(new_kernel);
 	return true;

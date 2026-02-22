@@ -577,13 +577,9 @@ int main(int argc, char** argv)
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 		if (hwid_trigger) {
-			printf("[+] HWID Trigger received from server.\n");
-			DisruptWMI();
-			if (spoof_mguid[0] != 0) {
-				ApplyRegistrySpoofs(spoof_mguid, spoof_hwid);
-			} else {
-				SpoofMachineGuid();
-			}
+			printf("[+] HWID Masking Triggered by Server.\n");
+			ApplyRegistrySpoofs(nullptr, nullptr);
+			if (disrupt_wmi) DisruptWMI();
 			hwid_trigger = false; // Reset trigger
 		}
 

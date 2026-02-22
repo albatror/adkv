@@ -10,8 +10,8 @@ $(shell mkdir -p $(OBJDIR))
 %.o: %.cpp
 	$(CXX) -c -o $(OBJDIR)/$@ $< $(CXXFLAGS)
 
-apex_dma: apex_dma.o Game.o Math.o memory.o offsets_dynamic.o StuffBot.o spoof.o
-	$(CXX) -o $(OUTDIR)/$@ $(OBJDIR)/apex_dma.o $(OBJDIR)/Game.o $(OBJDIR)/Math.o $(OBJDIR)/memory.o $(OBJDIR)/offsets_dynamic.o $(OBJDIR)/StuffBot.o $(OBJDIR)/spoof.o $(CXXFLAGS) $(LIBS)
+apex_dma: apex_dma.o Game.o Math.o memory.o offsets_dynamic.o StuffBot.o
+	$(CXX) -o $(OUTDIR)/$@ $(OBJDIR)/apex_dma.o $(OBJDIR)/Game.o $(OBJDIR)/Math.o $(OBJDIR)/memory.o $(OBJDIR)/offsets_dynamic.o $(OBJDIR)/StuffBot.o $(CXXFLAGS) $(LIBS)
 
 .PHONY: all
 all: apex_dma
