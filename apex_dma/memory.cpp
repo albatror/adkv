@@ -258,7 +258,7 @@ void Memory::open_proc(const char *name)
 void Memory::close_proc()
 {
 	std::lock_guard<std::mutex> l(m);
-	proc.hProcess.~IntoProcessInstance();
+	// proc.hProcess.~IntoProcessInstance(); // Removed dangerous manual destructor call
 	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
 }
