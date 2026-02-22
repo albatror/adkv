@@ -1136,6 +1136,10 @@ static void set_vars(uint64_t add_addr)
     uint64_t disrupt_wmi_addr = add_ptrs[49];
     uint64_t hwid_trigger_addr = add_ptrs[50]; // Index 50 for HWID trigger
     uint64_t spoof_mac_addr = add_ptrs[51];
+    uint64_t real_mguid_addr = add_ptrs[52];
+    uint64_t spoof_mguid_addr = add_ptrs[53];
+    uint64_t real_hwid_addr = add_ptrs[54];
+    uint64_t spoof_hwid_addr = add_ptrs[55];
 
 //
 //uint64_t min_max_fov_addr = 0;
@@ -1279,6 +1283,26 @@ while (vars_t)
             }
         }
 
+        static bool registry_logged = false;
+        if (!registry_logged && real_mguid_addr && real_hwid_addr) {
+            char rmguid[128] = {0}, rhwid[128] = {0};
+            if (client_mem.ReadArray<char>(real_mguid_addr, rmguid, 128) && rmguid[0] != 0) {
+                client_mem.ReadArray<char>(real_hwid_addr, rhwid, 128);
+                printf("[+] Real Registry IDs received: MachineGuid=%s, HwProfileGuid=%s\n", rmguid, rhwid);
+
+                // Update Real-infos.txt if we have new data
+                HardwareIdentifiers real_infos;
+                if (LoadHardwareInfos("Real-infos.txt", real_infos)) {
+                    if (real_infos.machine_guid.empty()) {
+                        real_infos.machine_guid = rmguid;
+                        real_infos.hw_profile_guid = rhwid;
+                        SaveHardwareInfos("Real-infos.txt", real_infos);
+                    }
+                }
+                registry_logged = true;
+            }
+        }
+
         if ((auto_spoof || guest_triggered) && !host_spoofed && mac_received) {
             printf("[+] HWID Spoofing triggered (Auto: %s, Guest: %s)\n",
                 auto_spoof ? "Yes" : "No", guest_triggered ? "Yes" : "No");
@@ -1287,14 +1311,17 @@ while (vars_t)
 
             // Tell guest to perform Registry/WMI spoofing
             if (hwid_trigger_addr) {
-                // Also write spoofed MAC for guest logging
+                // Write spoofed identifiers to guest memory for guest-side application
                 if (spoof_mac_addr) {
-                    std::string smac, sgpu;
-                    if (LoadHardwareInfos("spoofed-infos.txt", smac, sgpu)) {
-                        uint8_t smac_bytes[6];
-                        MacToBytes(smac, smac_bytes);
-                        client_mem.WriteArray<uint8_t>(spoof_mac_addr, smac_bytes, 6);
-                    }
+                    uint8_t smac_bytes[6];
+                    MacToBytes(g_spoofed_infos.mac, smac_bytes);
+                    client_mem.WriteArray<uint8_t>(spoof_mac_addr, smac_bytes, 6);
+                }
+                if (spoof_mguid_addr) {
+                    client_mem.WriteArray<char>(spoof_mguid_addr, g_spoofed_infos.machine_guid.c_str(), g_spoofed_infos.machine_guid.size() + 1);
+                }
+                if (spoof_hwid_addr) {
+                    client_mem.WriteArray<char>(spoof_hwid_addr, g_spoofed_infos.hw_profile_guid.c_str(), g_spoofed_infos.hw_profile_guid.size() + 1);
                 }
 
                 printf("[+] Sending HWID trigger to guest at 0x%lx\n", hwid_trigger_addr);

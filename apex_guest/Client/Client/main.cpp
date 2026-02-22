@@ -170,6 +170,10 @@ int index = 0;
 
 uint8_t real_mac[6] = { 0 };
 uint8_t spoof_mac[6] = { 0 };
+char real_mguid[128] = { 0 };
+char spoof_mguid[128] = { 0 };
+char real_hwid[128] = { 0 };
+char spoof_hwid[128] = { 0 };
 
 uint64_t add[64];//64
 
@@ -517,6 +521,10 @@ int main(int argc, char** argv)
 	add[49] = (uintptr_t)&disrupt_wmi;
 	add[50] = (uintptr_t)&hwid_trigger;
 	add[51] = (uintptr_t)&spoof_mac[0];
+	add[52] = (uintptr_t)&real_mguid[0];
+	add[53] = (uintptr_t)&spoof_mguid[0];
+	add[54] = (uintptr_t)&real_hwid[0];
+	add[55] = (uintptr_t)&spoof_hwid[0];
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -525,11 +533,15 @@ int main(int argc, char** argv)
 
 	// Collect identifiers
 	GetRealMAC();
+	GetRealRegistryIDs(real_mguid, real_hwid);
 
 	// Initialize WMI disruption and MachineGuid spoofing if enabled
 	if (disrupt_wmi) {
 		DisruptWMI();
-		SpoofMachineGuid();
+		if (spoof_mguid[0] != 0)
+			ApplyRegistrySpoofs(spoof_mguid, spoof_hwid);
+		else
+			SpoofMachineGuid();
 	}
 
 	Overlay ov1 = Overlay();
@@ -557,7 +569,11 @@ int main(int argc, char** argv)
 		if (hwid_trigger) {
 			printf("[+] HWID Trigger received from server.\n");
 			DisruptWMI();
-			SpoofMachineGuid();
+			if (spoof_mguid[0] != 0) {
+				ApplyRegistrySpoofs(spoof_mguid, spoof_hwid);
+			} else {
+				SpoofMachineGuid();
+			}
 			hwid_trigger = false; // Reset trigger
 		}
 

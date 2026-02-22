@@ -14,6 +14,7 @@
 extern Memory apex_mem;
 
 uint8_t g_real_mac[6] = { 0 };
+HardwareIdentifiers g_spoofed_infos;
 
 std::string GenerateRandomUUID(bool uppercase) {
     static const char hex_chars_upper[] = "0123456789ABCDEF";
@@ -73,26 +74,36 @@ void ToUnicode(const char* src, uint8_t* dst, int len) {
     }
 }
 
-void SaveHardwareInfos(const std::string& filename, const std::string& mac, const std::string& gpu_uuid) {
+void SaveHardwareInfos(const std::string& filename, const HardwareIdentifiers& infos) {
     std::ofstream file(filename);
     if (file.is_open()) {
-        file << "MAC: " << mac << "\n";
-        file << "GPU: " << gpu_uuid << "\n";
+        file << "MAC: " << infos.mac << "\n";
+        file << "GPU: " << infos.gpu_uuid << "\n";
+        file << "MachineGuid: " << infos.machine_guid << "\n";
+        file << "HwProfileGuid: " << infos.hw_profile_guid << "\n";
         file.close();
     }
 }
 
-bool LoadHardwareInfos(const std::string& filename, std::string& mac, std::string& gpu_uuid) {
+bool LoadHardwareInfos(const std::string& filename, HardwareIdentifiers& infos) {
     std::ifstream file(filename);
     if (!file.is_open()) return false;
     std::string line;
-    mac = "";
-    gpu_uuid = "";
+    infos.mac = "";
+    infos.gpu_uuid = "";
+    infos.machine_guid = "";
+    infos.hw_profile_guid = "";
     while (std::getline(file, line)) {
-        if (line.find("MAC: ") == 0 && line.size() > 5) mac = line.substr(5);
-        else if (line.find("GPU: ") == 0 && line.size() > 5) gpu_uuid = line.substr(5);
+        if (line.find("MAC: ") == 0 && line.size() > 5) infos.mac = line.substr(5);
+        else if (line.find("GPU: ") == 0 && line.size() > 5) infos.gpu_uuid = line.substr(5);
+        else if (line.find("MachineGuid: ") == 0 && line.size() > 13) infos.machine_guid = line.substr(13);
+        else if (line.find("HwProfileGuid: ") == 0 && line.size() > 15) infos.hw_profile_guid = line.substr(15);
     }
-    return !mac.empty() && !gpu_uuid.empty();
+    return !infos.mac.empty();
+}
+
+std::string GenerateRandomGUID() {
+    return "{" + GenerateRandomUUID(false) + "}";
 }
 
 void MacToBytes(const std::string& mac_str, uint8_t* bytes) {
@@ -117,13 +128,12 @@ void SpoofHardware() {
     std::string real_mac_str = MacToString(g_real_mac);
     printf("[SPOOFER] Real MAC from memory: %s\n", real_mac_str.c_str());
 
-    std::string stored_real_mac, stored_real_gpu;
-    bool has_real_file = LoadHardwareInfos("Real-infos.txt", stored_real_mac, stored_real_gpu);
-    if (has_real_file) printf("[SPOOFER] Loaded REAL IDs from file: MAC=%s, GPU=%s\n", stored_real_mac.c_str(), stored_real_gpu.c_str());
+    HardwareIdentifiers real_infos;
+    bool has_real_file = LoadHardwareInfos("Real-infos.txt", real_infos);
+    if (has_real_file) printf("[SPOOFER] Loaded REAL IDs from file: MAC=%s, GPU=%s\n", real_infos.mac.c_str(), real_infos.gpu_uuid.c_str());
 
-    std::string stored_spoofed_mac, stored_spoofed_gpu;
-    bool has_spoofed_file = LoadHardwareInfos("spoofed-infos.txt", stored_spoofed_mac, stored_spoofed_gpu);
-    if (has_spoofed_file) printf("[SPOOFER] Loaded SPOOFED IDs from file: MAC=%s, GPU=%s\n", stored_spoofed_mac.c_str(), stored_spoofed_gpu.c_str());
+    bool has_spoofed_file = LoadHardwareInfos("spoofed-infos.txt", g_spoofed_infos);
+    if (has_spoofed_file) printf("[SPOOFER] Loaded SPOOFED IDs from file: MAC=%s, GPU=%s\n", g_spoofed_infos.mac.c_str(), g_spoofed_infos.gpu_uuid.c_str());
 
     printf("[SPOOFER] Retrieving max physical address...\n");
     uint64_t max_addr = apex_mem.GetMaxPhysicalAddress();
@@ -168,7 +178,7 @@ void SpoofHardware() {
                         std::string uuid_str = "GPU-" + std::string(current_uuid);
 
                         // Check if this matches our spoofed UUID
-                        if (has_spoofed_file && uuid_str == stored_spoofed_gpu) {
+                        if (has_spoofed_file && uuid_str == g_spoofed_infos.gpu_uuid) {
                             printf("[!] Detected ALREADY patched GPU UUID: %s\n", uuid_str.c_str());
                             printf("[!] Skipping physical memory scan to avoid re-patching.\n");
                             printf("------------------------------------------\n");
@@ -194,19 +204,17 @@ void SpoofHardware() {
     }
 
     if (!has_real_file) {
-        SaveHardwareInfos("Real-infos.txt", real_mac_str, found_gpu_uuid);
+        real_infos.mac = real_mac_str;
+        real_infos.gpu_uuid = found_gpu_uuid;
+        // MachineGuid and HwProfileGuid will be filled by guest later or manually if needed
+        SaveHardwareInfos("Real-infos.txt", real_infos);
         printf("[+] Saved real identifiers to Real-infos.txt\n");
     }
 
-    std::string new_gpu_uuid_full;
-    std::string new_mac_str;
-
     if (has_spoofed_file) {
-        new_gpu_uuid_full = stored_spoofed_gpu;
-        new_mac_str = stored_spoofed_mac;
         printf("[SPOOFER] Using stored spoofed identifiers.\n");
     } else {
-        new_gpu_uuid_full = "GPU-" + GenerateRandomUUID(true);
+        g_spoofed_infos.gpu_uuid = "GPU-" + GenerateRandomUUID(true);
 
         uint8_t rand_mac[6];
         std::random_device rd;
@@ -214,25 +222,30 @@ void SpoofHardware() {
         std::uniform_int_distribution<> dis(0, 255);
         for (int i = 0; i < 6; ++i) rand_mac[i] = dis(gen);
         rand_mac[0] &= 0xFE; // Unicast
-        new_mac_str = MacToString(rand_mac);
+        g_spoofed_infos.mac = MacToString(rand_mac);
 
-        SaveHardwareInfos("spoofed-infos.txt", new_mac_str, new_gpu_uuid_full);
+        g_spoofed_infos.machine_guid = GenerateRandomUUID(false); // Registry usually doesn't have {}
+        g_spoofed_infos.hw_profile_guid = GenerateRandomGUID();
+
+        SaveHardwareInfos("spoofed-infos.txt", g_spoofed_infos);
         printf("[+] Generated new spoofed identifiers and saved to spoofed-infos.txt\n");
     }
 
     printf("\n[SPOOFER] IDENTIFIERS SUMMARY:\n");
     printf("    REAL MAC:   %s\n", real_mac_str.c_str());
-    printf("    SPOOF MAC: %s\n", new_mac_str.c_str());
+    printf("    SPOOF MAC: %s\n", g_spoofed_infos.mac.c_str());
     printf("    REAL GPU:   %s\n", found_gpu_uuid.c_str());
-    printf("    SPOOF GPU: %s\n\n", new_gpu_uuid_full.c_str());
+    printf("    SPOOF GPU: %s\n", g_spoofed_infos.gpu_uuid.c_str());
+    printf("    SPOOF MGUID: %s\n", g_spoofed_infos.machine_guid.c_str());
+    printf("    SPOOF HWID:  %s\n\n", g_spoofed_infos.hw_profile_guid.c_str());
 
-    if (found_gpu_uuid.size() < 40 || new_gpu_uuid_full.size() < 40) {
+    if (found_gpu_uuid.size() < 40 || g_spoofed_infos.gpu_uuid.size() < 40) {
         printf("[-] Error: GPU UUID strings are too short. Aborting replacement pass.\n");
         return;
     }
 
     std::string real_uuid_no_prefix = found_gpu_uuid.substr(4);
-    std::string new_uuid_no_prefix = new_gpu_uuid_full.substr(4);
+    std::string new_uuid_no_prefix = g_spoofed_infos.gpu_uuid.substr(4);
 
     std::string real_uuid_str_u = real_uuid_no_prefix;
     std::transform(real_uuid_str_u.begin(), real_uuid_str_u.end(), real_uuid_str_u.begin(), [](unsigned char c){ return std::toupper(c); });
@@ -254,7 +267,7 @@ void SpoofHardware() {
 
     uint8_t real_mac_bytes[6] = {0}, new_mac_bytes[6] = {0};
     MacToBytes(real_mac_str, real_mac_bytes);
-    MacToBytes(new_mac_str, new_mac_bytes);
+    MacToBytes(g_spoofed_infos.mac, new_mac_bytes);
 
     int spoof_count = 0;
     int mac_count = 0;

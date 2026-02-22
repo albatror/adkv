@@ -87,7 +87,6 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
-		conn.reset();
 		return false;
 	}
 	else
@@ -99,9 +98,8 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		mf_connector_drop(conn.get());
+		// mf_connector_drop(conn.get()); // kernel_create_os might have dropped it on failure
 		kernel.reset();
-		conn.reset();
 		return false;
 	}
 
@@ -178,7 +176,6 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
-	extern std::mutex conn_mutex;
 	std::lock_guard<std::mutex> l(conn_mutex);
 
 	if (!conn)
@@ -328,24 +325,27 @@ bool Memory::Dump(const char *filename)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
-	extern std::mutex conn_mutex;
 	std::lock_guard<std::mutex> l(conn_mutex);
 	if (!conn) return false;
-	return conn->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	auto view = conn->phys_view();
+	if (!view.container.instance.instance) return false;
+	return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
 }
 
 bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
 {
-	extern std::mutex conn_mutex;
 	std::lock_guard<std::mutex> l(conn_mutex);
 	if (!conn) return false;
-	return conn->phys_view().write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
+	auto view = conn->phys_view();
+	if (!view.container.instance.instance) return false;
+	return view.write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
 }
 
 uint64_t Memory::GetMaxPhysicalAddress()
 {
-	extern std::mutex conn_mutex;
 	std::lock_guard<std::mutex> l(conn_mutex);
 	if (!conn) return 0;
-	return conn->phys_view().metadata().max_address;
+	auto view = conn->phys_view();
+	if (!view.container.instance.instance) return 0;
+	return view.metadata().max_address;
 }

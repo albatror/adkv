@@ -41,6 +41,16 @@ bool SetRegistryString(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, LPCWST
     return false;
 }
 
+void GetRealRegistryIDs(char* mguid, char* hwid) {
+    std::wstring val;
+    if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", val)) {
+        sprintf(mguid, "%ws", val.c_str());
+    }
+    if (GetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", L"HwProfileGuid", val)) {
+        sprintf(hwid, "%ws", val.c_str());
+    }
+}
+
 bool SetRegistryDWORD(HKEY hRoot, LPCWSTR lpSubKey, LPCWSTR lpValueName, DWORD dwData) {
     HKEY hKey;
     LSTATUS status = RegOpenKeyExW(hRoot, lpSubKey, 0, KEY_SET_VALUE, &hKey);
@@ -126,6 +136,66 @@ void LogHardwareIdentifiers(bool real) {
         printf("[REG] ComputerHardwareId: %ws\n", val.c_str());
 
     printf("------------------------------------------\n");
+}
+
+void ApplyRegistrySpoofs(const char* spoof_mguid, const char* spoof_hwid) {
+    if (!IsUserAdmin()) {
+        printf("\n[!] WARNING: Client is NOT running as Administrator.\n");
+        printf("[!] Registry spoofing and WMI disruption will likely fail.\n\n");
+    }
+
+    LogHardwareIdentifiers(true);
+
+    wchar_t wmguid[128], whwid[128];
+    swprintf(wmguid, 128, L"%hs", spoof_mguid);
+    swprintf(whwid, 128, L"%hs", spoof_hwid);
+
+    printf("Starting Synchronized Registry Spoofing...\n");
+
+    // 1. Machine identifiers from server
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid", wmguid))
+        printf("[+] Spoofed MachineGuid: %ws\n", wmguid);
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", L"HwProfileGuid", whwid))
+        printf("[+] Spoofed HwProfileGuid: %ws\n", whwid);
+
+    // Apply other random spoofs as well for depth
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::wstring new_guid_braces = whwid; // Already has braces from server usually
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\SQMClient", L"MachineId", new_guid_braces.c_str()))
+        printf("[+] Spoofed SQM MachineId: %ws\n", new_guid_braces.c_str());
+
+    if (SetRegistryString(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\SystemInformation", L"ComputerHardwareId", new_guid_braces.c_str()))
+        printf("[+] Spoofed ComputerHardwareId: %ws\n", new_guid_braces.c_str());
+
+    // ProductId, InstallDate, BIOS, etc.
+    wchar_t random_pid[128];
+    swprintf_s(random_pid, L"%010u-%010u-%010u-%010u", (unsigned int)gen(), (unsigned int)gen(), (unsigned int)gen(), (unsigned int)gen());
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"ProductId", random_pid);
+    DWORD install_date = (DWORD)(1500000000 + (gen() % 100000000));
+    SetRegistryDWORD(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"InstallDate", install_date);
+
+    std::wstring bios_serial = GenerateRandomStringW(12);
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"SystemSerialNumber", bios_serial.c_str());
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"BaseBoardSerialNumber", bios_serial.c_str());
+
+    // 2. NVIDIA Spoofing
+    std::wstring nv_uuid = GenerateRandomUUIDW();
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"ClientUUID", nv_uuid.c_str());
+    SetRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\NVIDIA Corporation\\Global", L"PersistenceIdentifier", nv_uuid.c_str());
+
+    // 4. Disk Serials
+    for (int i = 0; i < 10; ++i) {
+        wchar_t path[256];
+        swprintf_s(path, L"HARDWARE\\DEVICEMAP\\Scsi\\Scsi Port %d\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0", i);
+        std::wstring serial = GenerateRandomDiskSerial();
+        SetRegistryString(HKEY_LOCAL_MACHINE, path, L"SerialNumber", serial.c_str());
+    }
+
+    printf("[+] Synchronized Registry Spoofing completed.\n");
+    LogHardwareIdentifiers(false);
 }
 
 bool SpoofMachineGuid() {
