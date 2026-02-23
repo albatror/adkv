@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>
@@ -686,6 +687,7 @@ int main(int argc, char** argv)
 		if (gpu_spoofed && !gpu_synced) {
 			printf("REAL GPU-UUID: %s\n", real_gpu_uuid);
 			printf("FAKE GPU-UUID: %s\n", fake_gpu_uuid);
+			ApplyRegistrySpoofs(fake_gpu_uuid);
 			gpu_synced = true;
 		}
 
