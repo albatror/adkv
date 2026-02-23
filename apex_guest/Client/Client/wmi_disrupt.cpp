@@ -182,15 +182,30 @@ bool SetRegistryString(HKEY hKey, const char* subKey, const char* valueName, con
     return false;
 }
 
+std::string ToLower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
+
 void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::string& target, const std::string& replacement) {
     HKEY hSubKey;
-    if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ | KEY_WRITE, &hSubKey) != ERROR_SUCCESS) return;
+    if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ | KEY_WRITE, &hSubKey) != ERROR_SUCCESS) {
+        // Try opening with READ only if WRITE fails, to at least recurse
+        if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ, &hSubKey) != ERROR_SUCCESS) return;
+    }
 
     char valueName[256];
     DWORD valueNameSize;
-    char data[256];
+    char data[512];
     DWORD dataSize;
     DWORD index = 0;
+    std::string targetLower = ToLower(target);
+    std::string replacementLower = ToLower(replacement);
+
+    std::string targetNoPrefix = "";
+    std::string replacementNoPrefix = "";
+    if (target.find("GPU-") == 0) targetNoPrefix = ToLower(target.substr(4));
+    if (replacement.find("GPU-") == 0) replacementNoPrefix = replacement.substr(4);
 
     while (true) {
         valueNameSize = sizeof(valueName);
@@ -200,11 +215,14 @@ void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::
         if (status == ERROR_NO_MORE_ITEMS) break;
         if (status == ERROR_SUCCESS && type == REG_SZ) {
             std::string val = data;
-            if (val == target) {
+            std::string valLower = ToLower(val);
+            if (valLower == targetLower) {
                 RegSetValueExA(hSubKey, valueName, 0, REG_SZ, (const BYTE*)replacement.c_str(), (DWORD)(replacement.length() + 1));
             }
+            else if (!targetNoPrefix.empty() && valLower == targetNoPrefix) {
+                RegSetValueExA(hSubKey, valueName, 0, REG_SZ, (const BYTE*)replacementNoPrefix.c_str(), (DWORD)(replacementNoPrefix.length() + 1));
+            }
         }
-        index++;
     }
 
     char subKeyName[256];
@@ -217,14 +235,31 @@ void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::
         if (status == ERROR_SUCCESS) {
             RecursiveGPUUUIDSearchAndReplace(hSubKey, subKeyName, target, replacement);
         }
-        index++;
     }
 
     RegCloseKey(hSubKey);
 }
 
+bool IsUserAdmin() {
+    bool isAdmin = false;
+    HANDLE hToken = NULL;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+        TOKEN_ELEVATION elevation;
+        DWORD dwSize;
+        if (GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &dwSize)) {
+            isAdmin = elevation.TokenIsElevated;
+        }
+    }
+    if (hToken) CloseHandle(hToken);
+    return isAdmin;
+}
+
 void IdentifyAndSpoofGPU() {
     if (gpu_spoofed) return;
+
+    if (!IsUserAdmin()) {
+        std::cout << "WARNING: Client is not running as Administrator. Registry spoofing will likely fail." << std::endl;
+    }
 
     // 1. Try to read from original_gpu.txt
     std::ifstream inFile("original_gpu.txt");
@@ -267,23 +302,26 @@ void IdentifyAndSpoofGPU() {
     }
     strncpy(real_gpu_uuid, real_str.c_str(), sizeof(real_gpu_uuid));
 
-    // 4. Check if already spoofed
-    if (!current_str.empty() && current_str != real_str) {
-        strncpy(spoofed_gpu_uuid, current_str.c_str(), sizeof(spoofed_gpu_uuid));
-        gpu_spoofed = true;
-        std::cout << "Already spoofed. Real: " << real_gpu_uuid << " Current: " << spoofed_gpu_uuid << std::endl;
-        return;
+    // 4. Determine spoofed UUID
+    std::string spoofed_str;
+    if (!current_str.empty() && ToLower(current_str) != ToLower(real_str)) {
+        spoofed_str = current_str;
+        std::cout << "Already spoofed. Real: " << real_gpu_uuid << " Current: " << spoofed_str << std::endl;
+    } else {
+        spoofed_str = GenerateRandomGPUUUID();
     }
-
-    // 5. Apply spoofing if not already done
-    std::string spoofed_str = GenerateRandomGPUUUID();
     strncpy(spoofed_gpu_uuid, spoofed_str.c_str(), sizeof(spoofed_gpu_uuid));
 
+    // 5. Apply spoofing everywhere (even if already spoofed, to catch missing instances)
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Video", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GpuUUIDs", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\PCI", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NVIDIA", real_str, spoofed_str);
 
     gpu_spoofed = true;
     std::cout << "Real GPU UUID: " << real_gpu_uuid << std::endl;
@@ -297,7 +335,11 @@ void RestoreGPU() {
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", spoofed_gpu_uuid, real_gpu_uuid);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Video", spoofed_gpu_uuid, real_gpu_uuid);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GpuUUIDs", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\PCI", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NVIDIA", spoofed_gpu_uuid, real_gpu_uuid);
     gpu_spoofed = false;
 }
 
