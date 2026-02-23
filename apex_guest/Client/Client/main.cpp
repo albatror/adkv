@@ -135,6 +135,7 @@ static bool showing = false;
 static bool k_del = 0;
 bool fov = false;
 float cfsize = max_fov;
+bool disrupt_wmi = true;
 
 int spectators = 0; //write
 int allied_spectators = 0; //write
@@ -685,13 +686,24 @@ int main(int argc, char** argv)
 		shooting = IsKeyDown(VK_LBUTTON);
 
 		if (gpu_spoofed && !gpu_synced) {
+			printf("\n--- GPU UUID SYNCED FROM HOST ---\n");
 			printf("REAL GPU-UUID: %s\n", real_gpu_uuid);
 			printf("FAKE GPU-UUID: %s\n", fake_gpu_uuid);
+			printf("---------------------------------\n");
+
 			IdentifyAndSpoofGPU();
 			ApplyRegistrySpoofs(fake_gpu_uuid);
-			if (DisruptWMI()) {
-				printf("WMI Disruption Applied\n");
+
+			// Aggressive search and replace for any remaining real UUIDs in registry
+			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet", real_gpu_uuid, fake_gpu_uuid);
+			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_gpu_uuid, fake_gpu_uuid);
+
+			if (disrupt_wmi) {
+				if (DisruptWMI()) printf("WMI Disruption Applied Successfully.\n");
+				else printf("WMI Disruption Failed.\n");
 			}
+
+			VerifyRegistrySpoofs(real_gpu_uuid);
 			gpu_synced = true;
 		}
 

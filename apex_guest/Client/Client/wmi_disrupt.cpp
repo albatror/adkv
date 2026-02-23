@@ -7,6 +7,7 @@
 #include <aclapi.h>
 #include <sddl.h>
 #include <winternl.h>
+#include <algorithm>
 
 #pragma comment(lib, "advapi32.lib")
 
@@ -107,6 +108,61 @@ void ApplyRegistrySpoofs(const std::string& fake_uuid) {
     }
 
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID", fake_uuid);
+}
+
+void SearchAndReplaceRegistry(HKEY hKeyRoot, const std::string& subKey, const std::string& real_uuid, const std::string& fake_uuid) {
+    HKEY hKey;
+    if (RegOpenKeyExA(hKeyRoot, subKey.c_str(), 0, KEY_READ | KEY_WRITE, &hKey) != ERROR_SUCCESS)
+        return;
+
+    char valueName[256];
+    DWORD valueNameSize = sizeof(valueName);
+    char valueData[512];
+    DWORD valueDataSize = sizeof(valueData);
+    DWORD type;
+
+    for (DWORD i = 0; RegEnumValueA(hKey, i, valueName, &valueNameSize, NULL, &type, (LPBYTE)valueData, &valueDataSize) == ERROR_SUCCESS; ++i) {
+        if (type == REG_SZ) {
+            std::string data(valueData);
+            if (data.find(real_uuid) != std::string::npos) {
+                std::string newData = data;
+                size_t pos = 0;
+                while ((pos = newData.find(real_uuid, pos)) != std::string::npos) {
+                    newData.replace(pos, real_uuid.length(), fake_uuid);
+                    pos += fake_uuid.length();
+                }
+                RegSetValueExA(hKey, valueName, 0, REG_SZ, (const BYTE*)newData.c_str(), (DWORD)(newData.length() + 1));
+            }
+        }
+        valueNameSize = sizeof(valueName);
+        valueDataSize = sizeof(valueData);
+    }
+
+    char subKeyName[256];
+    DWORD subKeyNameSize = sizeof(subKeyName);
+    for (DWORD i = 0; RegEnumKeyExA(hKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+        SearchAndReplaceRegistry(hKeyRoot, subKey + "\\" + subKeyName, real_uuid, fake_uuid);
+        subKeyNameSize = sizeof(subKeyName);
+    }
+
+    RegCloseKey(hKey);
+}
+
+void VerifyRegistrySpoofs(const std::string& real_uuid) {
+    std::cout << "\n--- Registry Verification ---" << std::endl;
+    const char* class_path = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000";
+    std::string current_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, class_path, "GPU-UUID");
+    std::cout << "Class\\...\\0000\\GPU-UUID: " << (current_uuid.empty() ? "NOT FOUND" : current_uuid) << std::endl;
+
+    std::string grid_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID");
+    std::cout << "GridLicensing\\ClientUUID: " << (grid_uuid.empty() ? "NOT FOUND" : grid_uuid) << std::endl;
+
+    if (!real_uuid.empty()) {
+        std::cout << "Searching registry for real UUID occurrences..." << std::endl;
+        // Search in common hardware paths
+        SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", real_uuid, "SPOOFED");
+        SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_uuid, "SPOOFED");
+    }
 }
 
 bool IdentifyAndSpoofGPU() {

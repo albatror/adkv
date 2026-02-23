@@ -1,5 +1,6 @@
 #include "overlay.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <fstream>
 #include <iomanip>
 
@@ -35,6 +36,9 @@ extern float triggerbot_fov;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool disrupt_wmi;
+extern char real_gpu_uuid[64];
+extern char fake_gpu_uuid[64];
 
 //extern float esp_distance;
 
@@ -335,6 +339,33 @@ void Overlay::RenderMenu()
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
 			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoof")))
+		{
+			ImGui::Text(XorStr("GPU UUID Spoofer (Host Patching)"));
+			ImGui::Separator();
+			ImGui::Text(XorStr("Real GPU UUID:"));
+			ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), real_gpu_uuid[0] ? real_gpu_uuid : "Not Synced");
+
+			ImGui::Text(XorStr("Fake GPU UUID:"));
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), fake_gpu_uuid[0] ? fake_gpu_uuid : "Not Synced");
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("Disrupt WMI (Anti-HWID)"), &disrupt_wmi);
+
+			if (ImGui::Button(XorStr("Manual Registry Spoof"))) {
+				if (fake_gpu_uuid[0]) {
+					ApplyRegistrySpoofs(fake_gpu_uuid);
+					SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet", real_gpu_uuid, fake_gpu_uuid);
+					SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_gpu_uuid, fake_gpu_uuid);
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(XorStr("Manual WMI Disrupt"))) {
+				DisruptWMI();
+			}
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
