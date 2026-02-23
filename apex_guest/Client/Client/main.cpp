@@ -501,6 +501,9 @@ int main(int argc, char** argv)
 		ready = true;
 		printf(XorStr("Ready\n"));
 		GetRealRegistryIDs();
+		if (IsAlreadyPatched()) {
+			LoadCurrentIDsAsSpoofed();
+		}
 	}
 		
 	while (active)

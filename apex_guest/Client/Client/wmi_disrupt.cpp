@@ -92,6 +92,11 @@ void GetRealRegistryIDs() {
                         g_hwid.nv_uuid_real = val;
                         break;
                     }
+                    val = GetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "GPUDeviceGuid");
+                    if (val != "Unknown" && val.length() > 10) {
+                        g_hwid.nv_uuid_real = "GPU-" + val.substr(val.find('{') != std::string::npos ? 1 : 0, 36);
+                        break;
+                    }
                 }
                 RegCloseKey(hGuidKey);
             }
@@ -311,6 +316,7 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
                     std::string finalPath = subKeyPath + "\\" + std::string(adapterSubKey);
                     SetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
                     SetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
+                    SetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "GPUDeviceGuid", "{" + g_hwid.nv_uuid_spoof.substr(4) + "}");
                 }
                 RegCloseKey(hGuidKey);
             }
@@ -328,6 +334,7 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
                 std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\" + std::string(subKeyName);
                 SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
                 SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
+                SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPUDeviceGuid", "{" + g_hwid.nv_uuid_spoof.substr(4) + "}");
             }
         }
         RegCloseKey(hClassKey);
