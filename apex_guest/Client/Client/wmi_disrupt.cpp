@@ -59,6 +59,14 @@ void SetRegistryDWORD(HKEY hKey, const char* subKey, const char* valueName, DWOR
     }
 }
 
+void SetRegistryQWORD(HKEY hKey, const char* subKey, const char* valueName, unsigned __int64 value) {
+    HKEY hOpenedKey;
+    if (RegCreateKeyExA(hKey, subKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hOpenedKey, NULL) == ERROR_SUCCESS) {
+        RegSetValueExA(hOpenedKey, valueName, 0, REG_QWORD, (const BYTE*)&value, sizeof(unsigned __int64));
+        RegCloseKey(hOpenedKey);
+    }
+}
+
 void GetRealRegistryIDs() {
     g_hwid.machine_guid_real = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", "MachineGuid");
     g_hwid.hw_profile_guid_real = GetRegistryString(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\IDConfigDB\\Hardware Profiles\\0001", "HwProfileGuid");
@@ -101,6 +109,7 @@ void GetRealRegistryIDs() {
                 RegCloseKey(hGuidKey);
             }
             if (g_hwid.nv_uuid_real != "Unknown") break;
+            subKeyNameSize = sizeof(subKeyName);
         }
         RegCloseKey(hVideoKey);
     }
@@ -258,6 +267,7 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
 
     g_hwid.machine_id_spoof = "{" + GenerateGUID() + "}";
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\SQMClient", "MachineId", g_hwid.machine_id_spoof);
+    SetRegistryQWORD(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\SQMClient", "WinSqmFirstSessionStartTime", (unsigned __int64)std::time(NULL) - 5000000);
     std::cout << "[+] Spoofed SQM MachineId: " << g_hwid.machine_id_spoof << std::endl;
 
     g_hwid.computer_hardware_id_spoof = "{" + GenerateGUID() + "}";
@@ -267,6 +277,7 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     g_hwid.product_id_spoof = RandomString(5, true) + "-" + RandomString(5, true) + "-" + RandomString(5, true) + "-" + RandomString(5, true);
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "ProductID", g_hwid.product_id_spoof);
     SetRegistryDWORD(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "InstallDate", (DWORD)std::time(NULL) - 1000000);
+    SetRegistryQWORD(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "InstallTime", (unsigned __int64)std::time(NULL) - 1000000);
     std::cout << "[+] Spoofed Windows ProductID and InstallDate" << std::endl;
 
     // MAC Spoofing
@@ -300,6 +311,7 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "PersistenceIdentifier", g_hwid.nv_uuid_spoof);
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "GPU-UUID", g_hwid.nv_uuid_spoof);
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
+    SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\CoProcManager", "ChipsetMatchID", RandomString(8, true));
 
     HKEY hVideoKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
@@ -307,7 +319,6 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
         DWORD subKeyNameSize;
         for (DWORD i = 0; subKeyNameSize = sizeof(subKeyName), RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
             std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName);
-            // Iterate all subkeys of the GUID (0000, 0001, etc)
             HKEY hGuidKey;
             if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), 0, KEY_READ, &hGuidKey) == ERROR_SUCCESS) {
                 char adapterSubKey[255];
