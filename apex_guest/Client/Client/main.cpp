@@ -683,8 +683,11 @@ int main(int argc, char** argv)
 			if (!IsAlreadyPatched()) {
 				ApplyRegistrySpoofs(nullptr, nullptr);
 				DisruptWMI();
-				printf(XorStr("[+] HWID Masking Triggered by Server.\n"));
 			}
+			else {
+				LoadCurrentIDsAsSpoofed();
+			}
+			printf(XorStr("[+] HWID Masking Triggered by Server.\n"));
 			hwid_trigger = false;
 		}
 

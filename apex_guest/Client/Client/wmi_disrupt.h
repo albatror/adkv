@@ -33,6 +33,7 @@ extern HWIDData g_hwid;
 bool IsAlreadyPatched();
 void GetRealRegistryIDs();
 void ApplyRegistrySpoofs(void* unused1, void* unused2);
+void LoadCurrentIDsAsSpoofed();
 void DisruptWMI();
 std::string GetRealMAC();
 std::string GenerateSpoofMAC();

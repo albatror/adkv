@@ -11,6 +11,7 @@
 #include <accctrl.h>
 #include <aclapi.h>
 #include <tlhelp32.h>
+#include <ctime>
 
 #pragma comment(lib, "IPHLPAPI.lib")
 #pragma comment(lib, "Advapi32.lib")
@@ -44,7 +45,7 @@ std::string GetRegistryString(HKEY hKey, const char* subKey, const char* valueNa
 
 void SetRegistryString(HKEY hKey, const char* subKey, const char* valueName, const std::string& value) {
     HKEY hOpenedKey;
-    if (RegOpenKeyExA(hKey, subKey, 0, KEY_SET_VALUE, &hOpenedKey) == ERROR_SUCCESS) {
+    if (RegCreateKeyExA(hKey, subKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hOpenedKey, NULL) == ERROR_SUCCESS) {
         RegSetValueExA(hOpenedKey, valueName, 0, REG_SZ, (const BYTE*)value.c_str(), (DWORD)(value.length() + 1));
         RegCloseKey(hOpenedKey);
     }
@@ -52,7 +53,7 @@ void SetRegistryString(HKEY hKey, const char* subKey, const char* valueName, con
 
 void SetRegistryDWORD(HKEY hKey, const char* subKey, const char* valueName, DWORD value) {
     HKEY hOpenedKey;
-    if (RegOpenKeyExA(hKey, subKey, 0, KEY_SET_VALUE, &hOpenedKey) == ERROR_SUCCESS) {
+    if (RegCreateKeyExA(hKey, subKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hOpenedKey, NULL) == ERROR_SUCCESS) {
         RegSetValueExA(hOpenedKey, valueName, 0, REG_DWORD, (const BYTE*)&value, sizeof(DWORD));
         RegCloseKey(hOpenedKey);
     }
@@ -77,32 +78,74 @@ void GetRealRegistryIDs() {
     HKEY hVideoKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
         char subKeyName[255];
-        DWORD subKeyNameSize = sizeof(subKeyName);
-        for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
-            std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName) + "\\0000";
-            std::string val = GetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID");
-            if (val != "Unknown" && val.find("GPU-") != std::string::npos) {
-                g_hwid.nv_uuid_real = val;
-                break;
+        DWORD subKeyNameSize;
+        for (DWORD i = 0; subKeyNameSize = sizeof(subKeyName), RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+            std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName);
+            HKEY hGuidKey;
+            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), 0, KEY_READ, &hGuidKey) == ERROR_SUCCESS) {
+                char adapterSubKey[255];
+                DWORD adapterSubKeySize;
+                for (DWORD j = 0; adapterSubKeySize = sizeof(adapterSubKey), RegEnumKeyExA(hGuidKey, j, adapterSubKey, &adapterSubKeySize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
+                    std::string finalPath = subKeyPath + "\\" + std::string(adapterSubKey);
+                    std::string val = GetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "GPU-UUID");
+                    if (val != "Unknown" && val.find("GPU-") != std::string::npos) {
+                        g_hwid.nv_uuid_real = val;
+                        break;
+                    }
+                }
+                RegCloseKey(hGuidKey);
             }
-            subKeyNameSize = sizeof(subKeyName);
+            if (g_hwid.nv_uuid_real != "Unknown") break;
         }
         RegCloseKey(hVideoKey);
     }
 
     // Disk
-    g_hwid.disk_id_real = GetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\0", "Identifier");
-
     g_hwid.disk_serial_real = "Unknown";
+    g_hwid.disk_id_real = "Unknown";
     HKEY hScsiKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\Scsi", 0, KEY_READ, &hScsiKey) == ERROR_SUCCESS) {
         char portName[255];
-        DWORD portNameSize = sizeof(portName);
-        if (RegEnumKeyExA(hScsiKey, 0, portName, &portNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
-            std::string busPath = "HARDWARE\\DEVICEMAP\\Scsi\\" + std::string(portName) + "\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0";
-            g_hwid.disk_serial_real = GetRegistryString(HKEY_LOCAL_MACHINE, busPath.c_str(), "SerialNumber");
+        DWORD portNameSize;
+        for (DWORD i = 0; portNameSize = sizeof(portName), RegEnumKeyExA(hScsiKey, i, portName, &portNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+            std::string portPath = "HARDWARE\\DEVICEMAP\\Scsi\\" + std::string(portName);
+            HKEY hPortKey;
+            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, portPath.c_str(), 0, KEY_READ, &hPortKey) == ERROR_SUCCESS) {
+                char busName[255];
+                DWORD busNameSize;
+                for (DWORD j = 0; busNameSize = sizeof(busName), RegEnumKeyExA(hPortKey, j, busName, &busNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
+                    std::string busPath = portPath + "\\" + std::string(busName);
+                    HKEY hBusKey;
+                    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, busPath.c_str(), 0, KEY_READ, &hBusKey) == ERROR_SUCCESS) {
+                        char targetName[255];
+                        DWORD targetNameSize;
+                        for (DWORD k = 0; targetNameSize = sizeof(targetName), RegEnumKeyExA(hBusKey, k, targetName, &targetNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++k) {
+                            std::string targetPath = busPath + "\\" + std::string(targetName);
+                            HKEY hTargetKey;
+                            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, targetPath.c_str(), 0, KEY_READ, &hTargetKey) == ERROR_SUCCESS) {
+                                char lunName[255];
+                                DWORD lunNameSize;
+                                for (DWORD l = 0; lunNameSize = sizeof(lunName), RegEnumKeyExA(hTargetKey, l, lunName, &lunNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++l) {
+                                    std::string lunPath = targetPath + "\\" + std::string(lunName);
+                                    std::string sn = GetRegistryString(HKEY_LOCAL_MACHINE, lunPath.c_str(), "SerialNumber");
+                                    if (sn != "Unknown" && g_hwid.disk_serial_real == "Unknown") {
+                                        g_hwid.disk_serial_real = sn;
+                                        g_hwid.disk_id_real = GetRegistryString(HKEY_LOCAL_MACHINE, lunPath.c_str(), "Identifier");
+                                    }
+                                }
+                                RegCloseKey(hTargetKey);
+                            }
+                        }
+                        RegCloseKey(hBusKey);
+                    }
+                }
+                RegCloseKey(hPortKey);
+            }
         }
         RegCloseKey(hScsiKey);
+    }
+    if (g_hwid.disk_id_real == "Unknown") {
+         g_hwid.disk_id_real = GetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\0", "Identifier");
     }
 }
 
@@ -156,6 +199,47 @@ bool IsAlreadyPatched() {
     return false;
 }
 
+void SaveSpoofedIDsToHKCU() {
+    HKEY hKey;
+    if (RegCreateKeyExA(HKEY_CURRENT_USER, "Software\\ApexGuest", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
+        auto save = [&](const char* name, const std::string& val) {
+            RegSetValueExA(hKey, name, 0, REG_SZ, (const BYTE*)val.c_str(), (DWORD)(val.length() + 1));
+        };
+        save("machine_guid_spoof", g_hwid.machine_guid_spoof);
+        save("hw_profile_guid_spoof", g_hwid.hw_profile_guid_spoof);
+        save("machine_id_spoof", g_hwid.machine_id_spoof);
+        save("computer_hardware_id_spoof", g_hwid.computer_hardware_id_spoof);
+        save("product_id_spoof", g_hwid.product_id_spoof);
+        save("mac_spoof", g_hwid.mac_spoof);
+        save("bios_serial_spoof", g_hwid.bios_serial_spoof);
+        save("nv_uuid_spoof", g_hwid.nv_uuid_spoof);
+        save("disk_id_spoof", g_hwid.disk_id_spoof);
+        save("disk_serial_spoof", g_hwid.disk_serial_spoof);
+        RegCloseKey(hKey);
+    }
+}
+
+void LoadCurrentIDsAsSpoofed() {
+    auto load = [&](const char* name) -> std::string {
+        char buffer[512];
+        DWORD bufferSize = sizeof(buffer);
+        if (RegGetValueA(HKEY_CURRENT_USER, "Software\\ApexGuest", name, RRF_RT_REG_SZ, NULL, buffer, &bufferSize) == ERROR_SUCCESS) {
+            return std::string(buffer);
+        }
+        return "N/A";
+    };
+    g_hwid.machine_guid_spoof = load("machine_guid_spoof");
+    g_hwid.hw_profile_guid_spoof = load("hw_profile_guid_spoof");
+    g_hwid.machine_id_spoof = load("machine_id_spoof");
+    g_hwid.computer_hardware_id_spoof = load("computer_hardware_id_spoof");
+    g_hwid.product_id_spoof = load("product_id_spoof");
+    g_hwid.mac_spoof = load("mac_spoof");
+    g_hwid.bios_serial_spoof = load("bios_serial_spoof");
+    g_hwid.nv_uuid_spoof = load("nv_uuid_spoof");
+    g_hwid.disk_id_spoof = load("disk_id_spoof");
+    g_hwid.disk_serial_spoof = load("disk_serial_spoof");
+}
+
 void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     std::cout << "Starting Registry Masking..." << std::endl;
 
@@ -188,13 +272,12 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     HKEY hNetKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e972-e325-11ce-bfc1-08002be10318}", 0, KEY_READ, &hNetKey) == ERROR_SUCCESS) {
         char subKeyName[255];
-        DWORD subKeyNameSize = sizeof(subKeyName);
-        for (DWORD i = 0; RegEnumKeyExA(hNetKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+        DWORD subKeyNameSize;
+        for (DWORD i = 0; subKeyNameSize = sizeof(subKeyName), RegEnumKeyExA(hNetKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
             if (strlen(subKeyName) == 4) { // 0000, 0001, etc.
                 std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e972-e325-11ce-bfc1-08002be10318}\\" + std::string(subKeyName);
                 SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "NetworkAddress", mac_no_colons);
             }
-            subKeyNameSize = sizeof(subKeyName);
         }
         RegCloseKey(hNetKey);
     }
@@ -216,12 +299,21 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     HKEY hVideoKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
         char subKeyName[255];
-        DWORD subKeyNameSize = sizeof(subKeyName);
-        for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
-            std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName) + "\\0000";
-            SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
-            SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
-            subKeyNameSize = sizeof(subKeyName);
+        DWORD subKeyNameSize;
+        for (DWORD i = 0; subKeyNameSize = sizeof(subKeyName), RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+            std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName);
+            // Iterate all subkeys of the GUID (0000, 0001, etc)
+            HKEY hGuidKey;
+            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), 0, KEY_READ, &hGuidKey) == ERROR_SUCCESS) {
+                char adapterSubKey[255];
+                DWORD adapterSubKeySize;
+                for (DWORD j = 0; adapterSubKeySize = sizeof(adapterSubKey), RegEnumKeyExA(hGuidKey, j, adapterSubKey, &adapterSubKeySize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
+                    std::string finalPath = subKeyPath + "\\" + std::string(adapterSubKey);
+                    SetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
+                    SetRegistryString(HKEY_LOCAL_MACHINE, finalPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
+                }
+                RegCloseKey(hGuidKey);
+            }
         }
         RegCloseKey(hVideoKey);
     }
@@ -230,14 +322,13 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     HKEY hClassKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", 0, KEY_READ, &hClassKey) == ERROR_SUCCESS) {
         char subKeyName[255];
-        DWORD subKeyNameSize = sizeof(subKeyName);
-        for (DWORD i = 0; RegEnumKeyExA(hClassKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+        DWORD subKeyNameSize;
+        for (DWORD i = 0; subKeyNameSize = sizeof(subKeyName), RegEnumKeyExA(hClassKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
             if (strlen(subKeyName) == 4) {
                 std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\" + std::string(subKeyName);
                 SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
                 SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
             }
-            subKeyNameSize = sizeof(subKeyName);
         }
         RegCloseKey(hClassKey);
     }
@@ -247,30 +338,50 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     g_hwid.disk_id_spoof = RandomString(8, true) + "-" + RandomString(8, true) + "-A";
     g_hwid.disk_serial_spoof = RandomString(20, false);
     SetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\0", "Identifier", g_hwid.disk_id_spoof);
-    // Scsi Serials
-    HKEY hScsiKey;
-    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\Scsi", 0, KEY_READ, &hScsiKey) == ERROR_SUCCESS) {
+
+    // Scsi Serials iteration
+    HKEY hScsiRootKey;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\Scsi", 0, KEY_READ, &hScsiRootKey) == ERROR_SUCCESS) {
         char portName[255];
-        DWORD portNameSize = sizeof(portName);
-        for (DWORD i = 0; RegEnumKeyExA(hScsiKey, i, portName, &portNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+        DWORD portNameSize;
+        for (DWORD i = 0; portNameSize = sizeof(portName), RegEnumKeyExA(hScsiRootKey, i, portName, &portNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
             std::string portPath = "HARDWARE\\DEVICEMAP\\Scsi\\" + std::string(portName);
-            HKEY hBusKey;
-            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, portPath.c_str(), 0, KEY_READ, &hBusKey) == ERROR_SUCCESS) {
+            HKEY hPortKey;
+            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, portPath.c_str(), 0, KEY_READ, &hPortKey) == ERROR_SUCCESS) {
                 char busName[255];
-                DWORD busNameSize = sizeof(busName);
-                for (DWORD j = 0; RegEnumKeyExA(hBusKey, j, busName, &busNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
-                    std::string busPath = portPath + "\\" + std::string(busName) + "\\Target Id 0\\Logical Unit Id 0";
-                    SetRegistryString(HKEY_LOCAL_MACHINE, busPath.c_str(), "SerialNumber", g_hwid.disk_serial_spoof);
-                    busNameSize = sizeof(busName);
+                DWORD busNameSize;
+                for (DWORD j = 0; busNameSize = sizeof(busName), RegEnumKeyExA(hPortKey, j, busName, &busNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
+                    std::string busPath = portPath + "\\" + std::string(busName);
+                    HKEY hBusKey;
+                    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, busPath.c_str(), 0, KEY_READ, &hBusKey) == ERROR_SUCCESS) {
+                        char targetName[255];
+                        DWORD targetNameSize;
+                        for (DWORD k = 0; targetNameSize = sizeof(targetName), RegEnumKeyExA(hBusKey, k, targetName, &targetNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++k) {
+                             std::string targetPath = busPath + "\\" + std::string(targetName);
+                             HKEY hTargetKey;
+                             if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, targetPath.c_str(), 0, KEY_READ, &hTargetKey) == ERROR_SUCCESS) {
+                                 char lunName[255];
+                                 DWORD lunNameSize;
+                                 for (DWORD l = 0; lunNameSize = sizeof(lunName), RegEnumKeyExA(hTargetKey, l, lunName, &lunNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++l) {
+                                     std::string lunPath = targetPath + "\\" + std::string(lunName);
+                                     SetRegistryString(HKEY_LOCAL_MACHINE, lunPath.c_str(), "SerialNumber", g_hwid.disk_serial_spoof);
+                                 }
+                                 RegCloseKey(hTargetKey);
+                             }
+                        }
+                        RegCloseKey(hBusKey);
+                    }
                 }
-                RegCloseKey(hBusKey);
+                RegCloseKey(hPortKey);
             }
-            portNameSize = sizeof(portName);
         }
-        RegCloseKey(hScsiKey);
+        RegCloseKey(hScsiRootKey);
     }
 
     std::cout << "[+] Spoofed Disk Identifier and Serial" << std::endl;
+
+    // Persist spoofed IDs to HKCU so we can show them in overlay after restart
+    SaveSpoofedIDsToHKCU();
 
     // Mark as patched
     HKEY hKey;
