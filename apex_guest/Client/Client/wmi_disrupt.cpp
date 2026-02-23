@@ -359,6 +359,35 @@ void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::
     RegCloseKey(hSubKey);
 }
 
+bool EnablePrivilege(const char* privilege) {
+    HANDLE hToken;
+    TOKEN_PRIVILEGES tp;
+    LUID luid;
+
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) return false;
+    if (!LookupPrivilegeValueA(NULL, privilege, &luid)) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    tp.PrivilegeCount = 1;
+    tp.Privileges[0].Luid = luid;
+    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL)) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    if (GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    CloseHandle(hToken);
+    return true;
+}
+
 bool IsUserAdmin() {
     bool isAdmin = false;
     HANDLE hToken = NULL;
@@ -482,35 +511,6 @@ void RestoreGPU() {
 }
 
 // WMI Disrupt Logic
-
-bool EnablePrivilege(const char* privilege) {
-    HANDLE hToken;
-    TOKEN_PRIVILEGES tp;
-    LUID luid;
-
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) return false;
-    if (!LookupPrivilegeValueA(NULL, privilege, &luid)) {
-        CloseHandle(hToken);
-        return false;
-    }
-
-    tp.PrivilegeCount = 1;
-    tp.Privileges[0].Luid = luid;
-    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-    if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL)) {
-        CloseHandle(hToken);
-        return false;
-    }
-
-    if (GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
-        CloseHandle(hToken);
-        return false;
-    }
-
-    CloseHandle(hToken);
-    return true;
-}
 
 void DisruptWMI() {
     if (!disrupt_wmi) return;
