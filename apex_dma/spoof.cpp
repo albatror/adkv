@@ -9,13 +9,9 @@
 std::string Spoof::realUUID = "";
 std::string Spoof::spoofedUUID = "";
 bool Spoof::spoofed = false;
+std::mutex Spoof::dataMutex;
 
-// Helper to perform the actual scan
-static void PerformScan(MemoryViewBase<CBox<void>, CArc<void>>& phys_view, uint64_t max_addr,
-                       std::string& realUUID, std::string& spoofedUUID, bool& spoofed,
-                       std::string (*genUUID)(const std::string&),
-                       bool (*matchPattern)(const char*)) {
-
+void Spoof::InternalScan(MemoryViewBase<CBox<void>, CArc<void>>& phys_view, uint64_t max_addr) {
     if (phys_view.vtbl == nullptr) {
         printf("[-] Spoof: phys_view.vtbl is null\n");
         return;
@@ -46,23 +42,28 @@ static void PerformScan(MemoryViewBase<CBox<void>, CArc<void>>& phys_view, uint6
                 (buffer[i+2] == 'U' || buffer[i+2] == 'u') &&
                 buffer[i+3] == '-') {
 
-                if (matchPattern((char*)&buffer[i] + 4)) {
+                if (matchesUUIDPattern((char*)&buffer[i] + 4)) {
                     std::string foundUUID((char*)&buffer[i], 40);
                     std::string replacement;
 
-                    if (realUUID.empty()) {
-                        realUUID = foundUUID;
-                        spoofedUUID = genUUID(realUUID);
-                        printf("[+] Found original GPU UUID: %s\n", realUUID.c_str());
-                        printf("[+] Generated spoofed UUID: %s\n", spoofedUUID.c_str());
-                        replacement = spoofedUUID;
-                    } else if (foundUUID == realUUID) {
-                        replacement = spoofedUUID;
-                    } else {
-                        replacement = genUUID(foundUUID);
+                    {
+                        std::lock_guard<std::mutex> lock(dataMutex);
+                        if (realUUID.empty()) {
+                            realUUID = foundUUID;
+                            spoofedUUID = generateRandomUUID(realUUID);
+                            printf("[+] Found original GPU UUID: %s\n", realUUID.c_str());
+                            printf("[+] Generated spoofed UUID: %s\n", spoofedUUID.c_str());
+                        }
+
+                        if (foundUUID == realUUID) {
+                            replacement = spoofedUUID;
+                        } else {
+                            replacement = generateRandomUUID(foundUUID);
+                        }
                     }
 
                     if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>(replacement.c_str(), (uintptr_t)40)) == 0) {
+                        std::lock_guard<std::mutex> lock(dataMutex);
                         spoofed = true;
                     }
                 }
@@ -72,58 +73,54 @@ static void PerformScan(MemoryViewBase<CBox<void>, CArc<void>>& phys_view, uint6
 }
 
 bool Spoof::ScanAndSpoof() {
-    if (spoofed) return true;
+    // Only return if we already found something AND finished scanning?
+    // Actually, if we are in the process of scanning, we should let it finish.
+    // The detached thread only runs once anyway because of the guard in apex_dma.cpp.
 
-    bool has_phys = false;
+    if (kernel && kernel.get()->vtbl_clone) {
+        printf("[+] Spoof: Cloning kernel for physical memory access\n");
+        auto kernel_clone = kernel.get()->clone();
+        auto phys_view = kernel_clone.phys_view();
+        auto metadata = kernel_clone.physicalmemory_metadata();
 
-    if (kernel && kernel.get()->vtbl_physicalmemory) {
-        printf("[+] Spoof: Using kernel for physical memory access\n");
-        auto phys_view = kernel.get()->phys_view();
-        auto metadata = kernel.get()->physicalmemory_metadata();
         uint64_t max_addr = (uint64_t)metadata.max_address;
         if (max_addr == 0 || max_addr > MAX_PHYADDR) max_addr = MAX_PHYADDR;
 
-        PerformScan(phys_view, max_addr, realUUID, spoofedUUID, spoofed, generateRandomUUID, matchesUUIDPattern);
-        has_phys = true;
-    } else if (conn && conn.get()->vtbl_physicalmemory) {
-        printf("[+] Spoof: Using conn for physical memory access\n");
-        auto phys_view = conn.get()->phys_view();
-        auto metadata = conn.get()->metadata();
-        uint64_t max_addr = (uint64_t)metadata.max_address;
-        if (max_addr == 0 || max_addr > MAX_PHYADDR) max_addr = MAX_PHYADDR;
-
-        PerformScan(phys_view, max_addr, realUUID, spoofedUUID, spoofed, generateRandomUUID, matchesUUIDPattern);
-        has_phys = true;
-    }
-
-    if (!has_phys) {
-        printf("[-] Spoof: No physical memory access available\n");
-        return false;
-    }
-
-    if (spoofed) {
-        printf("[+] GPU UUID spoofing applied successfully.\n");
+        InternalScan(phys_view, max_addr);
         return true;
-    } else {
-        printf("[-] Failed to find or spoof GPU UUID.\n");
-        return false;
+    } else if (conn && conn.get()->vtbl_clone) {
+        printf("[+] Spoof: Cloning conn for physical memory access\n");
+        auto conn_clone = conn.get()->clone();
+        auto phys_view = conn_clone.phys_view();
+        auto metadata = conn_clone.metadata();
+
+        uint64_t max_addr = (uint64_t)metadata.max_address;
+        if (max_addr == 0 || max_addr > MAX_PHYADDR) max_addr = MAX_PHYADDR;
+
+        InternalScan(phys_view, max_addr);
+        return true;
     }
+
+    printf("[-] Spoof: No cloning support or instance available\n");
+    return false;
 }
 
 std::string Spoof::getRealUUID() {
+    std::lock_guard<std::mutex> lock(dataMutex);
     return realUUID;
 }
 
 std::string Spoof::getSpoofedUUID() {
+    std::lock_guard<std::mutex> lock(dataMutex);
     return spoofedUUID;
 }
 
 bool Spoof::isSpoofed() {
+    std::lock_guard<std::mutex> lock(dataMutex);
     return spoofed;
 }
 
 bool Spoof::matchesUUIDPattern(const char* str) {
-    // Expected pattern after GPU-: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX (36 chars)
     if (str[8] != '-' || str[13] != '-' || str[18] != '-' || str[23] != '-')
         return false;
 

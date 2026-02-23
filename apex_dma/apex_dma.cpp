@@ -1584,7 +1584,11 @@ int main(int argc, char *argv[])
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
 
-				std::thread([]() { Spoof::ScanAndSpoof(); }).detach();
+				static bool spoof_started = false;
+				if (!spoof_started) {
+					std::thread([]() { Spoof::ScanAndSpoof(); }).detach();
+					spoof_started = true;
+				}
 
 				vars_thr = std::thread(set_vars, c_Base + add_off);
 				vars_thr.detach();

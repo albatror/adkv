@@ -3,6 +3,7 @@
 
 std::unique_ptr<ConnectorInstance<>> conn = nullptr;
 std::unique_ptr<OsInstance<>> kernel = nullptr;
+std::mutex conn_mutex;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -175,6 +176,7 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
+	std::lock_guard<std::mutex> lock(conn_mutex);
 	if (!conn)
 	{
 		conn = std::make_unique<ConnectorInstance<>>();
