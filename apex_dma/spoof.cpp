@@ -38,7 +38,6 @@ bool is_uuid_char(char c) {
 
 bool spoof_gpu_uuid() {
     if (!conn || !kernel) {
-        // std::cout << "DMA not initialized, cannot spoof GPU UUID." << std::endl;
         return false;
     }
 
@@ -59,9 +58,16 @@ bool spoof_gpu_uuid() {
     uint64_t max_addr = MAX_PHYADDR;
 
     // Try to get max address from connector metadata if available
-    auto metadata = conn->metadata();
-    if (metadata.max_address > 0) {
-        max_addr = metadata.max_address;
+    if (conn->vtbl_physicalmemory) {
+        auto metadata = conn->metadata();
+        if (metadata.max_address > 0) {
+            max_addr = metadata.max_address;
+        }
+    } else if (kernel->vtbl_physicalmemory) {
+        auto metadata = kernel->physicalmemory_metadata();
+        if (metadata.max_address > 0) {
+            max_addr = metadata.max_address;
+        }
     }
 
     const size_t chunk_size = 0x100000; // 1MB
@@ -73,9 +79,9 @@ bool spoof_gpu_uuid() {
 
         // Try reading via conn first, then kernel for compatibility
         bool success = false;
-        if (conn->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) {
+        if (conn->vtbl_physicalmemory && conn->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) {
             success = true;
-        } else if (kernel->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) {
+        } else if (kernel->vtbl_physicalmemory && kernel->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) {
             success = true;
         }
 
@@ -139,8 +145,10 @@ bool spoof_gpu_uuid() {
 
         if (chunk_modified) {
             // Write back to physical memory
-            if (conn->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz)) != 0) {
-                kernel->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz));
+            if (conn->vtbl_physicalmemory && conn->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz)) != 0) {
+                if (kernel->vtbl_physicalmemory) {
+                    kernel->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz));
+                }
             }
         }
     }
