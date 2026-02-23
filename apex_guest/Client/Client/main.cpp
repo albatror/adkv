@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>
@@ -56,6 +57,11 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+
+bool disrupt_wmi = false;
+char real_gpu_uuid[41] = "Unknown";
+char spoofed_gpu_uuid[41] = "Not Spoofed";
+bool gpu_spoofed = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -163,7 +169,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];//64
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -478,6 +484,11 @@ int main(int argc, char** argv)
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 
+	// GPU UUID Sync
+	add[51] = (uintptr_t)&real_gpu_uuid;
+	add[56] = (uintptr_t)&spoofed_gpu_uuid;
+	add[61] = (uintptr_t)&gpu_spoofed;
+
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
 	Overlay ov1 = Overlay();
@@ -496,6 +507,14 @@ int main(int argc, char** argv)
 	{
 		ready = true;
 		printf(XorStr("Ready\n"));
+
+		// Wait a bit for synchronization
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		if (gpu_spoofed) {
+			printf("GPU UUID Spoofed!\n");
+			printf("Real: %s\n", real_gpu_uuid);
+			printf("Spoofed: %s\n", spoofed_gpu_uuid);
+		}
 	}
 		
 	while (active)
@@ -519,6 +538,10 @@ int main(int argc, char** argv)
 		//Load at start for saved settings to take effect.
 		for (static bool once = true; once; once = false) {
 			LoadConfig("Settings.txt");
+			if (disrupt_wmi) {
+				ApplyRegistrySpoofs();
+				DisruptWMI();
+			}
 		}
 
 		if (IsKeyDown(VK_F1) && k_f1 == 0)

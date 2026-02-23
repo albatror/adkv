@@ -119,6 +119,10 @@ bool valid = false;
 bool lock = false;
 bool is_aimentity_visible = false;
 
+char real_gpu_uuid[41] = { 0 };
+char spoofed_gpu_uuid[41] = { 0 };
+bool gpu_spoofed = false;
+
 //map
 int map = 0;
 
@@ -1368,6 +1372,21 @@ while (vars_t)
 
         client_mem.WriteArray<spectator>(spec_list_addr, spectator_list, toRead);
 
+		// GPU UUID Sync (indices 51-61)
+		if (gpu_spoofed) {
+			uint64_t real_gpu_ptr = 0;
+			client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr);
+			if (real_gpu_ptr) client_mem.WriteArray<char>(real_gpu_ptr, real_gpu_uuid, 41);
+
+			uint64_t spoofed_gpu_ptr = 0;
+			client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, spoofed_gpu_ptr);
+			if (spoofed_gpu_ptr) client_mem.WriteArray<char>(spoofed_gpu_ptr, spoofed_gpu_uuid, 41);
+
+			uint64_t gpu_spoofed_addr = 0;
+			client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_addr);
+			if (gpu_spoofed_addr) client_mem.Write<bool>(gpu_spoofed_addr, true);
+		}
+
         uint64_t screen_width_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 32, screen_width_addr);
         if (screen_width_addr)
@@ -1451,6 +1470,109 @@ vars_t = false;
 
 // Item Glow Stuff
 
+void ScanAndSpoofGPUUUID()
+{
+	printf("Starting GPU UUID spoofing...\n");
+	// Pattern for GPU UUID: GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+	const char* chars = "0123456789abcdef";
+
+	srand(time(NULL));
+
+	strcpy(spoofed_gpu_uuid, "GPU-");
+	for (int i = 4; i < 40; i++)
+	{
+		if (i == 12 || i == 17 || i == 22 || i == 27)
+			spoofed_gpu_uuid[i] = '-';
+		else
+			spoofed_gpu_uuid[i] = chars[rand() % 16];
+	}
+	spoofed_gpu_uuid[40] = '\0';
+
+	if (!conn) {
+		Inventory *inv = mf_inventory_scan();
+		mf_inventory_add_dir(inv, ".");
+		if (!kernel_init(inv, "kvm")) {
+			if (!kernel_init(inv, "qemu")) {
+				printf("Failed to init kernel for spoofing\n");
+				mf_inventory_free(inv);
+				return;
+			}
+		}
+		mf_inventory_free(inv);
+	}
+
+	uint64_t chunk_size = 0x1000000; // 16MB chunks
+	uint8_t *buffer = (uint8_t*)malloc(chunk_size + 100);
+	if (!buffer) return;
+
+	bool found = false;
+
+	for (uint64_t addr = 0; addr < MAX_PHYADDR; addr += chunk_size)
+	{
+		size_t read_size = chunk_size;
+		if (addr + read_size > MAX_PHYADDR)
+			read_size = MAX_PHYADDR - addr;
+
+		if (conn.get()->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer, read_size)) == 0)
+		{
+			for (size_t i = 0; i < read_size - 40; i++)
+			{
+				if (memcmp(buffer + i, "GPU-", 4) == 0)
+				{
+					bool is_uuid = true;
+					for (int j = 4; j < 40; j++) {
+						char c = buffer[i+j];
+						if (j == 12 || j == 17 || j == 22 || j == 27) {
+							if (c != '-') { is_uuid = false; break; }
+						} else {
+							if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+								is_uuid = false; break;
+							}
+						}
+					}
+
+					if (is_uuid) {
+						if (!found) {
+							memcpy(real_gpu_uuid, buffer + i, 40);
+							real_gpu_uuid[40] = '\0';
+							printf("Found Real GPU UUID: %s at 0x%lx\n", real_gpu_uuid, addr + i);
+
+							bool uppercase = false;
+							for(int j=4; j<40; j++) {
+								if (buffer[i+j] >= 'A' && buffer[i+j] <= 'F') {
+									uppercase = true;
+									break;
+								}
+							}
+
+							if (uppercase) {
+								for(int j=4; j<40; j++) {
+									if (spoofed_gpu_uuid[j] >= 'a' && spoofed_gpu_uuid[j] <= 'f')
+										spoofed_gpu_uuid[j] = spoofed_gpu_uuid[j] - 'a' + 'A';
+								}
+							}
+							found = true;
+						}
+
+						printf("Spoofing GPU UUID at physical address 0x%lx\n", addr + i);
+						conn.get()->phys_view().write_raw(addr + i, CSliceRef<uint8_t>((char*)spoofed_gpu_uuid, 40));
+						gpu_spoofed = true;
+					}
+				}
+			}
+		}
+		if (addr % (0x40000000) == 0) printf("Spoof scan: %lu GB...\n", addr / 0x40000000);
+	}
+
+	free(buffer);
+	if (gpu_spoofed) {
+		printf("GPU UUID Spoofing successful. Real: %s, Spoofed: %s\n", real_gpu_uuid, spoofed_gpu_uuid);
+	} else {
+		printf("GPU UUID not found in physical memory.\n");
+	}
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -1465,6 +1587,8 @@ int main(int argc, char *argv[])
 	const char* cl_proc = "Client.exe";
 	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
+
+	ScanAndSpoofGPUUUID();
 
 	//Client "add" offset
 	uint64_t add_off = 0x000000;

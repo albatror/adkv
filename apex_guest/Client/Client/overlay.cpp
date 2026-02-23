@@ -1,5 +1,6 @@
 #include "overlay.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <fstream>
 #include <iomanip>
 
@@ -31,6 +32,11 @@ extern float flickbot_smooth;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
+
+extern bool disrupt_wmi;
+extern char real_gpu_uuid[41];
+extern char spoofed_gpu_uuid[41];
+extern bool gpu_spoofed;
 
 extern bool superglide;
 extern bool bhop;
@@ -334,6 +340,28 @@ void Overlay::RenderMenu()
 				glowrknocked = glowcolorknocked[0] * 250;
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
+			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoof")))
+		{
+			ImGui::Checkbox(XorStr("Disrupt WMI & Registry"), &disrupt_wmi);
+			if (ImGui::Button(XorStr("Apply Now"))) {
+				ApplyRegistrySpoofs();
+				DisruptWMI();
+			}
+			ImGui::Separator();
+			ImGui::Text(XorStr("GPU UUID Spoofing (Host-side):"));
+			if (gpu_spoofed) {
+				ImGui::TextColored(ImVec4(0, 1, 0, 1), XorStr("STATUS: ACTIVE"));
+				ImGui::Text(XorStr("Real GPU UUID:"));
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), real_gpu_uuid);
+				ImGui::Text(XorStr("Spoofed GPU UUID:"));
+				ImGui::TextColored(ImVec4(0, 1, 0, 1), spoofed_gpu_uuid);
+			} else {
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), XorStr("STATUS: NOT FOUND/INACTIVE"));
+				ImGui::Text(XorStr("Real GPU UUID: Unknown"));
+				ImGui::Text(XorStr("Spoofed GPU UUID: Not Spoofed"));
 			}
 			ImGui::EndTabItem();
 		}
