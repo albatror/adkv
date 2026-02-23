@@ -187,25 +187,84 @@ std::string ToLower(std::string s) {
     return s;
 }
 
+void ReplaceAll(std::string& str, const std::string& from, const std::string& to) {
+    if (from.empty()) return;
+    size_t start_pos = 0;
+    while (true) {
+        std::string strLower = ToLower(str);
+        std::string fromLower = ToLower(from);
+        start_pos = strLower.find(fromLower, start_pos);
+        if (start_pos == std::string::npos) break;
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+}
+
+void SearchAndReplaceBinary(HKEY hKey, const char* valueName, const std::string& target, const std::string& replacement) {
+    DWORD dataSize = 0;
+    if (RegQueryValueExA(hKey, valueName, NULL, NULL, NULL, &dataSize) != ERROR_SUCCESS) return;
+    std::vector<unsigned char> data(dataSize);
+    if (RegQueryValueExA(hKey, valueName, NULL, NULL, data.data(), &dataSize) != ERROR_SUCCESS) return;
+
+    bool changed = false;
+    // ANSI search
+    if (target.length() == replacement.length()) {
+        for (size_t i = 0; i + target.length() <= data.size(); ++i) {
+            if (memcmp(data.data() + i, target.c_str(), target.length()) == 0) {
+                memcpy(data.data() + i, replacement.c_str(), target.length());
+                changed = true;
+            }
+        }
+    }
+    // UTF-16 search
+    std::wstring targetW(target.begin(), target.end());
+    std::wstring replacementW(replacement.begin(), replacement.end());
+    size_t targetWLen = targetW.length() * sizeof(wchar_t);
+    if (targetWLen == replacementW.length() * sizeof(wchar_t)) {
+        for (size_t i = 0; i + targetWLen <= data.size(); i += 2) {
+            if (memcmp(data.data() + i, targetW.c_str(), targetWLen) == 0) {
+                memcpy(data.data() + i, replacementW.c_str(), targetWLen);
+                changed = true;
+            }
+        }
+    }
+
+    if (changed) {
+        RegSetValueExA(hKey, valueName, 0, REG_BINARY, data.data(), (DWORD)data.size());
+    }
+}
+
 void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::string& target, const std::string& replacement) {
     HKEY hSubKey;
     if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ | KEY_WRITE, &hSubKey) != ERROR_SUCCESS) {
-        // Try opening with READ only if WRITE fails, to at least recurse
         if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ, &hSubKey) != ERROR_SUCCESS) return;
     }
 
     char valueName[256];
     DWORD valueNameSize;
-    char data[512];
+    char data[8192];
     DWORD dataSize;
     DWORD index = 0;
-    std::string targetLower = ToLower(target);
-    std::string replacementLower = ToLower(replacement);
 
     std::string targetNoPrefix = "";
+    if (target.find("GPU-") == 0) targetNoPrefix = target.substr(4);
+
+    std::string targetNoDashes = target;
+    targetNoDashes.erase(std::remove(targetNoDashes.begin(), targetNoDashes.end(), '-'), targetNoDashes.end());
+    if (targetNoDashes.find("GPU") == 0) targetNoDashes = targetNoDashes.substr(3);
+
     std::string replacementNoPrefix = "";
-    if (target.find("GPU-") == 0) targetNoPrefix = ToLower(target.substr(4));
     if (replacement.find("GPU-") == 0) replacementNoPrefix = replacement.substr(4);
+
+    std::string replacementNoDashes = replacement;
+    replacementNoDashes.erase(std::remove(replacementNoDashes.begin(), replacementNoDashes.end(), '-'), replacementNoDashes.end());
+    if (replacementNoDashes.find("GPU") == 0) replacementNoDashes = replacementNoDashes.substr(3);
+
+    std::string targetWithBraces = "{" + target + "}";
+    if (target.find("GPU-") == 0) targetWithBraces = "{" + target.substr(4) + "}";
+
+    std::string replacementWithBraces = "{" + replacement + "}";
+    if (replacement.find("GPU-") == 0) replacementWithBraces = "{" + replacement.substr(4) + "}";
 
     while (true) {
         valueNameSize = sizeof(valueName);
@@ -213,14 +272,28 @@ void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::
         DWORD type;
         LSTATUS status = RegEnumValueA(hSubKey, index, valueName, &valueNameSize, NULL, &type, (BYTE*)data, &dataSize);
         if (status == ERROR_NO_MORE_ITEMS) break;
-        if (status == ERROR_SUCCESS && type == REG_SZ) {
-            std::string val = data;
-            std::string valLower = ToLower(val);
-            if (valLower == targetLower) {
-                RegSetValueExA(hSubKey, valueName, 0, REG_SZ, (const BYTE*)replacement.c_str(), (DWORD)(replacement.length() + 1));
-            }
-            else if (!targetNoPrefix.empty() && valLower == targetNoPrefix) {
-                RegSetValueExA(hSubKey, valueName, 0, REG_SZ, (const BYTE*)replacementNoPrefix.c_str(), (DWORD)(replacementNoPrefix.length() + 1));
+        if (status == ERROR_SUCCESS) {
+            if (type == REG_SZ || type == REG_MULTI_SZ || type == REG_EXPAND_SZ) {
+                std::string val = data;
+                std::string originalVal = val;
+
+                ReplaceAll(val, target, replacement);
+                if (!targetNoPrefix.empty() && !replacementNoPrefix.empty()) {
+                    ReplaceAll(val, targetNoPrefix, replacementNoPrefix);
+                }
+                if (!targetNoDashes.empty() && !replacementNoDashes.empty()) {
+                    ReplaceAll(val, targetNoDashes, replacementNoDashes);
+                }
+                ReplaceAll(val, targetWithBraces, replacementWithBraces);
+
+                if (val != originalVal) {
+                    RegSetValueExA(hSubKey, valueName, 0, type, (const BYTE*)val.c_str(), (DWORD)(val.length() + 1));
+                }
+            } else if (type == REG_BINARY) {
+                SearchAndReplaceBinary(hSubKey, valueName, target, replacement);
+                if (!targetNoPrefix.empty() && !replacementNoPrefix.empty()) {
+                    SearchAndReplaceBinary(hSubKey, valueName, targetNoPrefix, replacementNoPrefix);
+                }
             }
         }
     }
@@ -313,15 +386,11 @@ void IdentifyAndSpoofGPU() {
     strncpy(spoofed_gpu_uuid, spoofed_str.c_str(), sizeof(spoofed_gpu_uuid));
 
     // 5. Apply spoofing everywhere (even if already spoofed, to catch missing instances)
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Video", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\PCI", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", real_str, spoofed_str);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\NVIDIA Corporation", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NVIDIA", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\VIDEO", real_str, spoofed_str);
 
     gpu_spoofed = true;
     std::cout << "Real GPU UUID: " << real_gpu_uuid << std::endl;
@@ -331,15 +400,11 @@ void IdentifyAndSpoofGPU() {
 void RestoreGPU() {
     if (!gpu_spoofed || real_gpu_uuid[0] == '\0' || spoofed_gpu_uuid[0] == '\0' || std::string(real_gpu_uuid) == "GPU-NOT-FOUND") return;
 
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Video", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\PCI", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", spoofed_gpu_uuid, real_gpu_uuid);
-    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SYSTEM", spoofed_gpu_uuid, real_gpu_uuid);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\NVIDIA Corporation", spoofed_gpu_uuid, real_gpu_uuid);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NVIDIA", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\VIDEO", spoofed_gpu_uuid, real_gpu_uuid);
     gpu_spoofed = false;
 }
 
@@ -378,6 +443,18 @@ void DisruptWMI() {
     if (!disrupt_wmi) return;
 
     EnablePrivilege("SeDebugPrivilege");
+
+    // Try to stop nvwmi service (NVIDIA WMI Provider)
+    SC_HANDLE scm = OpenSCManagerA(NULL, NULL, SC_MANAGER_CONNECT);
+    if (scm) {
+        SC_HANDLE service = OpenServiceA(scm, "nvwmi", SERVICE_STOP | SERVICE_QUERY_STATUS);
+        if (service) {
+            SERVICE_STATUS ss;
+            ControlService(service, SERVICE_CONTROL_STOP, &ss);
+            CloseHandle(service);
+        }
+        CloseHandle(scm);
+    }
 
     // 1. Get WMI PID from registry
     DWORD wmi_pid = 0;
