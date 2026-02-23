@@ -7,6 +7,8 @@
 #include <chrono>
 #include <vector>
 #include <cstring>
+#include <algorithm>
+#include <cctype>
 
 std::string real_gpu_uuid;
 std::string fake_gpu_uuid;
@@ -34,6 +36,14 @@ std::string generate_random_uuid() {
 
 bool is_uuid_char(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-';
+}
+
+bool compare_uuid(const std::string& a, const std::string& b) {
+    if (a.length() != b.length()) return false;
+    return std::equal(a.begin(), a.end(), b.begin(),
+                      [](char c1, char c2) {
+                          return std::tolower((unsigned char)c1) == std::tolower((unsigned char)c2);
+                      });
 }
 
 bool spoof_gpu_uuid() {
@@ -108,8 +118,8 @@ bool spoof_gpu_uuid() {
                 if (found_real_uuid.empty()) {
                     found_real_uuid = current_uuid;
 
-                    if (!saved_real_uuid.empty() && found_real_uuid != saved_real_uuid) {
-                        // Already spoofed!
+                    if (!saved_real_uuid.empty() && !compare_uuid(found_real_uuid, saved_real_uuid)) {
+                        // Already spoofed with a different UUID!
                         real_gpu_uuid = saved_real_uuid;
                         fake_gpu_uuid = found_real_uuid;
                         gpu_spoofed = true;
@@ -121,7 +131,7 @@ bool spoof_gpu_uuid() {
                         return true;
                     }
 
-                    // Not spoofed yet, or we didn't have a saved one.
+                    // Not spoofed yet, or we found the real UUID (ignoring case), or we didn't have a saved one.
                     if (saved_real_uuid.empty()) {
                         std::ofstream outfile("real_gpu.txt");
                         outfile << found_real_uuid;
@@ -134,7 +144,7 @@ bool spoof_gpu_uuid() {
                     std::cout << "FAKE GPU-UUID " << fake_gpu_uuid << std::endl;
                 }
 
-                if (current_uuid == saved_real_uuid) {
+                if (compare_uuid(current_uuid, real_gpu_uuid)) {
                     // Replace it in buffer
                     memcpy(&buffer[i], fake_gpu_uuid.c_str(), 40);
                     replaced_count++;
