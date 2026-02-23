@@ -135,7 +135,6 @@ static bool showing = false;
 static bool k_del = 0;
 bool fov = false;
 float cfsize = max_fov;
-bool disrupt_wmi = false;
 
 int spectators = 0; //write
 int allied_spectators = 0; //write
@@ -697,11 +696,6 @@ int main(int argc, char** argv)
 			// Aggressive search and replace for any remaining real UUIDs in registry
 			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet", real_gpu_uuid, fake_gpu_uuid);
 			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_gpu_uuid, fake_gpu_uuid);
-
-			if (disrupt_wmi) {
-				if (DisruptWMI()) printf("WMI Disruption Applied Successfully.\n");
-				else printf("WMI Disruption Failed.\n");
-			}
 
 			VerifyRegistrySpoofs(real_gpu_uuid);
 			gpu_synced = true;

