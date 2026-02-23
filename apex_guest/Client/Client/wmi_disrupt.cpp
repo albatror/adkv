@@ -1,6 +1,7 @@
 #include "wmi_disrupt.h"
 #include "XorString.h"
 #include <iostream>
+#include <windows.h>
 #include <fstream>
 #include <random>
 #include <algorithm>
@@ -11,6 +12,53 @@
 
 char real_gpu_uuid[256] = "";
 char spoofed_gpu_uuid[256] = "";
+
+// NVML Types and Function Pointers
+typedef int nvmlReturn_t;
+typedef void* nvmlDevice_t;
+#define NVML_SUCCESS 0
+
+typedef nvmlReturn_t(*nvmlInit_t)();
+typedef nvmlReturn_t(*nvmlDeviceGetCount_t)(unsigned int*);
+typedef nvmlReturn_t(*nvmlDeviceGetHandleByIndex_t)(unsigned int, nvmlDevice_t*);
+typedef nvmlReturn_t(*nvmlDeviceGetUUID_t)(nvmlDevice_t, char*, unsigned int);
+typedef nvmlReturn_t(*nvmlShutdown_t)();
+
+bool GetGPUUUIDFromNVML(std::string& outUUID) {
+    HMODULE hNvml = LoadLibraryA("nvml.dll");
+    if (!hNvml) {
+        // Try common location if not in path
+        hNvml = LoadLibraryA("C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvml.dll");
+    }
+    if (!hNvml) return false;
+
+    nvmlInit_t nvmlInit = (nvmlInit_t)GetProcAddress(hNvml, "nvmlInit");
+    nvmlDeviceGetCount_t nvmlDeviceGetCount = (nvmlDeviceGetCount_t)GetProcAddress(hNvml, "nvmlDeviceGetCount");
+    nvmlDeviceGetHandleByIndex_t nvmlDeviceGetHandleByIndex = (nvmlDeviceGetHandleByIndex_t)GetProcAddress(hNvml, "nvmlDeviceGetHandleByIndex");
+    nvmlDeviceGetUUID_t nvmlDeviceGetUUID = (nvmlDeviceGetUUID_t)GetProcAddress(hNvml, "nvmlDeviceGetUUID");
+    nvmlShutdown_t nvmlShutdown = (nvmlShutdown_t)GetProcAddress(hNvml, "nvmlShutdown");
+
+    bool success = false;
+    if (nvmlInit && nvmlDeviceGetCount && nvmlDeviceGetHandleByIndex && nvmlDeviceGetUUID && nvmlShutdown) {
+        if (nvmlInit() == NVML_SUCCESS) {
+            unsigned int deviceCount = 0;
+            if (nvmlDeviceGetCount(&deviceCount) == NVML_SUCCESS && deviceCount > 0) {
+                nvmlDevice_t device;
+                if (nvmlDeviceGetHandleByIndex(0, &device) == NVML_SUCCESS) {
+                    char uuid[256];
+                    if (nvmlDeviceGetUUID(device, uuid, sizeof(uuid)) == NVML_SUCCESS) {
+                        outUUID = uuid;
+                        success = true;
+                    }
+                }
+            }
+            nvmlShutdown();
+        }
+    }
+
+    FreeLibrary(hNvml);
+    return success;
+}
 bool disrupt_wmi = false;
 bool gpu_spoofed = false;
 
@@ -188,7 +236,7 @@ void IdentifyAndSpoofGPU() {
 
     if (real_str == "GPU-NOT-FOUND") real_str = "";
 
-    // 2. Get current value from registry
+    // 2. Get current value from registry (might be spoofed)
     std::string current_str = "";
     SearchDeviceMapVideo(current_str);
     if (current_str.empty()) DeepSearchGPUUUID(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", current_str);
@@ -197,10 +245,19 @@ void IdentifyAndSpoofGPU() {
     if (current_str.empty()) DeepSearchGPUUUID(HKEY_LOCAL_MACHINE, "SYSTEM\\ControlSet001\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", current_str);
     if (current_str.empty()) DeepSearchGPUUUID(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GpuUUIDs", current_str);
 
-    // 3. Handle real UUID identification
+    // 3. Try to get REAL UUID from NVML (hardware level, usually not spoofed by registry)
+    std::string nvml_real_uuid = "";
+    bool found_nvml = GetGPUUUIDFromNVML(nvml_real_uuid);
+
+    // 4. Handle real UUID identification
     if (real_str.empty()) {
-        if (!current_str.empty()) {
+        if (found_nvml) {
+            real_str = nvml_real_uuid;
+        } else if (!current_str.empty()) {
             real_str = current_str;
+        }
+
+        if (!real_str.empty()) {
             std::ofstream outFile("original_gpu.txt");
             outFile << real_str;
             outFile.close();
