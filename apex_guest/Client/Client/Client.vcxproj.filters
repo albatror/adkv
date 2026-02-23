@@ -43,6 +43,9 @@
     <ClCompile Include="imgui\imgui_impl_dx11.cpp">
       <Filter>Source\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="wmi_disrupt.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="overlay.h">
@@ -81,6 +84,9 @@
     </ClInclude>
     <ClInclude Include="imgui\imgui_impl_dx11.h">
       <Filter>Headers\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="wmi_disrupt.h">
+      <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
