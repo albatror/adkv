@@ -259,18 +259,18 @@ void DisruptWMI() {
 
     // Method 2: Find svchost hosting Winmgmt
     if (wmi_pid == 0) {
-        SC_HANDLE hSCM = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+        SC_HANDLE hSCM = OpenSCManagerA(NULL, NULL, SC_MANAGER_CONNECT);
         if (hSCM) {
-            SC_HANDLE hService = OpenService(hSCM, "Winmgmt", SERVICE_QUERY_STATUS);
+            SC_HANDLE hService = OpenServiceA(hSCM, "Winmgmt", SERVICE_QUERY_STATUS);
             if (hService) {
                 SERVICE_STATUS_PROCESS ssp;
                 DWORD bytesNeeded;
                 if (QueryServiceStatusEx(hService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp, sizeof(ssp), &bytesNeeded)) {
                     wmi_pid = ssp.dwProcessId;
                 }
-                CloseService(hService);
+                CloseServiceHandle(hService);
             }
-            CloseSCManager(hSCM);
+            CloseServiceHandle(hSCM);
         }
     }
 
