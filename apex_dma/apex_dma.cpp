@@ -1295,11 +1295,22 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+		if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
 			printf("\nReady\n");
+		}
+
+		uint64_t hwid_trigger_addr = 0;
+		client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, hwid_trigger_addr);
+		if (hwid_trigger_addr) {
+			static bool triggered = false;
+			if (!triggered) {
+				client_mem.Write<bool>(hwid_trigger_addr, true);
+				triggered = true;
+				printf("[+] HWID Masking Triggered by Server.\n");
+			}
 		}
 
     while (c_Base != 0 && g_Base != 0)
@@ -1412,16 +1423,6 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr);
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
 
-        uint64_t hwid_trigger_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, hwid_trigger_addr);
-        if (hwid_trigger_addr) {
-            static bool triggered = false;
-            if (!triggered) {
-                client_mem.Write<bool>(hwid_trigger_addr, true);
-                triggered = true;
-                printf("[+] HWID Masking Triggered by Server.\n");
-            }
-        }
 
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);
@@ -1478,7 +1479,7 @@ int main(int argc, char *argv[])
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x2bcf40;
+	uint64_t add_off = 0x2c0b30;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
