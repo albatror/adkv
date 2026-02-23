@@ -40,8 +40,49 @@ bool GetRegistryString(HKEY hKey, const char* subKey, const char* valueName, std
     DWORD dataSize = sizeof(data);
     if (RegGetValueA(hKey, subKey, valueName, RRF_RT_REG_SZ, NULL, data, &dataSize) == ERROR_SUCCESS) {
         outString = data;
-        return true;
+        // Basic check to ensure it looks like a GPU UUID
+        if (outString.find("GPU-") != std::string::npos) {
+            return true;
+        }
     }
+    return false;
+}
+
+bool SearchForGPUUUID(HKEY hRoot, const char* baseKey, std::string& outUUID) {
+    HKEY hBase;
+    if (RegOpenKeyExA(hRoot, baseKey, 0, KEY_READ, &hBase) != ERROR_SUCCESS) return false;
+
+    char subKeyName[256];
+    DWORD subKeyNameSize;
+    DWORD index = 0;
+    while (true) {
+        subKeyNameSize = sizeof(subKeyName);
+        if (RegEnumKeyExA(hBase, index++, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) != ERROR_SUCCESS) break;
+
+        // Try directly under this subkey (e.g., 0000 or {GUID})
+        if (GetRegistryString(hBase, subKeyName, "GPU-UUID", outUUID)) { RegCloseKey(hBase); return true; }
+        if (GetRegistryString(hBase, subKeyName, "ClientUUID", outUUID)) { RegCloseKey(hBase); return true; }
+        if (GetRegistryString(hBase, subKeyName, "PersistenceIdentifier", outUUID)) { RegCloseKey(hBase); return true; }
+
+        // Try nested (e.g., {GUID}\0000 or DriverClass\0000)
+        HKEY hNested;
+        if (RegOpenKeyExA(hBase, subKeyName, 0, KEY_READ, &hNested) == ERROR_SUCCESS) {
+            char nestedName[256];
+            DWORD nestedSize;
+            DWORD nestedIndex = 0;
+            while (true) {
+                nestedSize = sizeof(nestedName);
+                if (RegEnumKeyExA(hNested, nestedIndex++, nestedName, &nestedSize, NULL, NULL, NULL, NULL) != ERROR_SUCCESS) break;
+
+                // Check common value names
+                if (GetRegistryString(hNested, nestedName, "GPU-UUID", outUUID)) { RegCloseKey(hNested); RegCloseKey(hBase); return true; }
+                if (GetRegistryString(hNested, nestedName, "ClientUUID", outUUID)) { RegCloseKey(hNested); RegCloseKey(hBase); return true; }
+                if (GetRegistryString(hNested, nestedName, "PersistenceIdentifier", outUUID)) { RegCloseKey(hNested); RegCloseKey(hBase); return true; }
+            }
+            RegCloseKey(hNested);
+        }
+    }
+    RegCloseKey(hBase);
     return false;
 }
 
@@ -68,9 +109,10 @@ void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::
     while (true) {
         valueNameSize = sizeof(valueName);
         dataSize = sizeof(data);
-        LSTATUS status = RegEnumValueA(hSubKey, index, valueName, &valueNameSize, NULL, NULL, (BYTE*)data, &dataSize);
+        DWORD type;
+        LSTATUS status = RegEnumValueA(hSubKey, index, valueName, &valueNameSize, NULL, &type, (BYTE*)data, &dataSize);
         if (status == ERROR_NO_MORE_ITEMS) break;
-        if (status == ERROR_SUCCESS) {
+        if (status == ERROR_SUCCESS && type == REG_SZ) {
             std::string val = data;
             if (val == target) {
                 RegSetValueExA(hSubKey, valueName, 0, REG_SZ, (const BYTE*)replacement.c_str(), (DWORD)(replacement.length() + 1));
@@ -108,21 +150,8 @@ void IdentifyAndSpoofGPU() {
 
     // 2. Get current value from registry
     std::string current_str = "";
-    const char* videoKey = "SYSTEM\\CurrentControlSet\\Control\\Video";
-    HKEY hVideo;
-    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, videoKey, 0, KEY_READ, &hVideo) == ERROR_SUCCESS) {
-        char guidKey[256];
-        DWORD guidKeySize;
-        DWORD index = 0;
-        bool found = false;
-        while (!found) {
-            guidKeySize = sizeof(guidKey);
-            if (RegEnumKeyExA(hVideo, index++, guidKey, &guidKeySize, NULL, NULL, NULL, NULL) != ERROR_SUCCESS) break;
-            std::string subKey = std::string(guidKey) + "\\0000";
-            if (GetRegistryString(hVideo, subKey.c_str(), "GPU-UUID", current_str)) found = true;
-            if (!found && GetRegistryString(hVideo, subKey.c_str(), "ClientUUID", current_str)) found = true;
-        }
-        RegCloseKey(hVideo);
+    if (!SearchForGPUUUID(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", current_str)) {
+        SearchForGPUUUID(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", current_str);
     }
 
     // 3. Handle real UUID identification
