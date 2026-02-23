@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -1412,6 +1413,24 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr);
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
 
+        uint64_t real_gpu_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr_addr);
+        if (real_gpu_ptr_addr && !real_gpu_uuid.empty()) {
+            client_mem.WriteArray<char>(real_gpu_ptr_addr, real_gpu_uuid.c_str(), real_gpu_uuid.size() + 1);
+        }
+
+        uint64_t fake_gpu_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, fake_gpu_ptr_addr);
+        if (fake_gpu_ptr_addr && !fake_gpu_uuid.empty()) {
+            client_mem.WriteArray<char>(fake_gpu_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
+        }
+
+        uint64_t gpu_spoofed_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr_addr);
+        if (gpu_spoofed_ptr_addr) {
+            client_mem.Write<bool>(gpu_spoofed_ptr_addr, gpu_spoofed);
+        }
+
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
@@ -1465,6 +1484,9 @@ int main(int argc, char *argv[])
 	const char* cl_proc = "Client.exe";
 	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
+
+	apex_mem.open_proc("");
+	spoof_gpu_uuid();
 
 	//Client "add" offset
 	uint64_t add_off = 0x000000;

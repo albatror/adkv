@@ -141,6 +141,10 @@ int allied_spectators = 0; //write
 int screen_width = 2560;
 int screen_height = 1440;
 
+char real_gpu_uuid[64] = { 0 };
+char fake_gpu_uuid[64] = { 0 };
+bool gpu_spoofed = false;
+
 //Player Glow Color and Brightness
 float glowr = 100.0f; //Red Value
 float glowg = 0.0f; //Green Value
@@ -163,7 +167,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];//64
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -477,6 +481,9 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[51] = (uintptr_t)&real_gpu_uuid[0];
+	add[56] = (uintptr_t)&fake_gpu_uuid[0];
+	add[61] = (uintptr_t)&gpu_spoofed;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -497,6 +504,8 @@ int main(int argc, char** argv)
 		ready = true;
 		printf(XorStr("Ready\n"));
 	}
+
+	bool gpu_synced = false;
 		
 	while (active)
 	{
@@ -673,6 +682,12 @@ int main(int argc, char** argv)
 		}
 
 		shooting = IsKeyDown(VK_LBUTTON);
+
+		if (gpu_spoofed && !gpu_synced) {
+			printf("REAL GPU-UUID: %s\n", real_gpu_uuid);
+			printf("FAKE GPU-UUID: %s\n", fake_gpu_uuid);
+			gpu_synced = true;
+		}
 
 	}
 	ready = false;
