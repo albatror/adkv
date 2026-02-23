@@ -103,6 +103,7 @@
     <ClCompile Include="overlay.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="config.cpp" />
+    <ClCompile Include="wmi_disrupt.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imgui\imconfig.h" />
@@ -116,6 +117,7 @@
     <ClInclude Include="main.h" />
     <ClInclude Include="overlay.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="wmi_disrupt.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="XorString.h" />
   </ItemGroup>

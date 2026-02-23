@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "overlay.h"
+#include "wmi_disrupt.h"
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -51,6 +52,7 @@ extern float triggerbot_fov;
 extern bool fov;
 extern float cfsize;
 extern visuals v;
+extern bool disrupt_wmi;
 
 // Helper to trim strings
 std::string trim(const std::string& s) {
@@ -120,6 +122,7 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
+    file << "disrupt_wmi " << std::boolalpha << disrupt_wmi << "\n";
 
     file.close();
 }
@@ -188,6 +191,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
+        else if (key == "disrupt_wmi") ss >> std::boolalpha >> disrupt_wmi;
     }
 
     file.close();

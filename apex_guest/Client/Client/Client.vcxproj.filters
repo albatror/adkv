@@ -25,6 +25,9 @@
     <ClCompile Include="config.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="wmi_disrupt.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
     <ClCompile Include="imgui\imgui_impl_win32.cpp">
       <Filter>Source\imgui</Filter>
     </ClCompile>
@@ -52,6 +55,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="config.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="wmi_disrupt.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />

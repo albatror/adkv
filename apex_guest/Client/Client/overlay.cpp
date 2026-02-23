@@ -1,5 +1,6 @@
 #include "overlay.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <fstream>
 #include <iomanip>
 
@@ -335,6 +336,26 @@ void Overlay::RenderMenu()
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
 			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoof")))
+		{
+			ImGui::Text(XorStr("GPU UUID Spoofing"));
+			ImGui::Separator();
+			ImGui::Text(XorStr("Real GPU UUID:"));
+			ImGui::TextColored(ImVec4(0, 1, 0, 1), real_gpu_uuid);
+			ImGui::Text(XorStr("Spoofed GPU UUID:"));
+			ImGui::TextColored(ImVec4(1, 0, 0, 1), spoofed_gpu_uuid);
+
+			ImGui::Dummy(ImVec2(0, 10));
+			ImGui::Separator();
+			if (ImGui::Checkbox(XorStr("WMI disrupt (Block WMI requests)"), &disrupt_wmi)) {
+				if (disrupt_wmi) {
+					DisruptWMI();
+				}
+			}
+			ImGui::TextColored(ImVec4(1, 1, 0, 1), XorStr("Warning: WMI disrupt can cause system instability."));
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
