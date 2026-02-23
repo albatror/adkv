@@ -1510,6 +1510,11 @@ void ScanAndSpoofGPUUUID()
 		return;
 	}
 
+	if (!conn.get()->vtbl_physicalmemory) {
+		printf("Connector does not support physical memory access\n");
+		return;
+	}
+
 	uint64_t max_addr = conn.get()->metadata().max_address;
 	if (max_addr > MAX_PHYADDR) max_addr = MAX_PHYADDR;
 
@@ -1577,7 +1582,7 @@ void ScanAndSpoofGPUUUID()
 				}
 			}
 		}
-		if (addr % (0x40000000) == 0) printf("Spoof scan: %lu GB...\n", addr / 0x40000000);
+		if (addr % (0x10000000) == 0) printf("Spoof scan: %.2f GB...\n", (float)addr / (1024.0f * 1024.0f * 1024.0f));
 	}
 
 	free(buffer);

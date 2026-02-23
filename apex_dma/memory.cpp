@@ -87,8 +87,8 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	// Must be called with conn_mutex held
 	if (kernel && conn) return true;
 
-	auto new_conn = std::make_unique<ConnectorInstance<>>();
-	if (mf_inventory_create_connector(inv, connector_name, "", new_conn.get()))
+	ConnectorInstance<> new_conn;
+	if (mf_inventory_create_connector(inv, connector_name, "", &new_conn))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -98,16 +98,16 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	auto new_kernel = std::make_unique<OsInstance<>>();
-	if (mf_inventory_create_os(inv, "win32", "", new_conn.get(), new_kernel.get()))
+	OsInstance<> new_kernel;
+	if (mf_inventory_create_os(inv, "win32", "", &new_conn, &new_kernel))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		// unique_ptr will handle cleanup
+		mf_connector_drop(&new_conn);
 		return false;
 	}
 
-	conn = std::move(new_conn);
-	kernel = std::move(new_kernel);
+	conn = std::make_unique<ConnectorInstance<>>(std::move(new_conn));
+	kernel = std::make_unique<OsInstance<>>(std::move(new_kernel));
 	return true;
 }
 
