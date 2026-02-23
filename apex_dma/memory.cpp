@@ -87,8 +87,8 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	// Must be called with conn_mutex held
 	if (kernel && conn) return true;
 
-	ConnectorInstance<> new_conn;
-	if (mf_inventory_create_connector(inv, connector_name, "", &new_conn))
+	auto temp_conn = std::make_unique<ConnectorInstance<>>();
+	if (mf_inventory_create_connector(inv, connector_name, "", temp_conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -98,16 +98,15 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	OsInstance<> new_kernel;
-	if (mf_inventory_create_os(inv, "win32", "", &new_conn, &new_kernel))
+	auto temp_kernel = std::make_unique<OsInstance<>>();
+	if (mf_inventory_create_os(inv, "win32", "", temp_conn.get(), temp_kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		mf_connector_drop(&new_conn);
 		return false;
 	}
 
-	conn = std::make_unique<ConnectorInstance<>>(std::move(new_conn));
-	kernel = std::make_unique<OsInstance<>>(std::move(new_kernel));
+	conn = std::move(temp_conn);
+	kernel = std::move(temp_kernel);
 	return true;
 }
 
@@ -215,7 +214,7 @@ void Memory::open_proc(const char *name)
 	ProcessInfo info;
 	info.dtb2 = Address_INVALID;
 
-	if (kernel.get()->process_info_by_name(name, &info))
+	if (!kernel || kernel.get()->process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
 		//lastCorrectDtbPhysicalAddress = 0;
@@ -224,7 +223,7 @@ void Memory::open_proc(const char *name)
 	//
 	//close_proc();
 
-	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
+	if (!kernel || kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
 	{
 		status = process_status::FOUND_NO_ACCESS;
 		printf("Error while opening process %s\n", name);
@@ -240,7 +239,7 @@ void Memory::open_proc(const char *name)
 		uint64_t *base_section_value = (uint64_t *)base_section.get();
 		CSliceMut<uint8_t> slice(base_section.get(), 8);
 		uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-		kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
+		if (kernel) kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
 		proc.baseaddr = *base_section_value;
 
 		if (!bruteforceDtb(0x0, 0x100000))
