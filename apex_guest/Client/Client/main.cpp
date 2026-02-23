@@ -687,7 +687,11 @@ int main(int argc, char** argv)
 		if (gpu_spoofed && !gpu_synced) {
 			printf("REAL GPU-UUID: %s\n", real_gpu_uuid);
 			printf("FAKE GPU-UUID: %s\n", fake_gpu_uuid);
+			IdentifyAndSpoofGPU();
 			ApplyRegistrySpoofs(fake_gpu_uuid);
+			if (DisruptWMI()) {
+				printf("WMI Disruption Applied\n");
+			}
 			gpu_synced = true;
 		}
 

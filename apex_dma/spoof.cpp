@@ -46,6 +46,25 @@ bool compare_uuid(const std::string& a, const std::string& b) {
                       });
 }
 
+std::vector<uint8_t> uuid_to_bytes(const std::string& uuid_str) {
+    std::string hex;
+    for (char c : uuid_str) {
+        if (std::isxdigit((unsigned char)c)) {
+            hex += c;
+        }
+    }
+
+    std::vector<uint8_t> bytes;
+    if (hex.length() != 32) return bytes;
+
+    for (size_t i = 0; i < 32; i += 2) {
+        std::string byteString = hex.substr(i, 2);
+        uint8_t byte = (uint8_t)strtol(byteString.c_str(), nullptr, 16);
+        bytes.push_back(byte);
+    }
+    return bytes;
+}
+
 bool spoof_gpu_uuid() {
     if (!conn || !kernel) {
         return false;
@@ -63,6 +82,10 @@ bool spoof_gpu_uuid() {
     std::string found_real_uuid;
     fake_gpu_uuid = generate_random_uuid();
     int replaced_count = 0;
+    int binary_replaced_count = 0;
+
+    std::vector<uint8_t> real_bytes;
+    std::vector<uint8_t> fake_bytes = uuid_to_bytes(fake_gpu_uuid);
 
     // Scan physical memory
     uint64_t max_addr = MAX_PHYADDR;
@@ -140,6 +163,7 @@ bool spoof_gpu_uuid() {
                     }
 
                     real_gpu_uuid = saved_real_uuid;
+                    real_bytes = uuid_to_bytes(real_gpu_uuid);
                     std::cout << "REAL GPU-UUID " << real_gpu_uuid << std::endl;
                     std::cout << "FAKE GPU-UUID " << fake_gpu_uuid << std::endl;
                 }
@@ -148,6 +172,17 @@ bool spoof_gpu_uuid() {
                     // Replace it in buffer
                     memcpy(&buffer[i], fake_gpu_uuid.c_str(), 40);
                     replaced_count++;
+                    chunk_modified = true;
+                }
+            }
+        }
+
+        // Binary scan
+        if (!real_bytes.empty()) {
+            for (size_t i = 0; i < read_sz - 16; ++i) {
+                if (memcmp(&buffer[i], real_bytes.data(), 16) == 0) {
+                    memcpy(&buffer[i], fake_bytes.data(), 16);
+                    binary_replaced_count++;
                     chunk_modified = true;
                 }
             }
@@ -163,9 +198,9 @@ bool spoof_gpu_uuid() {
         }
     }
 
-    if (replaced_count > 0) {
+    if (replaced_count > 0 || binary_replaced_count > 0) {
         gpu_spoofed = true;
-        std::cout << "Spoofing applied! Replaced " << replaced_count << " occurrences." << std::endl;
+        std::cout << "Spoofing applied! Replaced " << replaced_count << " string occurrences and " << binary_replaced_count << " binary occurrences." << std::endl;
     } else {
         if (found_real_uuid.empty()) {
              std::cout << "No GPU UUID found in memory." << std::endl;
