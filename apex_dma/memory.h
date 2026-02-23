@@ -17,6 +17,7 @@ typedef WORD *PWORD;
 
 extern std::unique_ptr<ConnectorInstance<>> conn;
 extern std::unique_ptr<OsInstance<>> kernel;
+extern std::mutex conn_mutex;
 
 bool kernel_init(Inventory *inv, const char *connector_name);
 

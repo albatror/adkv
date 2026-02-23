@@ -1489,17 +1489,20 @@ void ScanAndSpoofGPUUUID()
 	}
 	spoofed_gpu_uuid[40] = '\0';
 
-	if (!kernel || !conn) {
-		Inventory *inv = mf_inventory_scan();
-		mf_inventory_add_dir(inv, ".");
-		if (!kernel_init(inv, "kvm")) {
-			if (!kernel_init(inv, "qemu")) {
-				printf("Failed to init kernel for spoofing\n");
-				mf_inventory_free(inv);
-				return;
+	{
+		std::lock_guard<std::mutex> lock(conn_mutex);
+		if (!kernel || !conn) {
+			Inventory *inv = mf_inventory_scan();
+			mf_inventory_add_dir(inv, ".");
+			if (!kernel_init(inv, "kvm")) {
+				if (!kernel_init(inv, "qemu")) {
+					printf("Failed to init kernel for spoofing\n");
+					mf_inventory_free(inv);
+					return;
+				}
 			}
+			mf_inventory_free(inv);
 		}
-		mf_inventory_free(inv);
 	}
 
 	if (!conn) {

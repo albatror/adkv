@@ -3,6 +3,7 @@
 
 std::unique_ptr<ConnectorInstance<>> conn = nullptr;
 std::unique_ptr<OsInstance<>> kernel = nullptr;
+std::mutex conn_mutex;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -83,11 +84,11 @@ void Memory::check_proc()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
+	// Must be called with conn_mutex held
 	if (kernel && conn) return true;
 
-	if (!conn) conn = std::make_unique<ConnectorInstance<>>();
-
-	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
+	auto new_conn = std::make_unique<ConnectorInstance<>>();
+	if (mf_inventory_create_connector(inv, connector_name, "", new_conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -97,16 +98,16 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	if (!kernel) kernel = std::make_unique<OsInstance<>>();
-	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
+	auto new_kernel = std::make_unique<OsInstance<>>();
+	if (mf_inventory_create_os(inv, "win32", "", new_conn.get(), new_kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		mf_connector_drop(conn.get());
-		kernel.reset();
-		conn.reset();
+		// unique_ptr will handle cleanup
 		return false;
 	}
 
+	conn = std::move(new_conn);
+	kernel = std::move(new_kernel);
 	return true;
 }
 
@@ -180,25 +181,28 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
-	if (!conn)
 	{
-		conn = std::make_unique<ConnectorInstance<>>();
-		Inventory *inv = mf_inventory_scan();
-		mf_inventory_add_dir(inv, ".");
-
-		printf("Init with kvm connector...\n");
-		if (!kernel_init(inv, "kvm"))
+		std::lock_guard<std::mutex> lock(conn_mutex);
+		if (!conn || !kernel)
 		{
-		printf("Init with qemu connector...\n");
-		if (!kernel_init(inv, "qemu"))
-			{
-				printf("Quitting\n");
-				mf_inventory_free(inv);
-				exit(1);
-			}
-		}
+			Inventory *inv = mf_inventory_scan();
+			mf_inventory_add_dir(inv, ".");
 
-		printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
+			printf("Init with kvm connector...\n");
+			if (!kernel_init(inv, "kvm"))
+			{
+				printf("Init with qemu connector...\n");
+				if (!kernel_init(inv, "qemu"))
+				{
+					printf("Quitting\n");
+					mf_inventory_free(inv);
+					exit(1);
+				}
+			}
+
+			mf_inventory_free(inv);
+			printf("Kernel initialized\n");
+		}
 	}
 
 
