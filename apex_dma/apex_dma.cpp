@@ -1071,7 +1071,7 @@ static void AimbotLoop()
 static void set_vars(uint64_t add_addr)
 {
 	printf("Reading client vars...\n");
-	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	//Get addresses of client vars
 uint64_t check_addr = 0;
 printf("Reading check address: %lx\n", add_addr);
@@ -1292,50 +1292,50 @@ if (check != 0xABCD)
 
 bool new_client = true;
 vars_t = true;
+bool gpu_synced = false;
 
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+		if (new_client) gpu_synced = false;
+
+		if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
 			printf("\nReady\n");
 		}
 
-		static bool gpu_synced = false;
-		if (new_client) gpu_synced = false;
-
-		while (c_Base != 0)
+    while (c_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-			if (Spoof::isSpoofed() && !gpu_synced) {
-				uint64_t real_gpu_ptr = 0;
-				client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr);
-				if (real_gpu_ptr) {
-					client_mem.WriteArray<char>(real_gpu_ptr, Spoof::getRealUUID().c_str(), Spoof::getRealUUID().size() + 1);
+		if (Spoof::isSpoofed() && !gpu_synced) {
+			uint64_t real_gpu_ptr = 0;
+			client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr);
+			if (real_gpu_ptr) {
+				client_mem.WriteArray<char>(real_gpu_ptr, Spoof::getRealUUID().c_str(), Spoof::getRealUUID().size() + 1);
 
-					uint64_t spoof_gpu_ptr = 0;
-					client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, spoof_gpu_ptr);
-					if (spoof_gpu_ptr) {
-						client_mem.WriteArray<char>(spoof_gpu_ptr, Spoof::getSpoofedUUID().c_str(), Spoof::getSpoofedUUID().size() + 1);
+				uint64_t spoof_gpu_ptr = 0;
+				client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, spoof_gpu_ptr);
+				if (spoof_gpu_ptr) {
+					client_mem.WriteArray<char>(spoof_gpu_ptr, Spoof::getSpoofedUUID().c_str(), Spoof::getSpoofedUUID().size() + 1);
 
-						uint64_t gpu_spoofed_ptr = 0;
-						client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr);
-						if (gpu_spoofed_ptr) {
-							client_mem.Write<bool>(gpu_spoofed_ptr, true);
-							gpu_synced = true;
-						}
+					uint64_t gpu_spoofed_ptr = 0;
+					client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr);
+					if (gpu_spoofed_ptr) {
+						client_mem.Write<bool>(gpu_spoofed_ptr, true);
+						gpu_synced = true;
 					}
 				}
 			}
+		}
 
-			if (g_Base == 0) continue;
-
-        client_mem.Write<uint64_t>(g_Base_addr, g_Base);
-        client_mem.Write<int>(spectators_addr, spectators);
-        client_mem.Write<int>(allied_spectators_addr, allied_spectators);
+		if (g_Base != 0) {
+			client_mem.Write<uint64_t>(g_Base_addr, g_Base);
+			client_mem.Write<int>(spectators_addr, spectators);
+			client_mem.Write<int>(allied_spectators_addr, allied_spectators);
+		}
 
         client_mem.Read<int>(aim_addr, aim);
         client_mem.Read<bool>(esp_addr, esp);
@@ -1468,7 +1468,7 @@ while (vars_t)
             {
                 client_mem.Read<bool>(next_addr, next_val);
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            } while (next_val && g_Base != 0 && c_Base != 0);
+            } while (next_val && c_Base != 0);
 
             next = false;
         }

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <ctime>
+#include <cctype>
 
 std::string Spoof::realUUID = "";
 std::string Spoof::spoofedUUID = "";
@@ -11,34 +12,53 @@ bool Spoof::spoofed = false;
 
 bool Spoof::ScanAndSpoof() {
     if (spoofed) return true;
-    if (!conn) {
-        printf("[-] Spoof: conn is null\n");
+
+    // Scan physical memory
+    // We try to get physical memory access through 'kernel' or 'conn'
+
+    MemoryViewBase<CBox<void>, CArc<void>> phys_view;
+    PhysicalMemoryMetadata metadata;
+    bool has_phys = false;
+
+    if (kernel && kernel.get()->vtbl_physicalmemory) {
+        printf("[+] Spoof: Using kernel for physical memory access\n");
+        phys_view = kernel.get()->phys_view();
+        metadata = kernel.get()->physicalmemory_metadata();
+        has_phys = true;
+    } else if (conn && conn.get()->vtbl_physicalmemory) {
+        printf("[+] Spoof: Using conn for physical memory access\n");
+        phys_view = conn.get()->phys_view();
+        metadata = conn.get()->metadata();
+        has_phys = true;
+    }
+
+    if (!has_phys) {
+        printf("[-] Spoof: No physical memory access available (both conn and kernel vtbls are null)\n");
         return false;
     }
 
-    if (conn.get()->vtbl_physicalmemory == nullptr) {
-        printf("[-] Spoof: vtbl_physicalmemory is null\n");
-        return false;
-    }
-
-    auto phys_view = conn.get()->phys_view();
-    auto metadata = conn.get()->metadata();
     uint64_t max_addr = (uint64_t)metadata.max_address;
-    if (max_addr == 0) max_addr = MAX_PHYADDR;
+    if (max_addr == 0 || max_addr > MAX_PHYADDR) max_addr = MAX_PHYADDR;
 
     const size_t chunkSize = 0x100000; // 1MB
     std::vector<uint8_t> buffer(chunkSize + 100);
 
     printf("[+] Scanning physical memory for GPU UUID (Max: 0x%lx)...\n", max_addr);
 
+    uint64_t last_log = 0;
     for (uint64_t addr = 0; addr < max_addr; addr += chunkSize) {
+        if (addr >= last_log + 0x40000000) { // Every 1GB
+            printf("[+] Scanning... %.1f GB / %.1f GB\n", (double)addr / 0x40000000, (double)max_addr / 0x40000000);
+            last_log = addr;
+        }
+
         size_t toRead = (addr + chunkSize > max_addr) ? (max_addr - addr) : chunkSize;
         if (toRead < 40) break;
 
         if (phys_view.read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), (uintptr_t)toRead)) != 0)
             continue;
 
-        for (size_t i = 0; i < toRead - 40; ++i) {
+        for (size_t i = 0; i <= toRead - 40; ++i) {
             // Match GPU- or gpu-
             if ((buffer[i] == 'G' || buffer[i] == 'g') &&
                 (buffer[i+1] == 'P' || buffer[i+1] == 'p') &&
