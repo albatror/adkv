@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -1302,9 +1303,36 @@ while (vars_t)
 			printf("\nReady\n");
 		}
 
-    while (c_Base != 0 && g_Base != 0)
+		static bool gpu_synced = false;
+		if (new_client) gpu_synced = false;
+
+		while (c_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+			if (Spoof::isSpoofed() && !gpu_synced) {
+				uint64_t real_gpu_ptr = 0;
+				client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr);
+				if (real_gpu_ptr) {
+					client_mem.WriteArray<char>(real_gpu_ptr, Spoof::getRealUUID().c_str(), Spoof::getRealUUID().size() + 1);
+
+					uint64_t spoof_gpu_ptr = 0;
+					client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, spoof_gpu_ptr);
+					if (spoof_gpu_ptr) {
+						client_mem.WriteArray<char>(spoof_gpu_ptr, Spoof::getSpoofedUUID().c_str(), Spoof::getSpoofedUUID().size() + 1);
+
+						uint64_t gpu_spoofed_ptr = 0;
+						client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr);
+						if (gpu_spoofed_ptr) {
+							client_mem.Write<bool>(gpu_spoofed_ptr, true);
+							gpu_synced = true;
+						}
+					}
+				}
+			}
+
+			if (g_Base == 0) continue;
+
         client_mem.Write<uint64_t>(g_Base_addr, g_Base);
         client_mem.Write<int>(spectators_addr, spectators);
         client_mem.Write<int>(allied_spectators_addr, allied_spectators);
@@ -1555,6 +1583,8 @@ int main(int argc, char *argv[])
 				c_Base = client_mem.get_proc_baseaddr();
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
+
+				Spoof::ScanAndSpoof();
 
 				vars_thr = std::thread(set_vars, c_Base + add_off);
 				vars_thr.detach();

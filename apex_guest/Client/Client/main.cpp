@@ -163,7 +163,11 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+char real_gpu_uuid[256] = { 0 };
+char spoofed_gpu_uuid[256] = { 0 };
+bool gpu_spoofed = false;
+
+uint64_t add[64];
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -477,6 +481,9 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[51] = (uintptr_t)real_gpu_uuid;
+	add[56] = (uintptr_t)spoofed_gpu_uuid;
+	add[61] = (uintptr_t)&gpu_spoofed;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -519,6 +526,13 @@ int main(int argc, char** argv)
 		//Load at start for saved settings to take effect.
 		for (static bool once = true; once; once = false) {
 			LoadConfig("Settings.txt");
+		}
+
+		static bool gpu_printed = false;
+		if (gpu_spoofed && !gpu_printed) {
+			printf("Real GPU UUID: %s\n", real_gpu_uuid);
+			printf("Spoofed GPU UUID: %s\n", spoofed_gpu_uuid);
+			gpu_printed = true;
 		}
 
 		if (IsKeyDown(VK_F1) && k_f1 == 0)

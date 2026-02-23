@@ -73,6 +73,10 @@ extern float max_cfsize;
 extern float min_smooth;
 extern float max_smooth;
 
+extern char real_gpu_uuid[256];
+extern char spoofed_gpu_uuid[256];
+extern bool gpu_spoofed;
+
 int width;
 int height;
 bool k_leftclick = false;
@@ -334,6 +338,25 @@ void Overlay::RenderMenu()
 				glowrknocked = glowcolorknocked[0] * 250;
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
+			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoof")))
+		{
+			ImGui::Text(XorStr("GPU UUID Spoofing"));
+			ImGui::Separator();
+			if (gpu_spoofed)
+			{
+				ImGui::TextColored(ImVec4(0, 1, 0, 1), XorStr("Status: Spoofed"));
+				ImGui::Text(XorStr("Real GPU UUID:"));
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", real_gpu_uuid);
+				ImGui::Text(XorStr("Spoofed GPU UUID:"));
+				ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", spoofed_gpu_uuid);
+			}
+			else
+			{
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), XorStr("Status: Not Spoofed"));
+				ImGui::Text(XorStr("Waiting for server to apply spoof..."));
 			}
 			ImGui::EndTabItem();
 		}
