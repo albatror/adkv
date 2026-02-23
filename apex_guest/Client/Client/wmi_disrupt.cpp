@@ -203,30 +203,73 @@ void ReplaceAll(std::string& str, const std::string& from, const std::string& to
 void SearchAndReplaceBinary(HKEY hKey, const char* valueName, const std::string& target, const std::string& replacement) {
     DWORD dataSize = 0;
     if (RegQueryValueExA(hKey, valueName, NULL, NULL, NULL, &dataSize) != ERROR_SUCCESS) return;
+    if (dataSize == 0) return;
     std::vector<unsigned char> data(dataSize);
     if (RegQueryValueExA(hKey, valueName, NULL, NULL, data.data(), &dataSize) != ERROR_SUCCESS) return;
 
     bool changed = false;
-    // ANSI search
+    // 1. ANSI search
     if (target.length() == replacement.length()) {
         for (size_t i = 0; i + target.length() <= data.size(); ++i) {
-            if (memcmp(data.data() + i, target.c_str(), target.length()) == 0) {
+            if (_strnicmp((const char*)data.data() + i, target.c_str(), target.length()) == 0) {
                 memcpy(data.data() + i, replacement.c_str(), target.length());
                 changed = true;
             }
         }
     }
-    // UTF-16 search
+    // 2. UTF-16 search
     std::wstring targetW(target.begin(), target.end());
     std::wstring replacementW(replacement.begin(), replacement.end());
     size_t targetWLen = targetW.length() * sizeof(wchar_t);
     if (targetWLen == replacementW.length() * sizeof(wchar_t)) {
         for (size_t i = 0; i + targetWLen <= data.size(); i += 2) {
-            if (memcmp(data.data() + i, targetW.c_str(), targetWLen) == 0) {
+            if (_wcsnicmp((const wchar_t*)(data.data() + i), targetW.c_str(), targetW.length()) == 0) {
                 memcpy(data.data() + i, replacementW.c_str(), targetWLen);
                 changed = true;
             }
         }
+    }
+    // 3. Raw GUID search (binary)
+    GUID targetGuid, replacementGuid;
+    std::string guidStr = target;
+    if (guidStr.find("GPU-") == 0) guidStr = guidStr.substr(4);
+    std::string repGuidStr = replacement;
+    if (repGuidStr.find("GPU-") == 0) repGuidStr = repGuidStr.substr(4);
+
+    // Simple hex to GUID (assuming standard format with dashes)
+    auto HexToBytes = [](const std::string& hex, unsigned char* bytes) {
+        for (unsigned int i = 0, j = 0; i < hex.length(); i += 2) {
+            if (hex[i] == '-') { i++; }
+            char part[3] = { hex[i], hex[i + 1], '\0' };
+            bytes[j++] = (unsigned char)strtol(part, NULL, 16);
+        }
+    };
+
+    unsigned char tBytes[16], rBytes[16];
+    if (guidStr.length() >= 32 && repGuidStr.length() >= 32) {
+        try {
+            // We need a more robust hex to bytes for various formats
+            auto CleanHex = [](std::string s) {
+                s.erase(std::remove(s.begin(), s.end(), '-'), s.end());
+                s.erase(std::remove(s.begin(), s.end(), '{'), s.end());
+                s.erase(std::remove(s.begin(), s.end(), '}'), s.end());
+                return s;
+            };
+            std::string cTarget = CleanHex(guidStr);
+            std::string cRep = CleanHex(repGuidStr);
+            if (cTarget.length() == 32 && cRep.length() == 32) {
+                for (int i = 0; i < 16; i++) {
+                    tBytes[i] = (unsigned char)std::stoi(cTarget.substr(i * 2, 2), nullptr, 16);
+                    rBytes[i] = (unsigned char)std::stoi(cRep.substr(i * 2, 2), nullptr, 16);
+                }
+                for (size_t i = 0; i + 16 <= data.size(); ++i) {
+                    if (memcmp(data.data() + i, tBytes, 16) == 0) {
+                        memcpy(data.data() + i, rBytes, 16);
+                        changed = true;
+                    }
+                }
+            }
+        } catch (...) {}
     }
 
     if (changed) {
@@ -236,13 +279,16 @@ void SearchAndReplaceBinary(HKEY hKey, const char* valueName, const std::string&
 
 void RecursiveGPUUUIDSearchAndReplace(HKEY hKey, const char* subKey, const std::string& target, const std::string& replacement) {
     HKEY hSubKey;
-    if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ | KEY_WRITE, &hSubKey) != ERROR_SUCCESS) {
-        if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ, &hSubKey) != ERROR_SUCCESS) return;
+    // Try to open with maximum access
+    if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ | KEY_WRITE | WRITE_DAC | WRITE_OWNER, &hSubKey) != ERROR_SUCCESS) {
+        if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ | KEY_WRITE, &hSubKey) != ERROR_SUCCESS) {
+            if (RegOpenKeyExA(hKey, subKey, 0, KEY_READ, &hSubKey) != ERROR_SUCCESS) return;
+        }
     }
 
-    char valueName[256];
+    char valueName[1024];
     DWORD valueNameSize;
-    char data[8192];
+    char data[16384];
     DWORD dataSize;
     DWORD index = 0;
 
@@ -330,6 +376,10 @@ bool IsUserAdmin() {
 void IdentifyAndSpoofGPU() {
     if (gpu_spoofed) return;
 
+    EnablePrivilege("SeDebugPrivilege");
+    EnablePrivilege("SeTakeOwnershipPrivilege");
+    EnablePrivilege("SeRestorePrivilege");
+
     if (!IsUserAdmin()) {
         std::cout << "WARNING: Client is not running as Administrator. Registry spoofing will likely fail." << std::endl;
     }
@@ -391,6 +441,28 @@ void IdentifyAndSpoofGPU() {
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\NVIDIA Corporation", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NVIDIA", real_str, spoofed_str);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\VIDEO", real_str, spoofed_str);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System", real_str, spoofed_str);
+
+    // 6. Restart NVIDIA services if possible
+    auto RestartService = [](const char* serviceName) {
+        SC_HANDLE scm = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+        if (scm) {
+            SC_HANDLE service = OpenServiceA(scm, serviceName, SERVICE_ALL_ACCESS);
+            if (service) {
+                SERVICE_STATUS ss;
+                if (ControlService(service, SERVICE_CONTROL_STOP, &ss)) {
+                    Sleep(2000);
+                    StartServiceA(service, 0, NULL);
+                }
+                CloseHandle(service);
+            }
+            CloseHandle(scm);
+        }
+    };
+
+    RestartService("NvContainerLocalSystem");
+    RestartService("nvwmi");
+    RestartService("nvsvc");
 
     gpu_spoofed = true;
     std::cout << "Real GPU UUID: " << real_gpu_uuid << std::endl;
@@ -405,6 +477,7 @@ void RestoreGPU() {
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\NVIDIA Corporation", spoofed_gpu_uuid, real_gpu_uuid);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NVIDIA", spoofed_gpu_uuid, real_gpu_uuid);
     RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\VIDEO", spoofed_gpu_uuid, real_gpu_uuid);
+    RecursiveGPUUUIDSearchAndReplace(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System", spoofed_gpu_uuid, real_gpu_uuid);
     gpu_spoofed = false;
 }
 
