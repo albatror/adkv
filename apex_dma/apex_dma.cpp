@@ -1489,23 +1489,28 @@ void ScanAndSpoofGPUUUID()
 	}
 	spoofed_gpu_uuid[40] = '\0';
 
-	if (!conn) {
-		conn = std::make_unique<ConnectorInstance<>>();
+	if (!kernel || !conn) {
 		Inventory *inv = mf_inventory_scan();
 		mf_inventory_add_dir(inv, ".");
 		if (!kernel_init(inv, "kvm")) {
 			if (!kernel_init(inv, "qemu")) {
 				printf("Failed to init kernel for spoofing\n");
 				mf_inventory_free(inv);
-				conn.reset();
 				return;
 			}
 		}
 		mf_inventory_free(inv);
 	}
 
+	if (!conn) {
+		printf("Connector still null after kernel_init\n");
+		return;
+	}
+
 	uint64_t max_addr = conn.get()->metadata().max_address;
 	if (max_addr > MAX_PHYADDR) max_addr = MAX_PHYADDR;
+
+	printf("Physical memory scan range: 0x0 - 0x%lx\n", max_addr);
 
 	uint64_t chunk_size = 0x1000000; // 16MB chunks
 	uint8_t *buffer = (uint8_t*)malloc(chunk_size + 100);
@@ -1519,9 +1524,11 @@ void ScanAndSpoofGPUUUID()
 		if (addr + read_size > max_addr)
 			read_size = max_addr - addr;
 
+		if (read_size < 40) break;
+
 		if (conn.get()->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer, read_size)) == 0)
 		{
-			for (size_t i = 0; i < read_size - 40; i++)
+			for (size_t i = 0; i <= read_size - 40; i++)
 			{
 				if (memcmp(buffer + i, "GPU-", 4) == 0)
 				{

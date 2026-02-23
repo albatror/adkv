@@ -83,6 +83,10 @@ void Memory::check_proc()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
+	if (kernel && conn) return true;
+
+	if (!conn) conn = std::make_unique<ConnectorInstance<>>();
+
 	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
@@ -93,12 +97,13 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	kernel = std::make_unique<OsInstance<>>();
+	if (!kernel) kernel = std::make_unique<OsInstance<>>();
 	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
 		mf_connector_drop(conn.get());
 		kernel.reset();
+		conn.reset();
 		return false;
 	}
 
