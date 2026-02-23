@@ -1412,6 +1412,17 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr);
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
 
+        uint64_t hwid_trigger_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, hwid_trigger_addr);
+        if (hwid_trigger_addr) {
+            static bool triggered = false;
+            if (!triggered) {
+                client_mem.Write<bool>(hwid_trigger_addr, true);
+                triggered = true;
+                printf("[+] HWID Masking Triggered by Server.\n");
+            }
+        }
+
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
@@ -1463,11 +1474,11 @@ int main(int argc, char *argv[])
 	}
 
 	const char* cl_proc = "Client.exe";
-	const char* ap_proc = "r5apex_dx12.ex";
+	const char* ap_proc = "r5apex_dx12.exe";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x2bcf40;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;

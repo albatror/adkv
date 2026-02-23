@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>
@@ -161,9 +162,11 @@ float glowcolorknocked[3] = { 000.0f, 000.0f, 000.0f };
 bool valid = false; //write
 bool next = false; //read write
 
+bool hwid_trigger = false; //read
+
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];//64
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -477,6 +480,7 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[50] = (uintptr_t)&hwid_trigger;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -496,6 +500,7 @@ int main(int argc, char** argv)
 	{
 		ready = true;
 		printf(XorStr("Ready\n"));
+		GetRealRegistryIDs();
 	}
 		
 	while (active)
@@ -673,6 +678,15 @@ int main(int argc, char** argv)
 		}
 
 		shooting = IsKeyDown(VK_LBUTTON);
+
+		if (hwid_trigger) {
+			if (!IsAlreadyPatched()) {
+				ApplyRegistrySpoofs(nullptr, nullptr);
+				DisruptWMI();
+				printf(XorStr("[+] HWID Masking Triggered by Server.\n"));
+			}
+			hwid_trigger = false;
+		}
 
 	}
 	ready = false;

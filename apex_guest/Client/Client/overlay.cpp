@@ -1,5 +1,6 @@
 #include "overlay.h"
 #include "config.h"
+#include "wmi_disrupt.h"
 #include <fstream>
 #include <iomanip>
 
@@ -335,6 +336,33 @@ void Overlay::RenderMenu()
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
 			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoofer")))
+		{
+			ImGui::TextColored(ImVec4(1, 1, 0, 1), XorStr("REAL Hardware Identifiers (GUEST):"));
+			ImGui::Text(XorStr("[MAC] Real MAC: %s"), g_hwid.mac_real.c_str());
+			ImGui::Text(XorStr("[REG] MachineGuid: %s"), g_hwid.machine_guid_real.c_str());
+			ImGui::Text(XorStr("[REG] HwProfileGuid: %s"), g_hwid.hw_profile_guid_real.c_str());
+			ImGui::Text(XorStr("[REG] MachineId: %s"), g_hwid.machine_id_real.c_str());
+			ImGui::Text(XorStr("[REG] ComputerHardwareId: %s"), g_hwid.computer_hardware_id_real.c_str());
+
+			ImGui::Separator();
+
+			ImGui::TextColored(ImVec4(0, 1, 0, 1), XorStr("SPOOFED Hardware Identifiers (GUEST):"));
+			ImGui::Text(XorStr("[MAC] Spoof MAC: %s"), g_hwid.mac_spoof.empty() ? "N/A" : g_hwid.mac_spoof.c_str());
+			ImGui::Text(XorStr("[REG] MachineGuid: %s"), g_hwid.machine_guid_spoof.empty() ? "N/A" : g_hwid.machine_guid_spoof.c_str());
+			ImGui::Text(XorStr("[REG] HwProfileGuid: %s"), g_hwid.hw_profile_guid_spoof.empty() ? "N/A" : g_hwid.hw_profile_guid_spoof.c_str());
+			ImGui::Text(XorStr("[REG] MachineId: %s"), g_hwid.machine_id_spoof.empty() ? "N/A" : g_hwid.machine_id_spoof.c_str());
+			ImGui::Text(XorStr("[REG] ComputerHardwareId: %s"), g_hwid.computer_hardware_id_spoof.empty() ? "N/A" : g_hwid.computer_hardware_id_spoof.c_str());
+
+			if (IsAlreadyPatched()) {
+				ImGui::TextColored(ImVec4(0, 1, 1, 1), XorStr("Status: System is patched."));
+			}
+			else {
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), XorStr("Status: Waiting for Server Trigger..."));
+			}
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
