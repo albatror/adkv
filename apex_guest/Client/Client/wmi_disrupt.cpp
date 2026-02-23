@@ -165,15 +165,20 @@ void VerifyRegistrySpoofs(const std::string& real_uuid) {
     }
 }
 
-bool IdentifyAndSpoofGPU() {
+bool IdentifyAndSpoofGPU(const char* host_real_uuid) {
     std::ifstream infile("original_gpu.txt");
     if (infile.is_open()) return true;
 
-    const char* class_path = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000";
-    std::string real_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, class_path, "GPU-UUID");
+    std::string real_uuid;
+    if (host_real_uuid && strlen(host_real_uuid) > 0) {
+        real_uuid = host_real_uuid;
+    } else {
+        const char* class_path = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000";
+        real_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, class_path, "GPU-UUID");
 
-    if (real_uuid.empty()) {
-        real_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID");
+        if (real_uuid.empty()) {
+            real_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID");
+        }
     }
 
     if (!real_uuid.empty()) {

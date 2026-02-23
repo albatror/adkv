@@ -135,7 +135,7 @@ static bool showing = false;
 static bool k_del = 0;
 bool fov = false;
 float cfsize = max_fov;
-bool disrupt_wmi = true;
+bool disrupt_wmi = false;
 
 int spectators = 0; //write
 int allied_spectators = 0; //write
@@ -691,7 +691,7 @@ int main(int argc, char** argv)
 			printf("FAKE GPU-UUID: %s\n", fake_gpu_uuid);
 			printf("---------------------------------\n");
 
-			IdentifyAndSpoofGPU();
+			IdentifyAndSpoofGPU(real_gpu_uuid);
 			ApplyRegistrySpoofs(fake_gpu_uuid);
 
 			// Aggressive search and replace for any remaining real UUIDs in registry
