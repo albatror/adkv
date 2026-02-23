@@ -11,14 +11,22 @@ bool Spoof::spoofed = false;
 
 bool Spoof::ScanAndSpoof() {
     if (spoofed) return true;
-    if (!conn) return false;
+    if (!conn) {
+        printf("[-] Spoof: conn is null\n");
+        return false;
+    }
+
+    if (conn.get()->vtbl_physicalmemory == nullptr) {
+        printf("[-] Spoof: vtbl_physicalmemory is null\n");
+        return false;
+    }
 
     auto phys_view = conn.get()->phys_view();
     auto metadata = conn.get()->metadata();
     uint64_t max_addr = (uint64_t)metadata.max_address;
     if (max_addr == 0) max_addr = MAX_PHYADDR;
 
-    const size_t chunkSize = 0x1000000; // 16MB
+    const size_t chunkSize = 0x100000; // 1MB
     std::vector<uint8_t> buffer(chunkSize + 100);
 
     printf("[+] Scanning physical memory for GPU UUID (Max: 0x%lx)...\n", max_addr);
@@ -27,7 +35,7 @@ bool Spoof::ScanAndSpoof() {
         size_t toRead = (addr + chunkSize > max_addr) ? (max_addr - addr) : chunkSize;
         if (toRead < 40) break;
 
-        if (phys_view.read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), toRead)) != 0)
+        if (phys_view.read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), (uintptr_t)toRead)) != 0)
             continue;
 
         for (size_t i = 0; i < toRead - 40; ++i) {
@@ -53,7 +61,7 @@ bool Spoof::ScanAndSpoof() {
                         replacement = generateRandomUUID(foundUUID);
                     }
 
-                    if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)replacement.c_str(), 40)) == 0) {
+                    if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>(replacement.c_str(), (uintptr_t)40)) == 0) {
                         spoofed = true;
                     }
                 }
@@ -91,7 +99,7 @@ bool Spoof::matchesUUIDPattern(const char* str) {
 
     for (int i = 0; i < 36; ++i) {
         if (i == 8 || i == 13 || i == 18 || i == 23) continue;
-        if (!isxdigit(str[i])) return false;
+        if (!isxdigit((unsigned char)str[i])) return false;
     }
     return true;
 }
@@ -105,8 +113,8 @@ std::string Spoof::generateRandomUUID(const std::string& original) {
     int upperCount = 0;
     int lowerCount = 0;
     for (int i = 4; i < 40; ++i) {
-        if (isupper(original[i])) upperCount++;
-        else if (islower(original[i])) lowerCount++;
+        if (isupper((unsigned char)original[i])) upperCount++;
+        else if (islower((unsigned char)original[i])) lowerCount++;
     }
     if (upperCount > lowerCount) uppercase = true;
 
