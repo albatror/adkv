@@ -11,10 +11,6 @@
 #pragma comment(lib, "advapi32.lib")
 
 // NT internal definitions for handle enumeration
-typedef enum _SYSTEM_INFORMATION_CLASS_EX {
-    SystemHandleInformation = 16
-} SYSTEM_INFORMATION_CLASS_EX;
-
 typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO {
     USHORT UniqueProcessId;
     USHORT CreatorBackTraceIndex;
@@ -30,7 +26,7 @@ typedef struct _SYSTEM_HANDLE_INFORMATION {
     SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
 } SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
 
-extern "C" NTSTATUS NTAPI NtQuerySystemInformation(
+typedef NTSTATUS (NTAPI *tNtQuerySystemInformation)(
     ULONG SystemInformationClass,
     PVOID SystemInformation,
     ULONG SystemInformationLength,
@@ -78,7 +74,6 @@ void ApplyRegistrySpoofs(const std::string& fake_uuid) {
         for (DWORD i = 0; RegEnumKeyExA(hKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
             std::string base_path = std::string(video_path) + "\\" + subKeyName;
 
-            // Iterate through subkeys like 0000, 0001
             HKEY hSubKey;
             if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, base_path.c_str(), 0, KEY_READ, &hSubKey) == ERROR_SUCCESS) {
                 char devKeyName[256];
@@ -111,7 +106,6 @@ void ApplyRegistrySpoofs(const std::string& fake_uuid) {
         RegCloseKey(hKey);
     }
 
-    // Also check GridLicensing
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID", fake_uuid);
 }
 
@@ -119,12 +113,10 @@ bool IdentifyAndSpoofGPU() {
     std::ifstream infile("original_gpu.txt");
     if (infile.is_open()) return true;
 
-    // Search for any existing GPU-UUID to save as original
     const char* class_path = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000";
     std::string real_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, class_path, "GPU-UUID");
 
     if (real_uuid.empty()) {
-        // Fallback search
         real_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID");
     }
 
@@ -136,12 +128,12 @@ bool IdentifyAndSpoofGPU() {
     return true;
 }
 
-bool SetPrivilege(LPCSTR lpszPrivilege, BOOL bEnablePrivilege) {
+bool SetPrivilege(LPCTSTR lpszPrivilege, BOOL bEnablePrivilege) {
     TOKEN_PRIVILEGES tp;
     LUID luid;
     HANDLE hToken;
     if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) return FALSE;
-    if (!LookupPrivilegeValueA(NULL, lpszPrivilege, &luid)) { CloseHandle(hToken); return FALSE; }
+    if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid)) { CloseHandle(hToken); return FALSE; }
     tp.PrivilegeCount = 1;
     tp.Privileges[0].Luid = luid;
     tp.Privileges[0].Attributes = (bEnablePrivilege) ? SE_PRIVILEGE_ENABLED : 0;
@@ -153,7 +145,9 @@ bool SetPrivilege(LPCSTR lpszPrivilege, BOOL bEnablePrivilege) {
 bool DisruptWMI() {
     if (!SetPrivilege(SE_DEBUG_NAME, TRUE)) return false;
 
-    // Get WMI Service PID from registry
+    tNtQuerySystemInformation pNtQuerySystemInformation = (tNtQuerySystemInformation)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQuerySystemInformation");
+    if (!pNtQuerySystemInformation) return false;
+
     HKEY hKey;
     DWORD wmiPid = 0;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Wbem\\Transports\\Decoupled\\Server", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
@@ -163,17 +157,16 @@ bool DisruptWMI() {
     }
 
     if (wmiPid == 0) {
-        // Fallback: find wmiprvse.exe
         PROCESSENTRY32 entry;
         entry.dwSize = sizeof(PROCESSENTRY32);
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
         if (Process32First(snapshot, &entry)) {
-            while (Process32Next(snapshot, &entry)) {
-                if (stricmp(entry.szExeFile, "wmiprvse.exe") == 0) {
+            do {
+                if (_wcsicmp(entry.szExeFile, L"wmiprvse.exe") == 0) {
                     wmiPid = entry.th32ProcessID;
                     break;
                 }
-            }
+            } while (Process32Next(snapshot, &entry));
         }
         CloseHandle(snapshot);
     }
@@ -185,21 +178,27 @@ bool DisruptWMI() {
 
     ULONG handleInfoSize = 0x10000;
     PSYSTEM_HANDLE_INFORMATION handleInfo = (PSYSTEM_HANDLE_INFORMATION)malloc(handleInfoSize);
-    while (NtQuerySystemInformation(SystemHandleInformation, handleInfo, handleInfoSize, NULL) == 0xC0000004) {
+    if (!handleInfo) { CloseHandle(hProcess); return false; }
+
+    while (pNtQuerySystemInformation(16 /* SystemHandleInformation */, handleInfo, handleInfoSize, NULL) == 0xC0000004) {
         handleInfoSize *= 2;
-        handleInfo = (PSYSTEM_HANDLE_INFORMATION)realloc(handleInfo, handleInfoSize);
+        PSYSTEM_HANDLE_INFORMATION newHandleInfo = (PSYSTEM_HANDLE_INFORMATION)realloc(handleInfo, handleInfoSize);
+        if (!newHandleInfo) { free(handleInfo); CloseHandle(hProcess); return false; }
+        handleInfo = newHandleInfo;
     }
 
     const char* sddl = "D:(D;;GA;;;WD)";
     PSECURITY_DESCRIPTOR sd = NULL;
-    ConvertStringSecurityDescriptorToSecurityDescriptorA(sddl, SDDL_REVISION_1, &sd, NULL);
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorA(sddl, SDDL_REVISION_1, &sd, NULL)) {
+        free(handleInfo);
+        CloseHandle(hProcess);
+        return false;
+    }
 
     for (ULONG i = 0; i < handleInfo->NumberOfHandles; i++) {
         if (handleInfo->Handles[i].UniqueProcessId == wmiPid) {
             HANDLE hDup = NULL;
             if (DuplicateHandle(hProcess, (HANDLE)handleInfo->Handles[i].HandleValue, GetCurrentProcess(), &hDup, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
-                // If it's an ALPC port, we block it. We can't easily check type without more calls,
-                // so we apply the SD to all likely candidates or just everything for disruption.
                 SetKernelObjectSecurity(hDup, DACL_SECURITY_INFORMATION, sd);
                 CloseHandle(hDup);
             }
