@@ -346,6 +346,11 @@ void Overlay::RenderMenu()
 			ImGui::Text(XorStr("[REG] HwProfileGuid: %s"), g_hwid.hw_profile_guid_real.c_str());
 			ImGui::Text(XorStr("[REG] MachineId: %s"), g_hwid.machine_id_real.c_str());
 			ImGui::Text(XorStr("[REG] ComputerHardwareId: %s"), g_hwid.computer_hardware_id_real.c_str());
+			ImGui::Text(XorStr("[REG] ProductID: %s"), g_hwid.product_id_real.c_str());
+			ImGui::Text(XorStr("[REG] BIOS Serial: %s"), g_hwid.bios_serial_real.c_str());
+			ImGui::Text(XorStr("[GPU] GPU UUID: %s"), g_hwid.nv_uuid_real.c_str());
+			ImGui::Text(XorStr("[DSK] Disk ID: %s"), g_hwid.disk_id_real.c_str());
+			ImGui::Text(XorStr("[DSK] Disk Serial: %s"), g_hwid.disk_serial_real.c_str());
 
 			ImGui::Separator();
 
@@ -355,6 +360,11 @@ void Overlay::RenderMenu()
 			ImGui::Text(XorStr("[REG] HwProfileGuid: %s"), g_hwid.hw_profile_guid_spoof.empty() ? "N/A" : g_hwid.hw_profile_guid_spoof.c_str());
 			ImGui::Text(XorStr("[REG] MachineId: %s"), g_hwid.machine_id_spoof.empty() ? "N/A" : g_hwid.machine_id_spoof.c_str());
 			ImGui::Text(XorStr("[REG] ComputerHardwareId: %s"), g_hwid.computer_hardware_id_spoof.empty() ? "N/A" : g_hwid.computer_hardware_id_spoof.c_str());
+			ImGui::Text(XorStr("[REG] ProductID: %s"), g_hwid.product_id_spoof.empty() ? "N/A" : g_hwid.product_id_spoof.c_str());
+			ImGui::Text(XorStr("[REG] BIOS Serial: %s"), g_hwid.bios_serial_spoof.empty() ? "N/A" : g_hwid.bios_serial_spoof.c_str());
+			ImGui::Text(XorStr("[GPU] GPU UUID: %s"), g_hwid.nv_uuid_spoof.empty() ? "N/A" : g_hwid.nv_uuid_spoof.c_str());
+			ImGui::Text(XorStr("[DSK] Disk ID: %s"), g_hwid.disk_id_spoof.empty() ? "N/A" : g_hwid.disk_id_spoof.c_str());
+			ImGui::Text(XorStr("[DSK] Disk Serial: %s"), g_hwid.disk_serial_spoof.empty() ? "N/A" : g_hwid.disk_serial_spoof.c_str());
 
 			if (IsAlreadyPatched()) {
 				ImGui::TextColored(ImVec4(0, 1, 1, 1), XorStr("Status: System is patched."));

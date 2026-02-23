@@ -67,10 +67,43 @@ void GetRealRegistryIDs() {
 
     g_hwid.mac_real = GetRealMAC();
 
-    g_hwid.nv_uuid_real = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "ClientUUID");
-    g_hwid.disk_id_real = GetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\0", "Identifier");
-    // BIOS serial is usually REG_SZ in HKLM\HARDWARE\DESCRIPTION\System\BIOS
+    // BIOS
     g_hwid.bios_serial_real = GetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\BIOS", "BaseBoardSerialNumber");
+    if (g_hwid.bios_serial_real == "Unknown")
+        g_hwid.bios_serial_real = GetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\BIOS", "SystemSerialNumber");
+
+    // GPU
+    g_hwid.nv_uuid_real = "Unknown";
+    HKEY hVideoKey;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
+        char subKeyName[255];
+        DWORD subKeyNameSize = sizeof(subKeyName);
+        for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+            std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName) + "\\0000";
+            std::string val = GetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID");
+            if (val != "Unknown" && val.find("GPU-") != std::string::npos) {
+                g_hwid.nv_uuid_real = val;
+                break;
+            }
+            subKeyNameSize = sizeof(subKeyName);
+        }
+        RegCloseKey(hVideoKey);
+    }
+
+    // Disk
+    g_hwid.disk_id_real = GetRegistryString(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\0\\DiskController\\0\\DiskPeripheral\\0", "Identifier");
+
+    g_hwid.disk_serial_real = "Unknown";
+    HKEY hScsiKey;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\Scsi", 0, KEY_READ, &hScsiKey) == ERROR_SUCCESS) {
+        char portName[255];
+        DWORD portNameSize = sizeof(portName);
+        if (RegEnumKeyExA(hScsiKey, 0, portName, &portNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+            std::string busPath = "HARDWARE\\DEVICEMAP\\Scsi\\" + std::string(portName) + "\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0";
+            g_hwid.disk_serial_real = GetRegistryString(HKEY_LOCAL_MACHINE, busPath.c_str(), "SerialNumber");
+        }
+        RegCloseKey(hScsiKey);
+    }
 }
 
 std::string GetRealMAC() {
@@ -177,6 +210,8 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
     g_hwid.nv_uuid_spoof = "GPU-" + GenerateGUID();
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "ClientUUID", g_hwid.nv_uuid_spoof);
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "PersistenceIdentifier", g_hwid.nv_uuid_spoof);
+    SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "GPU-UUID", g_hwid.nv_uuid_spoof);
+    SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
 
     HKEY hVideoKey;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", 0, KEY_READ, &hVideoKey) == ERROR_SUCCESS) {
@@ -185,9 +220,26 @@ void ApplyRegistrySpoofs(void* unused1, void* unused2) {
         for (DWORD i = 0; RegEnumKeyExA(hVideoKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
             std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Video\\" + std::string(subKeyName) + "\\0000";
             SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
+            SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
             subKeyNameSize = sizeof(subKeyName);
         }
         RegCloseKey(hVideoKey);
+    }
+
+    // Iterate display adapter class keys
+    HKEY hClassKey;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", 0, KEY_READ, &hClassKey) == ERROR_SUCCESS) {
+        char subKeyName[255];
+        DWORD subKeyNameSize = sizeof(subKeyName);
+        for (DWORD i = 0; RegEnumKeyExA(hClassKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+            if (strlen(subKeyName) == 4) {
+                std::string subKeyPath = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\" + std::string(subKeyName);
+                SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "GPU-UUID", g_hwid.nv_uuid_spoof);
+                SetRegistryString(HKEY_LOCAL_MACHINE, subKeyPath.c_str(), "NVIDIA-UUID", g_hwid.nv_uuid_spoof);
+            }
+            subKeyNameSize = sizeof(subKeyName);
+        }
+        RegCloseKey(hClassKey);
     }
     std::cout << "[+] Spoofed NVIDIA ClientUUID and persistenceIdentifier" << std::endl;
 
