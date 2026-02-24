@@ -126,19 +126,44 @@ void SearchAndReplaceRegistry(HKEY hKeyRoot, const std::string& subKey, const st
 
 void VerifyRegistrySpoofs(const std::string& real_uuid) {
     std::cout << "\n--- Registry Verification ---" << std::endl;
-    const char* class_path = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000";
-    std::string current_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, class_path, "GPU-UUID");
-    std::cout << "Class\\...\\0000\\GPU-UUID: " << (current_uuid.empty() ? "NOT FOUND" : current_uuid) << std::endl;
+    const char* class_path = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}";
+
+    HKEY hKey;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, class_path, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        char subKeyName[256];
+        DWORD subKeyNameSize = sizeof(subKeyName);
+        for (DWORD i = 0; RegEnumKeyExA(hKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+            if (isdigit(subKeyName[0])) {
+                std::string full_path = std::string(class_path) + "\\" + subKeyName;
+                std::string current_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, full_path.c_str(), "GPU-UUID");
+                if (!current_uuid.empty()) {
+                    std::cout << "Class\\...\\" << subKeyName << "\\GPU-UUID: " << current_uuid << std::endl;
+                }
+            }
+            subKeyNameSize = sizeof(subKeyName);
+        }
+        RegCloseKey(hKey);
+    }
 
     std::string grid_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID");
-    std::cout << "GridLicensing\\ClientUUID: " << (grid_uuid.empty() ? "NOT FOUND" : grid_uuid) << std::endl;
+    if (!grid_uuid.empty()) {
+        std::cout << "GridLicensing\\ClientUUID: " << grid_uuid << std::endl;
+    } else {
+        std::cout << "GridLicensing\\ClientUUID: NOT FOUND" << std::endl;
+    }
 
     if (!real_uuid.empty()) {
         std::cout << "Searching registry for real UUID occurrences..." << std::endl;
-        // Search in common hardware paths
         SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", real_uuid, "SPOOFED");
         SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_uuid, "SPOOFED");
     }
+}
+
+void PrintNvidiaSmiInfo() {
+    std::cout << "\n--- NVIDIA-SMI (Guest) Info ---" << std::endl;
+    system("nvidia-smi -L");
+    system("nvidia-smi --query-gpu=uuid,name --format=csv");
+    std::cout << "-------------------------------" << std::endl;
 }
 
 bool IdentifyAndSpoofGPU(const char* host_real_uuid) {

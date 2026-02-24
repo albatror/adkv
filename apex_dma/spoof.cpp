@@ -47,6 +47,11 @@ bool compare_uuid(const std::string& a, const std::string& b) {
                       });
 }
 
+std::string to_lower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
+    return s;
+}
+
 std::vector<uint8_t> uuid_to_bytes(const std::string& uuid_str) {
     std::string hex;
     for (char c : uuid_str) {
@@ -71,6 +76,10 @@ bool spoof_gpu_uuid() {
         return false;
     }
 
+    std::cout << "--- Host PCI Info ---" << std::endl;
+    system("lspci -nn | grep -i vga");
+    std::cout << "----------------------" << std::endl;
+
     std::string saved_real_uuid;
     std::ifstream infile("real_gpu.txt");
     if (infile.is_open()) {
@@ -80,7 +89,8 @@ bool spoof_gpu_uuid() {
 
     std::cout << "Scanning physical memory for GPU UUIDs..." << std::endl;
 
-    std::map<std::string, int> candidates;
+    std::map<std::string, int> candidates; // canonical -> count
+    std::map<std::string, std::string> canonical_to_original;
 
     // Scan physical memory
     uint64_t max_addr = MAX_PHYADDR;
@@ -119,7 +129,12 @@ bool spoof_gpu_uuid() {
                     if (current_uuid[k] == '-') dash_count++;
                 }
                 if (valid && dash_count == 4) {
-                    candidates[current_uuid]++;
+                    std::string lower = to_lower(current_uuid);
+                    candidates[lower]++;
+                    if (canonical_to_original.find(lower) == canonical_to_original.end() || (std::any_of(current_uuid.begin(), current_uuid.end(), ::islower))) {
+                         // Prefer lowercase as original if found, or just first one
+                         canonical_to_original[lower] = current_uuid;
+                    }
                 }
             }
         }
@@ -130,33 +145,32 @@ bool spoof_gpu_uuid() {
         return false;
     }
 
-    std::cout << "Found candidates:" << std::endl;
+    std::cout << "Found candidates (aggregated case-insensitively):" << std::endl;
     for (auto const& [uuid, count] : candidates) {
         std::cout << "  " << uuid << " (x" << count << ")" << std::endl;
     }
 
     std::string found_real_uuid;
 
-    // If we have a saved real UUID, check if it's among the candidates
+    // If we have a saved real UUID, check if it matches any candidate
     if (!saved_real_uuid.empty()) {
-        for (auto const& [uuid, count] : candidates) {
-            if (compare_uuid(uuid, saved_real_uuid)) {
-                found_real_uuid = uuid;
-                break;
-            }
+        std::string lower_saved = to_lower(saved_real_uuid);
+        if (candidates.count(lower_saved)) {
+            found_real_uuid = canonical_to_original[lower_saved];
         }
     }
 
-    // If still not found, pick the most frequent one that doesn't look like it was already spoofed
-    // (though identifying "already spoofed" is hard without history)
+    // If not found (or no saved one), pick the most frequent one
     if (found_real_uuid.empty()) {
         int max_count = -1;
+        std::string best_lower;
         for (auto const& [uuid, count] : candidates) {
             if (count > max_count) {
                 max_count = count;
-                found_real_uuid = uuid;
+                best_lower = uuid;
             }
         }
+        found_real_uuid = canonical_to_original[best_lower];
 
         // Save it as the real one if we didn't have one
         if (saved_real_uuid.empty()) {
@@ -168,14 +182,14 @@ bool spoof_gpu_uuid() {
     }
 
     real_gpu_uuid = saved_real_uuid;
-    fake_gpu_uuid = generate_random_uuid();
 
-    // Check if we are already patched (the found UUID is NOT the real one we saved)
+    // Check if we are already patched (found most frequent candidate is NOT the real one we saved)
     if (!compare_uuid(found_real_uuid, real_gpu_uuid)) {
-        fake_gpu_uuid = found_real_uuid; // The one currently in memory is already a fake one
+        fake_gpu_uuid = found_real_uuid; // Current memory contains a spoofed ID
         gpu_spoofed = true;
         std::cout << "Already patched!" << std::endl;
     } else {
+        fake_gpu_uuid = generate_random_uuid();
         // Apply spoofing
         std::cout << "Applying GPU spoofing (replacing all occurrences)..." << std::endl;
         int replaced_count = 0;

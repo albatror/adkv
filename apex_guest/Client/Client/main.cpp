@@ -698,6 +698,7 @@ int main(int argc, char** argv)
 			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_gpu_uuid, fake_gpu_uuid);
 
 			VerifyRegistrySpoofs(real_gpu_uuid);
+			PrintNvidiaSmiInfo();
 			gpu_synced = true;
 		}
 
