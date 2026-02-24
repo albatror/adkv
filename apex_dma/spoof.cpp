@@ -59,14 +59,35 @@ std::vector<uint8_t> uuid_to_bytes(const std::string& uuid_str) {
             hex += c;
         }
     }
+    if (hex.length() != 32) return {};
 
     std::vector<uint8_t> bytes;
-    if (hex.length() != 32) return bytes;
-
     for (size_t i = 0; i < 32; i += 2) {
         std::string byteString = hex.substr(i, 2);
         uint8_t byte = (uint8_t)strtol(byteString.c_str(), nullptr, 16);
         bytes.push_back(byte);
+    }
+    return bytes;
+}
+
+std::vector<uint8_t> uuid_to_guid_bytes(const std::string& uuid_str) {
+    std::string hex;
+    for (char c : uuid_str) {
+        if (std::isxdigit((unsigned char)c)) {
+            hex += c;
+        }
+    }
+    if (hex.length() != 32) return {};
+
+    std::vector<uint8_t> bytes(16);
+    uint32_t d1 = (uint32_t)strtoul(hex.substr(0, 8).c_str(), nullptr, 16);
+    bytes[0] = d1 & 0xFF; bytes[1] = (d1 >> 8) & 0xFF; bytes[2] = (d1 >> 16) & 0xFF; bytes[3] = (d1 >> 24) & 0xFF;
+    uint16_t d2 = (uint16_t)strtoul(hex.substr(8, 4).c_str(), nullptr, 16);
+    bytes[4] = d2 & 0xFF; bytes[5] = (d2 >> 8) & 0xFF;
+    uint16_t d3 = (uint16_t)strtoul(hex.substr(12, 4).c_str(), nullptr, 16);
+    bytes[6] = d3 & 0xFF; bytes[7] = (d3 >> 8) & 0xFF;
+    for (int i = 0; i < 8; i++) {
+        bytes[8+i] = (uint8_t)strtol(hex.substr(16 + i*2, 2).c_str(), nullptr, 16);
     }
     return bytes;
 }
@@ -89,12 +110,10 @@ bool spoof_gpu_uuid() {
 
     std::cout << "Scanning physical memory for GPU UUIDs..." << std::endl;
 
-    std::map<std::string, int> candidates; // canonical -> count
+    std::map<std::string, int> candidates;
     std::map<std::string, std::string> canonical_to_original;
 
-    // Scan physical memory
     uint64_t max_addr = MAX_PHYADDR;
-
     if (conn->vtbl_physicalmemory) {
         auto metadata = conn->metadata();
         if (metadata.max_address > 0) max_addr = metadata.max_address;
@@ -111,11 +130,8 @@ bool spoof_gpu_uuid() {
         if (addr + read_sz > max_addr) read_sz = max_addr - addr;
 
         bool success = false;
-        if (conn->vtbl_physicalmemory && conn->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) {
-            success = true;
-        } else if (kernel->vtbl_physicalmemory && kernel->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) {
-            success = true;
-        }
+        if (conn->vtbl_physicalmemory && conn->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) success = true;
+        else if (kernel->vtbl_physicalmemory && kernel->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) success = true;
 
         if (!success) continue;
 
@@ -132,7 +148,6 @@ bool spoof_gpu_uuid() {
                     std::string lower = to_lower(current_uuid);
                     candidates[lower]++;
                     if (canonical_to_original.find(lower) == canonical_to_original.end() || (std::any_of(current_uuid.begin(), current_uuid.end(), ::islower))) {
-                         // Prefer lowercase as original if found, or just first one
                          canonical_to_original[lower] = current_uuid;
                     }
                 }
@@ -151,28 +166,18 @@ bool spoof_gpu_uuid() {
     }
 
     std::string found_real_uuid;
-
-    // If we have a saved real UUID, check if it matches any candidate
     if (!saved_real_uuid.empty()) {
         std::string lower_saved = to_lower(saved_real_uuid);
-        if (candidates.count(lower_saved)) {
-            found_real_uuid = canonical_to_original[lower_saved];
-        }
+        if (candidates.count(lower_saved)) found_real_uuid = canonical_to_original[lower_saved];
     }
 
-    // If not found (or no saved one), pick the most frequent one
     if (found_real_uuid.empty()) {
         int max_count = -1;
         std::string best_lower;
         for (auto const& [uuid, count] : candidates) {
-            if (count > max_count) {
-                max_count = count;
-                best_lower = uuid;
-            }
+            if (count > max_count) { max_count = count; best_lower = uuid; }
         }
         found_real_uuid = canonical_to_original[best_lower];
-
-        // Save it as the real one if we didn't have one
         if (saved_real_uuid.empty()) {
             std::ofstream outfile("real_gpu.txt");
             outfile << found_real_uuid;
@@ -183,19 +188,20 @@ bool spoof_gpu_uuid() {
 
     real_gpu_uuid = saved_real_uuid;
 
-    // Check if we are already patched (found most frequent candidate is NOT the real one we saved)
     if (!compare_uuid(found_real_uuid, real_gpu_uuid)) {
-        fake_gpu_uuid = found_real_uuid; // Current memory contains a spoofed ID
+        fake_gpu_uuid = found_real_uuid;
         gpu_spoofed = true;
         std::cout << "Already patched!" << std::endl;
     } else {
         fake_gpu_uuid = generate_random_uuid();
-        // Apply spoofing
         std::cout << "Applying GPU spoofing (replacing all occurrences)..." << std::endl;
         int replaced_count = 0;
         int binary_replaced_count = 0;
-        std::vector<uint8_t> real_bytes = uuid_to_bytes(real_gpu_uuid);
-        std::vector<uint8_t> fake_bytes = uuid_to_bytes(fake_gpu_uuid);
+
+        std::vector<uint8_t> real_bytes_be = uuid_to_bytes(real_gpu_uuid);
+        std::vector<uint8_t> fake_bytes_be = uuid_to_bytes(fake_gpu_uuid);
+        std::vector<uint8_t> real_bytes_le = uuid_to_guid_bytes(real_gpu_uuid);
+        std::vector<uint8_t> fake_bytes_le = uuid_to_guid_bytes(fake_gpu_uuid);
 
         for (uint64_t addr = 0; addr < max_addr; addr += chunk_size) {
             size_t read_sz = chunk_size;
@@ -218,10 +224,14 @@ bool spoof_gpu_uuid() {
                     }
                 }
             }
-            if (!real_bytes.empty()) {
+            if (!real_bytes_be.empty()) {
                 for (size_t i = 0; i < read_sz - 16; ++i) {
-                    if (memcmp(&buffer[i], real_bytes.data(), 16) == 0) {
-                        memcpy(&buffer[i], fake_bytes.data(), 16);
+                    if (memcmp(&buffer[i], real_bytes_be.data(), 16) == 0) {
+                        memcpy(&buffer[i], fake_bytes_be.data(), 16);
+                        binary_replaced_count++;
+                        chunk_modified = true;
+                    } else if (memcmp(&buffer[i], real_bytes_le.data(), 16) == 0) {
+                        memcpy(&buffer[i], fake_bytes_le.data(), 16);
                         binary_replaced_count++;
                         chunk_modified = true;
                     }

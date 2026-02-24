@@ -77,12 +77,15 @@ void ApplyRegistrySpoofs(const std::string& fake_uuid) {
                 std::string full_path = std::string(class_path) + "\\" + subKeyName;
                 SetRegistryString(HKEY_LOCAL_MACHINE, full_path.c_str(), "GPU-UUID", fake_uuid);
                 SetRegistryString(HKEY_LOCAL_MACHINE, full_path.c_str(), "ClientUUID", fake_uuid);
+                SetRegistryString(HKEY_LOCAL_MACHINE, full_path.c_str(), "PersistenceIdentifier", fake_uuid);
             }
             subKeyNameSize = sizeof(subKeyName);
         }
         RegCloseKey(hKey);
     }
 
+    SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "ClientUUID", fake_uuid);
+    SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "PersistenceIdentifier", fake_uuid);
     SetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID", fake_uuid);
 }
 
@@ -145,17 +148,20 @@ void VerifyRegistrySpoofs(const std::string& real_uuid) {
         RegCloseKey(hKey);
     }
 
+    std::string global_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "ClientUUID");
+    std::cout << "NVIDIA Global\\ClientUUID: " << (global_uuid.empty() ? "NOT FOUND" : global_uuid) << std::endl;
+
+    std::string global_persist = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global", "PersistenceIdentifier");
+    std::cout << "NVIDIA Global\\PersistenceIdentifier: " << (global_persist.empty() ? "NOT FOUND" : global_persist) << std::endl;
+
     std::string grid_uuid = GetRegistryString(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation\\Global\\GridLicensing", "ClientUUID");
-    if (!grid_uuid.empty()) {
-        std::cout << "GridLicensing\\ClientUUID: " << grid_uuid << std::endl;
-    } else {
-        std::cout << "GridLicensing\\ClientUUID: NOT FOUND" << std::endl;
-    }
+    std::cout << "GridLicensing\\ClientUUID: " << (grid_uuid.empty() ? "NOT FOUND" : grid_uuid) << std::endl;
 
     if (!real_uuid.empty()) {
         std::cout << "Searching registry for real UUID occurrences..." << std::endl;
         SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Video", real_uuid, "SPOOFED");
         SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", real_uuid, "SPOOFED");
+        SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\VIDEO", real_uuid, "SPOOFED");
     }
 }
 
