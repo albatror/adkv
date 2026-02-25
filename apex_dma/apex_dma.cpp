@@ -1507,63 +1507,6 @@ int main(int argc, char *argv[])
 	bool proc_not_found = false;
 	while (active)
 	{
-		if (apex_mem.get_proc_status() != process_status::FOUND_READY)
-		{
-			if (aim_t)
-			{
-				aim_t = false;
-				esp_t = false;
-				actions_t = false;
-				//item_t = false;
-				extern bool stuff_t;
-				stuff_t = false;
-				g_Base = 0;
-
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				//itemglow_thr.~thread();
-				stuffbot_thr.~thread();
-
-			}
-
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			printf("Searching for apex process...\n");
-			proc_not_found = apex_mem.get_proc_status() == process_status::NOT_FOUND;
-			if (proc_not_found)
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-				printf("Searching for apex process...\n");
-			}
-
-			apex_mem.open_proc(ap_proc);
-
-			if (apex_mem.get_proc_status() == process_status::FOUND_READY)
-			{
-				g_Base = apex_mem.get_proc_baseaddr();
-				if (proc_not_found)
-				{
-					printf("\nApex process found\n");
-					printf("Base: %lx\n", g_Base);
-				}
-
-				aimbot_thr = std::thread(AimbotLoop);
-				esp_thr = std::thread(EspLoop);
-				actions_thr = std::thread(DoActions);
-				stuffbot_thr = std::thread(StuffBotLoop);
-				//itemglow_thr = std::thread(item_glow_t);
-				aimbot_thr.detach();
-				esp_thr.detach();
-				actions_thr.detach();
-				stuffbot_thr.detach();
-				//itemglow_thr.detach();
-			}
-		}
-		else
-		{
-			apex_mem.check_proc();
-		}
-
 		if (client_mem.get_proc_status() != process_status::FOUND_READY)
 		{
 			if (vars_t)
@@ -1631,6 +1574,65 @@ int main(int argc, char *argv[])
 		else
 		{
 			client_mem.check_proc();
+		}
+
+		if (client_mem.get_proc_status() == process_status::FOUND_READY) {
+			if (apex_mem.get_proc_status() != process_status::FOUND_READY)
+			{
+				if (aim_t)
+				{
+					aim_t = false;
+					esp_t = false;
+					actions_t = false;
+					//item_t = false;
+					extern bool stuff_t;
+					stuff_t = false;
+					g_Base = 0;
+
+					aimbot_thr.~thread();
+					esp_thr.~thread();
+					actions_thr.~thread();
+					//itemglow_thr.~thread();
+					stuffbot_thr.~thread();
+
+				}
+
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				printf("Searching for apex process...\n");
+				proc_not_found = apex_mem.get_proc_status() == process_status::NOT_FOUND;
+				if (proc_not_found)
+				{
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+					printf("Searching for apex process...\n");
+				}
+
+				apex_mem.open_proc(ap_proc);
+
+				if (apex_mem.get_proc_status() == process_status::FOUND_READY)
+				{
+					g_Base = apex_mem.get_proc_baseaddr();
+					if (proc_not_found)
+					{
+						printf("\nApex process found\n");
+						printf("Base: %lx\n", g_Base);
+					}
+
+					aimbot_thr = std::thread(AimbotLoop);
+					esp_thr = std::thread(EspLoop);
+					actions_thr = std::thread(DoActions);
+					stuffbot_thr = std::thread(StuffBotLoop);
+					//itemglow_thr = std::thread(item_glow_t);
+					aimbot_thr.detach();
+					esp_thr.detach();
+					actions_thr.detach();
+					stuffbot_thr.detach();
+					//itemglow_thr.detach();
+				}
+			}
+			else
+			{
+				apex_mem.check_proc();
+			}
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));

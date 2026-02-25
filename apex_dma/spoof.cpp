@@ -133,7 +133,7 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
 }
 
 bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
-    if (!conn) return false;
+    if (!kernel) return false;
 
     if (target_uuid.empty() || target_uuid == "Unknown") {
         printf("Invalid target UUID for physical spoof\n");
@@ -150,7 +150,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
 
     std::string new_uuid = target_uuid;
     for (size_t i = 0; i < new_uuid.length(); ++i) {
-        if (isxdigit(new_uuid[i])) {
+        if (isxdigit((unsigned char)new_uuid[i])) {
             new_uuid[i] = hex_chars[dis(gen)];
         }
     }
@@ -161,10 +161,21 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
     auto string_to_binary = [](const std::string& s) {
         std::vector<uint8_t> bin;
         std::string clean = "";
-        for (char c : s) if (isxdigit(c)) clean += c;
-        for (size_t i = 0; i < clean.length(); i += 2) {
+        for (char c : s) if (isxdigit((unsigned char)c)) clean += c;
+        for (size_t i = 0; i + 1 < clean.length(); i += 2) {
             bin.push_back((uint8_t)std::stoul(clean.substr(i, 2), nullptr, 16));
         }
+        return bin;
+    };
+
+    auto to_guid_bin = [](std::vector<uint8_t> bin) {
+        if (bin.size() != 16) return bin;
+        // GUID: Data1 (4 LE), Data2 (2 LE), Data3 (2 LE), Data4 (8 BE)
+        // UUID string: 83904901-65ad-9709-a59d-7a664aa707c1
+        // bin has them in straight order: [83 90 49 01] [65 ad] [97 09] [a5 9d 7a 66 4a a7 07 c1]
+        std::swap(bin[0], bin[3]); std::swap(bin[1], bin[2]); // Data1
+        std::swap(bin[4], bin[5]); // Data2
+        std::swap(bin[6], bin[7]); // Data3
         return bin;
     };
 
@@ -176,8 +187,11 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
         return false;
     }
 
-    auto phys_view = conn->phys_view();
-    PhysicalMemoryMetadata meta = conn->metadata();
+    std::vector<uint8_t> target_guid = to_guid_bin(target_bin);
+    std::vector<uint8_t> fake_guid = to_guid_bin(fake_bin);
+
+    auto phys_view = kernel->phys_view();
+    PhysicalMemoryMetadata meta = kernel->physicalmemory_metadata();
     uint64_t max_addr = meta.max_address;
 
     printf("Physical memory range: 0 - %lx\n", max_addr);
@@ -197,7 +211,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
         }
 
         // Search for ASCII string
-        for (size_t i = 0; i < chunk_size - target_uuid.length(); ++i) {
+        for (size_t i = 0; i <= chunk_size - target_uuid.length() && i < chunk_size; ++i) {
             if (memcmp(buffer.data() + i, target_uuid.c_str(), target_uuid.length()) == 0) {
                 printf("\nFound ASCII UUID at physical address %lx\n", addr + i);
                 phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), fake_uuid.length()));
@@ -205,11 +219,20 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
             }
         }
 
-        // Search for binary GUID
-        for (size_t i = 0; i < chunk_size - 16; ++i) {
+        // Search for binary GUID (Straight)
+        for (size_t i = 0; i <= chunk_size - 16 && i < chunk_size; ++i) {
             if (memcmp(buffer.data() + i, target_bin.data(), 16) == 0) {
-                printf("\nFound Binary UUID at physical address %lx\n", addr + i);
+                printf("\nFound Binary UUID (Straight) at physical address %lx\n", addr + i);
                 phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_bin.data(), 16));
+                found_count++;
+            }
+        }
+
+        // Search for binary GUID (LE)
+        for (size_t i = 0; i <= chunk_size - 16 && i < chunk_size; ++i) {
+            if (memcmp(buffer.data() + i, target_guid.data(), 16) == 0) {
+                printf("\nFound Binary UUID (LE) at physical address %lx\n", addr + i);
+                phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_guid.data(), 16));
                 found_count++;
             }
         }
