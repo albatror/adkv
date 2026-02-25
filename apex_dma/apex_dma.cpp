@@ -1075,187 +1075,107 @@ static void AimbotLoop()
 static void set_vars(uint64_t add_addr)
 {
 	printf("Reading client vars...\n");
-	std::this_thread::sleep_for(std::chrono::milliseconds(50));
-	//Get addresses of client vars
-uint64_t check_addr = 0;
-printf("Reading check address: %lx\n", add_addr);
-if(!client_mem.Read<uint64_t>(add_addr, check_addr)) {
-  printf("Read failed!\n");
-}
+
+	uint64_t check_addr = 0;
+	int retry_count = 0;
+	while (check_addr == 0 && retry_count < 100) {
+		client_mem.Read<uint64_t>(add_addr, check_addr);
+		if (check_addr == 0) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			retry_count++;
+		}
+	}
+
+	if (check_addr == 0) {
+		printf("Failed to read client variables from add array. Quitting set_vars.\n");
+		return;
+	}
+
+	printf("Client add array initialized. Reading addresses...\n");
 
 uint64_t aim_addr = 0;  
-printf("Reading aim address: %lx\n", add_addr + sizeof(uint64_t));
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t), aim_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t), aim_addr);
 
 uint64_t esp_addr = 0;
-printf("Reading esp address: %lx\n", add_addr + sizeof(uint64_t) * 2);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 2, esp_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 2, esp_addr);
+
 uint64_t aiming_addr = 0;
-printf("Reading aiming address: %lx\n", add_addr + sizeof(uint64_t) * 3);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 3, aiming_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 3, aiming_addr);
 
 uint64_t g_Base_addr = 0;
-printf("Reading g_Base address: %lx\n", add_addr + sizeof(uint64_t) * 4);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr);
 
 uint64_t next_addr = 0;  
-printf("Reading next address: %lx\n", add_addr + sizeof(uint64_t) * 5);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr);
+
 uint64_t player_addr = 0;
-printf("Reading player address: %lx\n", add_addr + sizeof(uint64_t) * 6);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 6, player_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 6, player_addr);
 
 uint64_t valid_addr = 0;
-printf("Reading valid address: %lx\n", add_addr + sizeof(uint64_t) * 7);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 7, valid_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 7, valid_addr);
 
 uint64_t max_dist_addr = 0;
-printf("Reading max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 8);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 8, max_dist_addr)) {
-  printf("Read failed!\n");
-}
-
-//uint64_t item_glow_addr = 0;
-//printf("Reading item_glow address: %lx\n", add_addr + sizeof(uint64_t) * 9);
-//if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, item_glow_addr)) {
- // printf("Read failed!\n");
-//}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 8, max_dist_addr);
 
 uint64_t player_glow_addr = 0;
-printf("Reading player_glow address: %lx\n", add_addr + sizeof(uint64_t) * 9);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, player_glow_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, player_glow_addr);
 
 uint64_t aim_no_recoil_addr = 0;
-printf("Reading aim_no_recoil address: %lx\n", add_addr + sizeof(uint64_t) * 10);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 10, aim_no_recoil_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 10, aim_no_recoil_addr);
 
 uint64_t smooth_addr = 0;
-printf("Reading smooth address: %lx\n", add_addr + sizeof(uint64_t) * 11);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, smooth_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, smooth_addr);
 
 uint64_t max_fov_addr = 0;
-printf("Reading max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 12); 
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, max_fov_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, max_fov_addr);
 
 uint64_t bone_addr = 0;
-printf("Reading bone address: %lx\n", add_addr + sizeof(uint64_t) * 13);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 13, bone_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 13, bone_addr);
 
 uint64_t spectators_addr = 0;
-printf("Reading spectators address: %lx\n", add_addr + sizeof(uint64_t) * 14);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, spectators_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, spectators_addr);
 
 uint64_t allied_spectators_addr = 0;  
-printf("Reading allied_spectators address: %lx\n", add_addr + sizeof(uint64_t) * 15);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, allied_spectators_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, allied_spectators_addr);
 
 uint64_t glowr_addr = 0;
-printf("Reading glowr address: %lx\n", add_addr + sizeof(uint64_t) * 16);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, glowr_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, glowr_addr);
 
 uint64_t glowg_addr = 0;
-printf("Reading glowg address: %lx\n", add_addr + sizeof(uint64_t) * 17);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, glowg_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, glowg_addr);
 
 uint64_t glowb_addr = 0;
-printf("Reading glowb address: %lx\n", add_addr + sizeof(uint64_t) * 18);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, glowb_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, glowb_addr);
 
 uint64_t glowrviz_addr = 0;
-printf("Reading glowrviz address: %lx\n", add_addr + sizeof(uint64_t) * 19);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, glowrviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, glowrviz_addr);
 
 uint64_t glowgviz_addr = 0;
-printf("Reading glowgviz address: %lx\n", add_addr + sizeof(uint64_t) * 20);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 20, glowgviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 20, glowgviz_addr);
 
 uint64_t glowbviz_addr = 0;
-printf("Reading glowbviz address: %lx\n", add_addr + sizeof(uint64_t) * 21);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 21, glowbviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 21, glowbviz_addr);
 
 uint64_t glowrknocked_addr = 0;
-printf("Reading glowrknocked address: %lx\n", add_addr + sizeof(uint64_t) * 22);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowrknocked_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowrknocked_addr);
 
 uint64_t glowgknocked_addr = 0;  
-printf("Reading glowgknocked address: %lx\n", add_addr + sizeof(uint64_t) * 23);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_addr);
 
 uint64_t glowbknocked_addr = 0;
-printf("Reading glowbknocked address: %lx\n", add_addr + sizeof(uint64_t) * 24);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, glowbknocked_addr)) {
-  printf("Read failed!\n"); 
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, glowbknocked_addr);
 
 uint64_t firing_range_addr = 0;
-printf("Reading firing_range address: %lx\n", add_addr + sizeof(uint64_t) * 25);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, firing_range_addr)) {
-  printf("Read failed!\n"); 
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, firing_range_addr);
 
 uint64_t shooting_addr = 0;
-printf("Reading shooting address: %lx\n", add_addr + sizeof(uint64_t) * 26);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr)) {
-  printf("Read failed!\n"); 
-}
-
-////////
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr);
 
 uint64_t onevone_addr = 0;
-printf("Reading onevone address: %lx\n", add_addr + sizeof(uint64_t) * 27);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 27, onevone_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 27, onevone_addr);
 
 uint64_t spec_list_addr = 0;
-printf("Reading spec_list address: %lx\n", add_addr + sizeof(uint64_t) * 28);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, spec_list_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, spec_list_addr);
 
 //
 //uint64_t min_max_fov_addr = 0;
