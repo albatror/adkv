@@ -15,6 +15,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <cmath>
+#include <atomic>
 ////////////////////////
 ////////////////////////
 
@@ -115,7 +116,7 @@ bool vars_t = false;
 //bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
-bool gpu_synced = false;
+std::atomic<bool> gpu_synced(false);
 bool next = false;
 bool valid = false;
 bool lock = false;

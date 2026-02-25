@@ -143,7 +143,7 @@ void spoof_gpu_uuid(std::string real_uuid_str, std::string& fake_uuid_str_out) {
                     memcpy(data + i, p.second.c_str(), p.second.length());
                     modified = true;
                     total_patched++;
-                    printf("[+] Patched ASCII pattern at %lx\n", current_addr + i);
+                    // printf("[+] Patched ASCII pattern at %lx\n", current_addr + i);
                 }
             }
         }
@@ -154,7 +154,7 @@ void spoof_gpu_uuid(std::string real_uuid_str, std::string& fake_uuid_str_out) {
                     memcpy(data + i, p.fake, 16);
                     modified = true;
                     total_patched++;
-                    printf("[+] Patched Binary pattern at %lx\n", current_addr + i);
+                    // printf("[+] Patched Binary pattern at %lx\n", current_addr + i);
                 }
             }
         }
@@ -164,6 +164,11 @@ void spoof_gpu_uuid(std::string real_uuid_str, std::string& fake_uuid_str_out) {
     for (uint64_t addr = 0; addr < MAX_PHYADDR; addr += chunk_size) {
         if (addr % (1024ULL * 1024 * 1024) == 0) {
             printf("Scanning... %llu GB / %llu GB\n", (unsigned long long)(addr / (1024ULL * 1024 * 1024)), (unsigned long long)(MAX_PHYADDR / (1024ULL * 1024 * 1024)));
+        }
+
+        // Small sleep every 10 chunks to keep host responsive
+        if ((addr / chunk_size) % 10 == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         if (kernel->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), chunk_size)) == 0) {
