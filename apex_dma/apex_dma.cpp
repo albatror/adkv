@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -1465,6 +1466,9 @@ int main(int argc, char *argv[])
 	const char* cl_proc = "Client.exe";
 	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
+
+	apex_mem.open_proc("");
+	spoof_gpu_uuid();
 
 	//Client "add" offset
 	uint64_t add_off = 0x000000;
