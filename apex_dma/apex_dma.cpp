@@ -1428,6 +1428,7 @@ int main(int argc, char *argv[])
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
+	bool client_spoofed = false;
 	while (active)
 	{
 		if (client_mem.get_proc_status() != process_status::FOUND_READY)
@@ -1437,7 +1438,8 @@ int main(int argc, char *argv[])
 				vars_t = false;
 				c_Base = 0;
 
-				vars_thr.~thread();
+				if (vars_thr.joinable())
+					vars_thr.detach();
 			}
 			
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1450,40 +1452,45 @@ int main(int argc, char *argv[])
 				c_Base = client_mem.get_proc_baseaddr();
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
+				client_spoofed = false;
+			}
+		}
 
-				// Now that client is found, get its real UUID and spoof
-				char guest_uuid_buf[128] = {0};
-				uint64_t guest_uuid_ptr = 0;
-				// We need to read the address of guest_real_uuid from the add array
-				// Wait a bit for the guest to initialize its add array
-				std::this_thread::sleep_for(std::chrono::milliseconds(200));
-				client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
-				if (guest_uuid_ptr) {
-					client_mem.ReadArray<char>(guest_uuid_ptr, guest_uuid_buf, 128);
-					std::string target_uuid = guest_uuid_buf;
-					printf("Guest reported real GPU UUID: %s\n", target_uuid.c_str());
+		if (client_mem.get_proc_status() == process_status::FOUND_READY && !client_spoofed)
+		{
+			// Now that client is found, get its real UUID and spoof
+			char guest_uuid_buf[128] = {0};
+			uint64_t guest_uuid_ptr = 0;
+			// We need to read the address of guest_real_uuid from the add array
+			// Wait a bit for the guest to initialize its add array
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
+			if (guest_uuid_ptr) {
+				client_mem.ReadArray<char>(guest_uuid_ptr, guest_uuid_buf, 128);
+				std::string target_uuid = guest_uuid_buf;
+				printf("Guest reported real GPU UUID: %s\n", target_uuid.c_str());
 
-					// Perform spoofing
-					gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
-					if (!gpu_spoofed) {
-						printf("Driver-based spoofing failed, trying physical memory scan...\n");
-						gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid);
-						real_gpu_uuid = target_uuid;
-					} else {
-						// Also do physical spoof for good measure
-						printf("Driver spoofing succeeded, performing physical scan for good measure...\n");
-						std::string dummy;
-						physical_spoof(target_uuid, dummy);
-					}
-
-					if (gpu_spoofed) {
-						printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
-						printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
-						printf("GPU UUID Spoofed successfully!\n");
-					} else {
-						printf("Failed to spoof GPU UUID.\n");
-					}
+				// Perform spoofing
+				gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
+				if (!gpu_spoofed) {
+					printf("Driver-based spoofing failed, trying physical memory scan...\n");
+					gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid);
+					real_gpu_uuid = target_uuid;
+				} else {
+					// Also do physical spoof for good measure
+					printf("Driver spoofing succeeded, performing physical scan for good measure...\n");
+					std::string dummy;
+					physical_spoof(target_uuid, dummy);
 				}
+
+				if (gpu_spoofed) {
+					printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
+					printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
+					printf("GPU UUID Spoofed successfully!\n");
+				} else {
+					printf("Failed to spoof GPU UUID.\n");
+				}
+				client_spoofed = true;
 
 				printf("\nYou can start the game now.\n");
 				for (int i = 15; i > 0; i--) {
@@ -1492,6 +1499,9 @@ int main(int argc, char *argv[])
 					std::this_thread::sleep_for(std::chrono::seconds(1));
 				}
 				printf("\nStarting Apex process search...\n");
+			} else {
+				printf("Waiting for guest to provide real UUID...\n");
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
 		else
@@ -1512,12 +1522,10 @@ int main(int argc, char *argv[])
 					stuff_t = false;
 					g_Base = 0;
 
-					aimbot_thr.~thread();
-					esp_thr.~thread();
-					actions_thr.~thread();
-					//itemglow_thr.~thread();
-					stuffbot_thr.~thread();
-
+					if (aimbot_thr.joinable()) aimbot_thr.detach();
+					if (esp_thr.joinable()) esp_thr.detach();
+					if (actions_thr.joinable()) actions_thr.detach();
+					if (stuffbot_thr.joinable()) stuffbot_thr.detach();
 				}
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1540,8 +1548,10 @@ int main(int argc, char *argv[])
 						printf("Base: %lx\n", g_Base);
 					}
 
-					vars_thr = std::thread(set_vars, c_Base + add_off);
-					vars_thr.detach();
+					if (!vars_t) {
+						vars_thr = std::thread(set_vars, c_Base + add_off);
+						vars_thr.detach();
+					}
 
 					aimbot_thr = std::thread(AimbotLoop);
 					esp_thr = std::thread(EspLoop);

@@ -54,11 +54,12 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
     };
 
     uint64_t pattern_addr = 0;
+    size_t pattern_off = -1;
     for (const char* p : gpumgr_patterns) {
-        size_t off = findPattern(module_data.data(), module_data.size(), p);
-        if (off != -1) {
-            pattern_addr = module_info.base + off;
-            printf("Found GPU manager pattern at offset %zx\n", off);
+        pattern_off = findPattern(module_data.data(), module_data.size(), p);
+        if (pattern_off != -1) {
+            pattern_addr = module_info.base + pattern_off;
+            printf("Found GPU manager pattern at offset %zx\n", pattern_off);
             break;
         }
     }
@@ -68,16 +69,30 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
         return false;
     }
 
-    // Resolve GpuMgrGetGpuFromId address
-    uint32_t call_rel_offset = *(uint32_t*)&module_data[pattern_addr - module_info.base + 1];
-    uint64_t GpuMgrGetGpuFromId_addr = pattern_addr + 5 + call_rel_offset;
-    printf("GpuMgrGetGpuFromId resolved to: %lx\n", GpuMgrGetGpuFromId_addr);
+    // Resolve GpuMgrGetGpuFromId address from the call located near pattern + 0x3B
+    uint64_t GpuMgrGetGpuFromId_addr = 0;
+    for (int i = 0; i < 128; i++) {
+        size_t off = pattern_off + 0x3B + i;
+        if (off + 5 >= scan_size) break;
+        if (module_data[off] == 0xE8) {
+            int32_t rel_offset = *(int32_t*)&module_data[off + 1];
+            GpuMgrGetGpuFromId_addr = module_info.base + off + 5 + rel_offset;
+            printf("GpuMgrGetGpuFromId resolved to: %lx (from call at +%zx)\n", GpuMgrGetGpuFromId_addr, off);
+            break;
+        }
+    }
+
+    if (!GpuMgrGetGpuFromId_addr) {
+        // Fallback to first call in pattern if +0x3B failed
+        uint32_t call_rel_offset = *(uint32_t*)&module_data[pattern_off + 1];
+        GpuMgrGetGpuFromId_addr = pattern_addr + 5 + call_rel_offset;
+        printf("GpuMgrGetGpuFromId fallback resolved to: %lx\n", GpuMgrGetGpuFromId_addr);
+    }
 
     // Scan for UuidValidOffset near the pattern
     uint32_t uuid_valid_offset = 0;
-    size_t pattern_offset = pattern_addr - module_info.base;
-    size_t scan_start_off = (pattern_offset > 0x200) ? pattern_offset - 0x200 : 0;
-    size_t scan_end_off = std::min(pattern_offset + 0x300, scan_size);
+    size_t scan_start_off = (pattern_off > 0x200) ? pattern_off - 0x200 : 0;
+    size_t scan_end_off = std::min(pattern_off + 0x400, scan_size);
 
     for (size_t i = scan_start_off; i < scan_end_off - 7; i++) {
         // Pattern 1: 80 BB ?? ?? 00 00 00
@@ -99,26 +114,33 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
         return false;
     }
 
-    // Now find the GPU object array pointer inside GpuMgrGetGpuFromId
+    // Now find the GPU object array pointer inside GpuMgrGetGpuFromId or from pattern directly
     uint64_t gpu_array_ptr = 0;
-    size_t func_offset = GpuMgrGetGpuFromId_addr - module_info.base;
-    if (func_offset < scan_size - 256) {
-        for (size_t i = func_offset; i < func_offset + 256; i++) {
-            // Look for RIP-relative addressing (ModR/M byte: 0x05 for rax, 0x0D for rcx, 0x15 for rdx)
-            // mov reg, [rip + offset] (48 8B) or lea reg, [rip + offset] (48 8D)
-            if (module_data[i] == 0x48 && (module_data[i+1] == 0x8B || module_data[i+1] == 0x8D)) {
-                uint8_t modrm = module_data[i+2];
-                if (modrm == 0x05 || modrm == 0x0D || modrm == 0x15 || modrm == 0x1D || modrm == 0x25 || modrm == 0x2D || modrm == 0x35 || modrm == 0x3D) {
-                    uint32_t array_rel_offset = *(uint32_t*)&module_data[i+3];
-                    gpu_array_ptr = module_info.base + i + 7 + array_rel_offset;
-                    printf("Found potential GPU array pointer at: %lx (offset: %zx, modrm: %02x)\n", gpu_array_ptr, i - func_offset, modrm);
 
-                    // Verify if it points to something valid
-                    uint64_t test_ptr = 0;
-                    if (kernel->read_raw_into(gpu_array_ptr, CSliceMut<uint8_t>((char*)&test_ptr, 8)) == 0 && test_ptr != 0) {
-                        break; // Found it
+    // Try Pattern's lea rdx, [rip + offset] at index 24
+    if (pattern_off + 24 + 7 <= scan_size && module_data[pattern_off + 24] == 0x48 && module_data[pattern_off + 25] == 0x8D && module_data[pattern_off + 26] == 0x15) {
+        uint32_t array_rel_offset = *(uint32_t*)&module_data[pattern_off + 27];
+        gpu_array_ptr = pattern_addr + 24 + 7 + array_rel_offset;
+        printf("Found GPU array pointer from pattern: %lx\n", gpu_array_ptr);
+    }
+
+    if (!gpu_array_ptr) {
+        size_t func_offset = GpuMgrGetGpuFromId_addr - module_info.base;
+        if (func_offset < scan_size - 256) {
+            for (size_t i = func_offset; i < func_offset + 256; i++) {
+                if (module_data[i] == 0x48 && (module_data[i+1] == 0x8B || module_data[i+1] == 0x8D)) {
+                    uint8_t modrm = module_data[i+2];
+                    if (modrm == 0x05 || modrm == 0x0D || modrm == 0x15 || modrm == 0x1D || modrm == 0x25 || modrm == 0x2D || modrm == 0x35 || modrm == 0x3D) {
+                        uint32_t array_rel_offset = *(uint32_t*)&module_data[i+3];
+                        gpu_array_ptr = module_info.base + i + 7 + array_rel_offset;
+
+                        uint64_t test_ptr = 0;
+                        if (kernel->read_raw_into(gpu_array_ptr, CSliceMut<uint8_t>((char*)&test_ptr, 8)) == 0 && test_ptr != 0) {
+                            printf("Found GPU array pointer in function: %lx (offset: %zx, modrm: %02x)\n", gpu_array_ptr, i - func_offset, modrm);
+                            break;
+                        }
+                        gpu_array_ptr = 0;
                     }
-                    gpu_array_ptr = 0; // Reset and continue searching
                 }
             }
         }
@@ -281,11 +303,13 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
 
     for (uint64_t addr = 0; addr < max_addr; addr += chunk_size) {
         if (addr % (1024ULL * 1024 * 1024) == 0) {
-            printf("Scanning physical memory... %lu GB / %lu GB\r", addr / (1024*1024*1024), max_addr / (1024*1024*1024));
+            printf("Scanning physical memory... %lu GB / %lu GB (Found: %zu)\r", addr / (1024*1024*1024), max_addr / (1024*1024*1024), found_count);
             fflush(stdout);
         }
 
         size_t to_read = std::min((uint64_t)buffer.size(), max_addr - addr);
+        if (to_read < 16) break;
+
         if (phys_view.read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), to_read)) != 0) {
             continue;
         }
@@ -294,8 +318,11 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
         for (size_t i = 0; i <= to_read - target_uuid.length() && i < to_read; ++i) {
             if (memcmp(buffer.data() + i, target_uuid.c_str(), target_uuid.length()) == 0) {
                 printf("\nFound ASCII UUID at physical address %lx. Patching...\n", addr + i);
-                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), fake_uuid.length())) == 0)
+                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), fake_uuid.length())) == 0) {
                     found_count++;
+                    // Copy patched data back to buffer to avoid double detection of same occurrence in overlap
+                    memcpy(buffer.data() + i, fake_uuid.c_str(), fake_uuid.length());
+                }
                 else
                     printf("Failed to patch ASCII UUID at %lx\n", addr + i);
             }
