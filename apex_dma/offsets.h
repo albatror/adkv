@@ -26,8 +26,10 @@
 #define OFFSET_NAME 0x0479 //[RecvTable.DT_BaseEntity].m_iName updated 2025/02/25
 #define OFFSET_SIGN_NAME 0x0470 //[RecvTable.DT_BaseEntity].m_iSignifierName updated 2025/02/25
 #define OFFSET_ABS_VELOCITY 0x0170 //[DataMap.DT_BaseEntity].m_vecAbsVelocity updated 2024/09/18
-#define OFFSET_VISIBLE_TIME 0x1A64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/02/18
-#define OFFSET_LAST_AIMEDAT_TIME 0x1A6C //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
+//#define OFFSET_VISIBLE_TIME 0x1A64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/02/18
+//#define OFFSET_LAST_AIMEDAT_TIME 0x1A6C //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
+#define OFFSET_VISIBLE_TIME     0x1a62 + 0x02 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02
+#define OFFSET_LAST_AIMEDAT_TIME       8 //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
 #define OFFSET_ZOOMING 0x1cb1 //[RecvTable.DT_Player].m_bZooming updated 2026/02/11
 
 #define OFFSET_VIEW_OFFSET 0x00e8 //[DataMap.DT_BaseEntity].m_currentFrame.viewOffset updated 2024/09/18
@@ -102,7 +104,7 @@
 #define OFFSET_GLOW_CONTEXT_ID 0x29c                                            //updated 6/26/2024
 #define OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE OFFSET_GLOW_THROUGH_WALLS // Script_Highlight_SetVisibilityType 5th mov updated 01/10/2024
 #define GLOW_LIFE_TIME 0x3A4+ 0x30 // Script_Highlight_SetLifeTime + 4 updated 01/10/2024
-#define GLOW_DISTANCE 0x294 //0x26c // Script_Highlight_SetFarFadeDist updated 01/10/2024
+#define GLOW_DISTANCE 0x264 //0x26c // Script_Highlight_SetFarFadeDist updated 01/10/2024
 #define GLOW_TYPE 0x29c // Script_Highlight_GetState + 4 updated 01/10/2024
 #define GLOW_COLOR 0x1D0+ 0x30 // Script_CopyHighlightState 15th mov updated 01/10/2024
 #define GLOW_FADE 0x388+ 0x30 // ats 3rd result of 3 offsets consecutive or first + 8 updated 01/10/2024
