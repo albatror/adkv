@@ -1514,7 +1514,7 @@ int main(int argc, char *argv[])
 	bool proc_not_found = false;
 	while (active)
 	{
-		if (apex_mem.get_proc_status() != process_status::FOUND_READY)
+		if (gpu_synced && apex_mem.get_proc_status() != process_status::FOUND_READY)
 		{
 			if (aim_t)
 			{

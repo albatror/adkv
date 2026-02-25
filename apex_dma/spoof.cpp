@@ -184,7 +184,7 @@ void spoof_gpu_uuid(std::string real_uuid_str, std::string& fake_uuid_str_out) {
     }
 
     printf("Scan complete. Total occurrences patched: %llu\n", (unsigned long long)total_patched);
-    printf("Wait 30 seconds for user to start the game...\n");
-    std::this_thread::sleep_for(std::chrono::seconds(30));
+    printf("You can start game\n");
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     printf("------------------------\n");
 }
