@@ -3,6 +3,7 @@
 #include <chrono>
 #include <unordered_map>
 #include "offsets.h"
+#include "Weapon.h"
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
@@ -61,9 +62,45 @@ void TriggerBotRun()
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 }
 
+bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
+    // Special long zoom delay for Kraber and Sentinel
+    if (weaponId == WeaponIDs::KRABER || weaponId == WeaponIDs::SENTINEL) {
+        if (zoomElapsedMs < 950)
+            return false; // Not ready to shoot yet
+    } else {
+        // All other weapons need some delay after zoom
+        if (zoomElapsedMs < 600)
+            return false; // Not ready yet
+    }
+
+    // List of allowed weapons
+    return (
+        weaponId == WeaponIDs::KRABER ||
+        weaponId == WeaponIDs::WINGMAN ||
+        weaponId == WeaponIDs::LONGBOW ||
+        weaponId == WeaponIDs::SENTINEL ||
+        weaponId == WeaponIDs::G7_SCOUT ||
+        weaponId == WeaponIDs::HEMLOK ||
+        weaponId == WeaponIDs::REPEATER_3030 ||
+        weaponId == WeaponIDs::TRIPLE_TAKE ||
+        weaponId == WeaponIDs::BOCEK ||
+        weaponId == WeaponIDs::THROWING_KNIFE ||
+        weaponId == WeaponIDs::P2020 ||
+        weaponId == WeaponIDs::MOZAMBIQUE ||
+        weaponId == WeaponIDs::EVA8 ||
+        weaponId == WeaponIDs::PEACEKEEPER ||
+        weaponId == WeaponIDs::MASTIFF ||
+        weaponId == WeaponIDs::NEMESIS
+    );
+}
+
 void StuffBotLoop()
 {
     stuff_t = true;
+    // Zoom tracking
+    static auto zoomStartTime = std::chrono::steady_clock::now();
+    static bool wasZooming = false;
+
     while (stuff_t)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -74,13 +111,30 @@ void StuffBotLoop()
         if (LocalPlayer == 0) continue;
         Entity LPlayer = getEntity(LocalPlayer);
 
+        // Update zoom timing
+        bool isZooming = LPlayer.isZooming();
+        auto now = std::chrono::steady_clock::now();
+
+        if (isZooming && !wasZooming) {
+            zoomStartTime = now;  // just started zooming
+        }
+
+        int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
+        wasZooming = isZooming;
+
         // Triggerbot logic
         if (triggerbot && triggerbot_aiming && aimentity != 0)
         {
-            Entity Target = getEntity(aimentity);
-            if (IsInCrossHair(Target))
-            {
-                TriggerBotRun();
+            if (isZooming) {
+                int weaponId = LPlayer.getCurrentWeaponId();
+                if (isAllowedWeapon(weaponId, zoomElapsedMs)) {
+                    Entity Target = getEntity(aimentity);
+                    if (IsInCrossHair(Target))
+                    {
+                        printf("[TRIGGERBOT] Shooting with %s (ID: %d)\n", get_weapon_name(weaponId).c_str(), weaponId);
+                        TriggerBotRun();
+                    }
+                }
             }
         }
 
