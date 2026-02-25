@@ -8,6 +8,7 @@
 #include <vector>
 #include <random>
 #include <chrono>
+#include <thread>
 #include <iomanip>
 #include <algorithm>
 #include <cstring>
@@ -47,22 +48,18 @@ void uuid_to_binary(const std::string& uuid_str, uint8_t* out_bin) {
     std::swap(out_bin[6], out_bin[7]);
 }
 
-void spoof_gpu_uuid() {
+void spoof_gpu_uuid(std::string real_uuid_str, std::string& fake_uuid_str_out) {
     printf("--- GPU UUID Spoofer ---\n");
     printf("Hardware Info:\n");
     system("lspci -nn | grep -i nvidia");
 
-    std::ifstream infile("real_gpu.txt");
-    std::string real_uuid_str;
-    if (!(infile >> real_uuid_str)) {
-        printf("Error: Could not read real_gpu.txt\n");
-        printf("Please create real_gpu.txt with your real GPU UUID (e.g., 63853174-886d-311b-71a2-52033c467615)\n");
-        printf("You can find it by running 'nvidia-smi -L' in the guest VM.\n");
+    if (real_uuid_str.empty()) {
+        printf("Error: Real UUID is empty\n");
         return;
     }
-    infile.close();
 
-    std::string fake_uuid_str = generate_random_uuid();
+    fake_uuid_str_out = generate_random_uuid();
+    std::string fake_uuid_str = fake_uuid_str_out;
     printf("Real UUID: %s\n", real_uuid_str.c_str());
     printf("Fake UUID: %s\n", fake_uuid_str.c_str());
 
@@ -116,5 +113,7 @@ void spoof_gpu_uuid() {
     }
 
     printf("Scan complete. Total occurrences patched: %lu\n", total_patched);
+    printf("Wait 30 seconds for user to start the game...\n");
+    std::this_thread::sleep_for(std::chrono::seconds(30));
     printf("------------------------\n");
 }

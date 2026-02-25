@@ -8,6 +8,10 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
+#include <array>
 //test contraste texte
 #include ".\imgui\imgui.h"
 
@@ -163,7 +167,11 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+char real_gpu_uuid[64] = { 0 };
+char fake_gpu_uuid[64] = { 0 };
+bool gpu_spoofed = false;
+
+uint64_t add[64];//64
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -195,6 +203,23 @@ void randomBone()
 	int randVal = rand() % 3;
 	bone = boneArray[randVal];
 	Sleep(500);
+}
+
+void get_gpu_uuid() {
+	std::array<char, 128> buffer;
+	std::string result;
+	FILE* pipe = _popen("nvidia-smi -L", "r");
+	if (!pipe) return;
+	while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+		result += buffer.data();
+	}
+	_pclose(pipe);
+
+	size_t pos = result.find("UUID: GPU-");
+	if (pos != std::string::npos) {
+		std::string uuid = result.substr(pos + 10, 36);
+		strncpy(real_gpu_uuid, uuid.c_str(), sizeof(real_gpu_uuid) - 1);
+	}
 }
 
 spectator spectator_list[100];
@@ -477,6 +502,11 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[51] = (uintptr_t)real_gpu_uuid;
+	add[56] = (uintptr_t)fake_gpu_uuid;
+	add[61] = (uintptr_t)&gpu_spoofed;
+
+	get_gpu_uuid();
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

@@ -36,6 +36,10 @@ extern bool superglide;
 extern bool bhop;
 extern bool walljump;
 
+extern char real_gpu_uuid[64];
+extern char fake_gpu_uuid[64];
+extern bool gpu_spoofed;
+
 //extern float esp_distance;
 
 extern int index;
@@ -334,6 +338,21 @@ void Overlay::RenderMenu()
 				glowrknocked = glowcolorknocked[0] * 250;
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
+			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoof")))
+		{
+			if (gpu_spoofed)
+			{
+				ImGui::TextColored(GREEN, XorStr("GPU Spoofed Successfully"));
+				ImGui::Text(XorStr("Real UUID: %s"), real_gpu_uuid);
+				ImGui::Text(XorStr("Fake UUID: %s"), fake_gpu_uuid);
+			}
+			else
+			{
+				ImGui::TextColored(RED, XorStr("Waiting for host to spoof..."));
+				ImGui::Text(XorStr("Real UUID: %s"), real_gpu_uuid);
 			}
 			ImGui::EndTabItem();
 		}

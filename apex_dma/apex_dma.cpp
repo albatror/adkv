@@ -115,6 +115,7 @@ bool vars_t = false;
 //bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
+bool gpu_synced = false;
 bool next = false;
 bool valid = false;
 bool lock = false;
@@ -1296,11 +1297,43 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+        if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
 			printf("\nReady\n");
+		}
+
+		if (c_Base != 0 && !gpu_synced)
+		{
+			uint64_t real_gpu_ptr = 0;
+			client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr);
+			if (real_gpu_ptr)
+			{
+				char real_gpu_uuid[64] = { 0 };
+				client_mem.ReadArray<char>(real_gpu_ptr, real_gpu_uuid, 64);
+				if (strlen(real_gpu_uuid) > 0)
+				{
+					printf("Real GPU UUID received from client: %s\n", real_gpu_uuid);
+					std::string fake_uuid;
+					spoof_gpu_uuid(real_gpu_uuid, fake_uuid);
+
+					uint64_t fake_gpu_ptr = 0;
+					client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, fake_gpu_ptr);
+					if (fake_gpu_ptr)
+					{
+						client_mem.WriteArray<char>(fake_gpu_ptr, fake_uuid.c_str(), fake_uuid.length() + 1);
+					}
+
+					uint64_t gpu_spoofed_ptr = 0;
+					client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr);
+					if (gpu_spoofed_ptr)
+					{
+						client_mem.Write<bool>(gpu_spoofed_ptr, true);
+					}
+					gpu_synced = true;
+				}
+			}
 		}
 
     while (c_Base != 0 && g_Base != 0)
@@ -1468,10 +1501,9 @@ int main(int argc, char *argv[])
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	apex_mem.open_proc("");
-	spoof_gpu_uuid();
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x2b5bb0;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
@@ -1545,6 +1577,7 @@ int main(int argc, char *argv[])
 			{
 				vars_t = false;
 				c_Base = 0;
+				gpu_synced = false;
 
 				vars_thr.~thread();
 			}
