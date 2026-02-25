@@ -97,21 +97,25 @@ bool spoof_gpu_uuid() {
         return false;
     }
 
-    std::cout << "--- Host PCI Info ---" << std::endl;
+    std::cout << "--- Host Hardware Info ---" << std::endl;
     system("lspci -nn | grep -i vga");
-    std::cout << "----------------------" << std::endl;
+    std::cout << "--------------------------" << std::endl;
 
-    std::string saved_real_uuid;
     std::ifstream infile("real_gpu.txt");
     if (infile.is_open()) {
-        std::getline(infile, saved_real_uuid);
+        std::getline(infile, real_gpu_uuid);
         infile.close();
     }
 
-    std::cout << "Scanning physical memory for GPU UUIDs..." << std::endl;
+    if (real_gpu_uuid.empty()) {
+        std::cout << "Error: real_gpu.txt is missing or empty. Cannot proceed with stable spoofing." << std::endl;
+        std::cout << "Please create real_gpu.txt with your GPU UUID (e.g., GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." << std::endl;
+        return false;
+    }
 
-    std::map<std::string, int> candidates;
-    std::map<std::string, std::string> canonical_to_original;
+    fake_gpu_uuid = generate_random_uuid();
+    std::cout << "Target Real GPU UUID: " << real_gpu_uuid << std::endl;
+    std::cout << "Generated Fake GPU UUID: " << fake_gpu_uuid << std::endl;
 
     uint64_t max_addr = MAX_PHYADDR;
     if (conn->vtbl_physicalmemory) {
@@ -122,10 +126,23 @@ bool spoof_gpu_uuid() {
         if (metadata.max_address > 0) max_addr = metadata.max_address;
     }
 
-    const size_t chunk_size = 0x100000; // 1MB
+    std::cout << "Starting physical memory scan and patch (Max: " << (max_addr / 0x40000000) << "GB)..." << std::endl;
+
+    const size_t chunk_size = 0x200000; // 2MB for faster scanning
     std::vector<uint8_t> buffer(chunk_size);
+    int replaced_count = 0;
+    int binary_replaced_count = 0;
+
+    std::vector<uint8_t> real_bytes_be = uuid_to_bytes(real_gpu_uuid);
+    std::vector<uint8_t> fake_bytes_be = uuid_to_bytes(fake_gpu_uuid);
+    std::vector<uint8_t> real_bytes_le = uuid_to_guid_bytes(real_gpu_uuid);
+    std::vector<uint8_t> fake_bytes_le = uuid_to_guid_bytes(fake_gpu_uuid);
 
     for (uint64_t addr = 0; addr < max_addr; addr += chunk_size) {
+        if (addr % (0x40000000) == 0) { // Progress every 1GB
+            std::cout << "  Progress: " << (addr / 0x40000000) << "GB / " << (max_addr / 0x40000000) << "GB" << std::endl;
+        }
+
         size_t read_sz = chunk_size;
         if (addr + read_sz > max_addr) read_sz = max_addr - addr;
 
@@ -135,121 +152,50 @@ bool spoof_gpu_uuid() {
 
         if (!success) continue;
 
+        bool chunk_modified = false;
+        // String scan
         for (size_t i = 0; i < read_sz - 40; ++i) {
             if (buffer[i] == 'G' && buffer[i+1] == 'P' && buffer[i+2] == 'U' && buffer[i+3] == '-') {
                 std::string current_uuid((char*)&buffer[i], 40);
-                bool valid = true;
-                int dash_count = 0;
-                for(int k=4; k<40; k++) {
-                    if (!is_uuid_char(current_uuid[k])) { valid = false; break; }
-                    if (current_uuid[k] == '-') dash_count++;
-                }
-                if (valid && dash_count == 4) {
-                    std::string lower = to_lower(current_uuid);
-                    candidates[lower]++;
-                    if (canonical_to_original.find(lower) == canonical_to_original.end() || (std::any_of(current_uuid.begin(), current_uuid.end(), ::islower))) {
-                         canonical_to_original[lower] = current_uuid;
-                    }
+                if (compare_uuid(current_uuid, real_gpu_uuid)) {
+                    memcpy(&buffer[i], fake_gpu_uuid.c_str(), 40);
+                    replaced_count++;
+                    chunk_modified = true;
                 }
             }
         }
-    }
-
-    if (candidates.empty()) {
-        std::cout << "No GPU UUID found in memory." << std::endl;
-        return false;
-    }
-
-    std::cout << "Found candidates (aggregated case-insensitively):" << std::endl;
-    for (auto const& [uuid, count] : candidates) {
-        std::cout << "  " << uuid << " (x" << count << ")" << std::endl;
-    }
-
-    std::string found_real_uuid;
-    if (!saved_real_uuid.empty()) {
-        std::string lower_saved = to_lower(saved_real_uuid);
-        if (candidates.count(lower_saved)) found_real_uuid = canonical_to_original[lower_saved];
-    }
-
-    if (found_real_uuid.empty()) {
-        int max_count = -1;
-        std::string best_lower;
-        for (auto const& [uuid, count] : candidates) {
-            if (count > max_count) { max_count = count; best_lower = uuid; }
+        // Binary scan
+        if (!real_bytes_be.empty()) {
+            for (size_t i = 0; i < read_sz - 16; ++i) {
+                if (memcmp(&buffer[i], real_bytes_be.data(), 16) == 0) {
+                    memcpy(&buffer[i], fake_bytes_be.data(), 16);
+                    binary_replaced_count++;
+                    chunk_modified = true;
+                } else if (memcmp(&buffer[i], real_bytes_le.data(), 16) == 0) {
+                    memcpy(&buffer[i], fake_bytes_le.data(), 16);
+                    binary_replaced_count++;
+                    chunk_modified = true;
+                }
+            }
         }
-        found_real_uuid = canonical_to_original[best_lower];
-        if (saved_real_uuid.empty()) {
-            std::ofstream outfile("real_gpu.txt");
-            outfile << found_real_uuid;
-            outfile.close();
-            saved_real_uuid = found_real_uuid;
+
+        if (chunk_modified) {
+            if (conn->vtbl_physicalmemory) conn->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz));
+            else if (kernel->vtbl_physicalmemory) kernel->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz));
         }
     }
 
-    real_gpu_uuid = saved_real_uuid;
-
-    if (!compare_uuid(found_real_uuid, real_gpu_uuid)) {
-        fake_gpu_uuid = found_real_uuid;
+    if (replaced_count > 0 || binary_replaced_count > 0) {
         gpu_spoofed = true;
-        std::cout << "Already patched!" << std::endl;
+        std::cout << "Spoofing applied! Replaced " << replaced_count << " string occurrences and " << binary_replaced_count << " binary occurrences." << std::endl;
     } else {
-        fake_gpu_uuid = generate_random_uuid();
-        std::cout << "Applying GPU spoofing (replacing all occurrences)..." << std::endl;
-        int replaced_count = 0;
-        int binary_replaced_count = 0;
-
-        std::vector<uint8_t> real_bytes_be = uuid_to_bytes(real_gpu_uuid);
-        std::vector<uint8_t> fake_bytes_be = uuid_to_bytes(fake_gpu_uuid);
-        std::vector<uint8_t> real_bytes_le = uuid_to_guid_bytes(real_gpu_uuid);
-        std::vector<uint8_t> fake_bytes_le = uuid_to_guid_bytes(fake_gpu_uuid);
-
-        for (uint64_t addr = 0; addr < max_addr; addr += chunk_size) {
-            size_t read_sz = chunk_size;
-            if (addr + read_sz > max_addr) read_sz = max_addr - addr;
-
-            bool success = false;
-            if (conn->vtbl_physicalmemory && conn->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) success = true;
-            else if (kernel->vtbl_physicalmemory && kernel->phys_view().read_raw_into(addr, CSliceMut<uint8_t>((char*)buffer.data(), read_sz)) == 0) success = true;
-
-            if (!success) continue;
-
-            bool chunk_modified = false;
-            for (size_t i = 0; i < read_sz - 40; ++i) {
-                if (buffer[i] == 'G' && buffer[i+1] == 'P' && buffer[i+2] == 'U' && buffer[i+3] == '-') {
-                    std::string current_uuid((char*)&buffer[i], 40);
-                    if (compare_uuid(current_uuid, real_gpu_uuid)) {
-                        memcpy(&buffer[i], fake_gpu_uuid.c_str(), 40);
-                        replaced_count++;
-                        chunk_modified = true;
-                    }
-                }
-            }
-            if (!real_bytes_be.empty()) {
-                for (size_t i = 0; i < read_sz - 16; ++i) {
-                    if (memcmp(&buffer[i], real_bytes_be.data(), 16) == 0) {
-                        memcpy(&buffer[i], fake_bytes_be.data(), 16);
-                        binary_replaced_count++;
-                        chunk_modified = true;
-                    } else if (memcmp(&buffer[i], real_bytes_le.data(), 16) == 0) {
-                        memcpy(&buffer[i], fake_bytes_le.data(), 16);
-                        binary_replaced_count++;
-                        chunk_modified = true;
-                    }
-                }
-            }
-            if (chunk_modified) {
-                if (conn->vtbl_physicalmemory) conn->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz));
-                else if (kernel->vtbl_physicalmemory) kernel->phys_view().write_raw(addr, CSliceRef<uint8_t>((char*)buffer.data(), read_sz));
-            }
-        }
-        if (replaced_count > 0 || binary_replaced_count > 0) {
-            gpu_spoofed = true;
-            std::cout << "Spoofing applied! Replaced " << replaced_count << " string occurrences and " << binary_replaced_count << " binary occurrences." << std::endl;
-        }
+        std::cout << "No matching GPU UUID found in physical memory. It might already be patched or the UUID in real_gpu.txt is incorrect." << std::endl;
+        // Check for already patched state by finding any GPU- string
+        // (Actually, a targeted scan didn't find anything, so we can't be sure)
     }
 
-    std::cout << "REAL GPU-UUID " << real_gpu_uuid << std::endl;
-    std::cout << "FAKE GPU-UUID " << fake_gpu_uuid << std::endl;
+    std::cout << "REAL GPU-UUID: " << real_gpu_uuid << std::endl;
+    std::cout << "FAKE GPU-UUID: " << fake_gpu_uuid << std::endl;
     std::cout << "\n--- You can now start the game! ---" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(30));
 

@@ -690,14 +690,6 @@ int main(int argc, char** argv)
 			printf("FAKE GPU-UUID: %s\n", fake_gpu_uuid);
 			printf("---------------------------------\n");
 
-			IdentifyAndSpoofGPU(real_gpu_uuid);
-			ApplyRegistrySpoofs(fake_gpu_uuid);
-
-			// Aggressive search and replace for any remaining real UUIDs in registry
-			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet", real_gpu_uuid, fake_gpu_uuid);
-			SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_gpu_uuid, fake_gpu_uuid);
-
-			VerifyRegistrySpoofs(real_gpu_uuid);
 			PrintNvidiaSmiInfo();
 			gpu_synced = true;
 		}

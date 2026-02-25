@@ -342,7 +342,7 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Spoof")))
 		{
-			ImGui::Text(XorStr("GPU UUID Spoofer (Host Patching)"));
+			ImGui::Text(XorStr("GPU UUID Spoofer (Host Patching Only)"));
 			ImGui::Separator();
 			ImGui::Text(XorStr("Real GPU UUID:"));
 			ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), real_gpu_uuid[0] ? real_gpu_uuid : "Not Synced");
@@ -351,14 +351,7 @@ void Overlay::RenderMenu()
 			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), fake_gpu_uuid[0] ? fake_gpu_uuid : "Not Synced");
 
 			ImGui::Separator();
-
-			if (ImGui::Button(XorStr("Manual Registry Spoof"))) {
-				if (fake_gpu_uuid[0]) {
-					ApplyRegistrySpoofs(fake_gpu_uuid);
-					SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet", real_gpu_uuid, fake_gpu_uuid);
-					SearchAndReplaceRegistry(HKEY_LOCAL_MACHINE, "SOFTWARE\\NVIDIA Corporation", real_gpu_uuid, fake_gpu_uuid);
-				}
-			}
+			ImGui::Text(XorStr("Status: All spoofing is handled by the host."));
 
 			ImGui::EndTabItem();
 		}
