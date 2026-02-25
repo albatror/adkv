@@ -102,14 +102,24 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
     // Now find the GPU object array pointer inside GpuMgrGetGpuFromId
     uint64_t gpu_array_ptr = 0;
     size_t func_offset = GpuMgrGetGpuFromId_addr - module_info.base;
-    if (func_offset < scan_size - 100) {
-        for (size_t i = func_offset; i < func_offset + 100; i++) {
-            // Look for mov rdx, [rip + offset] (48 8B 15) or lea rdx, [rip + offset] (48 8D 15)
-            if (module_data[i] == 0x48 && (module_data[i+1] == 0x8B || module_data[i+1] == 0x8D) && module_data[i+2] == 0x15) {
-                uint32_t array_rel_offset = *(uint32_t*)&module_data[i+3];
-                gpu_array_ptr = module_info.base + i + 7 + array_rel_offset;
-                printf("Found GPU array pointer at: %lx\n", gpu_array_ptr);
-                break;
+    if (func_offset < scan_size - 256) {
+        for (size_t i = func_offset; i < func_offset + 256; i++) {
+            // Look for RIP-relative addressing (ModR/M byte: 0x05 for rax, 0x0D for rcx, 0x15 for rdx)
+            // mov reg, [rip + offset] (48 8B) or lea reg, [rip + offset] (48 8D)
+            if (module_data[i] == 0x48 && (module_data[i+1] == 0x8B || module_data[i+1] == 0x8D)) {
+                uint8_t modrm = module_data[i+2];
+                if (modrm == 0x05 || modrm == 0x0D || modrm == 0x15 || modrm == 0x1D || modrm == 0x25 || modrm == 0x2D || modrm == 0x35 || modrm == 0x3D) {
+                    uint32_t array_rel_offset = *(uint32_t*)&module_data[i+3];
+                    gpu_array_ptr = module_info.base + i + 7 + array_rel_offset;
+                    printf("Found potential GPU array pointer at: %lx (offset: %zx, modrm: %02x)\n", gpu_array_ptr, i - func_offset, modrm);
+
+                    // Verify if it points to something valid
+                    uint64_t test_ptr = 0;
+                    if (kernel->read_raw_into(gpu_array_ptr, CSliceMut<uint8_t>((char*)&test_ptr, 8)) == 0 && test_ptr != 0) {
+                        break; // Found it
+                    }
+                    gpu_array_ptr = 0; // Reset and continue searching
+                }
             }
         }
     }
@@ -283,27 +293,33 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
         // Search for ASCII string
         for (size_t i = 0; i <= to_read - target_uuid.length() && i < to_read; ++i) {
             if (memcmp(buffer.data() + i, target_uuid.c_str(), target_uuid.length()) == 0) {
-                printf("\nFound ASCII UUID at physical address %lx\n", addr + i);
-                phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), fake_uuid.length()));
-                found_count++;
+                printf("\nFound ASCII UUID at physical address %lx. Patching...\n", addr + i);
+                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), fake_uuid.length())) == 0)
+                    found_count++;
+                else
+                    printf("Failed to patch ASCII UUID at %lx\n", addr + i);
             }
         }
 
         // Search for binary GUID (Straight)
         for (size_t i = 0; i <= to_read - 16 && i < to_read; ++i) {
             if (memcmp(buffer.data() + i, target_bin.data(), 16) == 0) {
-                printf("\nFound Binary UUID (Straight) at physical address %lx\n", addr + i);
-                phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_bin.data(), 16));
-                found_count++;
+                printf("\nFound Binary UUID (Straight) at physical address %lx. Patching...\n", addr + i);
+                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_bin.data(), 16)) == 0)
+                    found_count++;
+                else
+                    printf("Failed to patch Binary UUID (Straight) at %lx\n", addr + i);
             }
         }
 
         // Search for binary GUID (LE)
         for (size_t i = 0; i <= to_read - 16 && i < to_read; ++i) {
             if (memcmp(buffer.data() + i, target_guid.data(), 16) == 0) {
-                printf("\nFound Binary UUID (LE) at physical address %lx\n", addr + i);
-                phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_guid.data(), 16));
-                found_count++;
+                printf("\nFound Binary UUID (LE) at physical address %lx. Patching...\n", addr + i);
+                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_guid.data(), 16)) == 0)
+                    found_count++;
+                else
+                    printf("Failed to patch Binary UUID (LE) at %lx\n", addr + i);
             }
         }
     }

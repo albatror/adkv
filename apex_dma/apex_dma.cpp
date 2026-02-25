@@ -1471,6 +1471,7 @@ int main(int argc, char *argv[])
 						real_gpu_uuid = target_uuid;
 					} else {
 						// Also do physical spoof for good measure
+						printf("Driver spoofing succeeded, performing physical scan for good measure...\n");
 						std::string dummy;
 						physical_spoof(target_uuid, dummy);
 					}
@@ -1483,9 +1484,6 @@ int main(int argc, char *argv[])
 						printf("Failed to spoof GPU UUID.\n");
 					}
 				}
-
-				vars_thr = std::thread(set_vars, c_Base + add_off);
-				vars_thr.detach();
 
 				printf("\nYou can start the game now.\n");
 				for (int i = 15; i > 0; i--) {
@@ -1541,6 +1539,9 @@ int main(int argc, char *argv[])
 						printf("\nApex process found\n");
 						printf("Base: %lx\n", g_Base);
 					}
+
+					vars_thr = std::thread(set_vars, c_Base + add_off);
+					vars_thr.detach();
 
 					aimbot_thr = std::thread(AimbotLoop);
 					esp_thr = std::thread(EspLoop);
