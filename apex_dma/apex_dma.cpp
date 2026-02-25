@@ -1300,7 +1300,7 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+			if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
@@ -1329,7 +1329,10 @@ while (vars_t)
             client_mem.Write<bool>(gpu_spoofed_ptr_addr, gpu_spoofed);
         }
 
-        if (g_Base == 0) continue;
+        if (g_Base == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
 
         client_mem.Write<uint64_t>(g_Base_addr, g_Base);
         client_mem.Write<int>(spectators_addr, spectators);
@@ -1528,10 +1531,15 @@ int main(int argc, char *argv[])
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
 
+				vars_thr = std::thread(set_vars, c_Base + add_off);
+				vars_thr.detach();
+
 				// Now that client is found, get its real UUID and spoof
 				char guest_uuid_buf[128] = {0};
 				uint64_t guest_uuid_ptr = 0;
 				// We need to read the address of guest_real_uuid from the add array
+				// Wait a bit for set_vars to initialize and for the guest to be ready
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 				client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
 				if (guest_uuid_ptr) {
 					client_mem.ReadArray<char>(guest_uuid_ptr, guest_uuid_buf, 128);
@@ -1566,9 +1574,6 @@ int main(int argc, char *argv[])
 					std::this_thread::sleep_for(std::chrono::seconds(1));
 				}
 				printf("\nStarting Apex process search...\n");
-
-				vars_thr = std::thread(set_vars, c_Base + add_off);
-				vars_thr.detach();
 			}
 		}
 		else
