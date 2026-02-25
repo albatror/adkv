@@ -145,6 +145,7 @@ int screen_height = 1440;
 char real_gpu_uuid[64] = { 0 };
 char fake_gpu_uuid[64] = { 0 };
 bool gpu_spoofed = false;
+bool hwid_trigger = false;
 
 //Player Glow Color and Brightness
 float glowr = 100.0f; //Red Value
@@ -482,6 +483,7 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[50] = (uintptr_t)&hwid_trigger;
 	add[51] = (uintptr_t)&real_gpu_uuid[0];
 	add[56] = (uintptr_t)&fake_gpu_uuid[0];
 	add[61] = (uintptr_t)&gpu_spoofed;
@@ -504,6 +506,21 @@ int main(int argc, char** argv)
 	{
 		ready = true;
 		printf(XorStr("Ready\n"));
+	}
+
+	// GPU UUID Initialization
+	for (static bool gpu_init = true; gpu_init; gpu_init = false) {
+		std::string current_real = GetGPUUUIDFromNvidiaSmi();
+		if (!current_real.empty()) {
+			std::ofstream outfile("real_gpu.txt");
+			outfile << current_real;
+			outfile.close();
+			strncpy(real_gpu_uuid, current_real.c_str(), sizeof(real_gpu_uuid) - 1);
+			printf("Real GPU UUID detected: %s\n", real_gpu_uuid);
+			hwid_trigger = true; // Signal host to spoof
+		} else {
+			printf("Failed to detect Real GPU UUID via nvidia-smi.\n");
+		}
 	}
 
 	bool gpu_synced = false;

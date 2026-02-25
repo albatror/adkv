@@ -1431,6 +1431,26 @@ while (vars_t)
             client_mem.Write<bool>(gpu_spoofed_ptr_addr, gpu_spoofed);
         }
 
+        uint64_t hwid_trigger_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, hwid_trigger_addr);
+        if (hwid_trigger_addr) {
+            bool trigger = false;
+            client_mem.Read<bool>(hwid_trigger_addr, trigger);
+            if (trigger && !gpu_spoofed) {
+                char real_uuid_buf[64] = { 0 };
+                client_mem.ReadArray<char>(real_gpu_ptr_addr, real_uuid_buf, 64);
+                if (strlen(real_uuid_buf) > 0) {
+                    printf("Received Real GPU UUID from client: %s. Starting spoof...\n", real_uuid_buf);
+                    if (spoof_gpu_uuid_v2(real_uuid_buf)) {
+                         printf("Spoofing completed.\n");
+                         // Write back the fake UUID so client overlay updates
+                         client_mem.WriteArray<char>(fake_gpu_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
+                         // Signal client that it's done (already handled by gpu_spoofed sync below)
+                    }
+                }
+            }
+        }
+
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
@@ -1486,7 +1506,7 @@ int main(int argc, char *argv[])
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	apex_mem.open_proc("");
-	spoof_gpu_uuid();
+	// spoof_gpu_uuid(); // Moved to set_vars trigger
 
 	//Client "add" offset
 	uint64_t add_off = 0x000000;

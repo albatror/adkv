@@ -5,5 +5,6 @@
 #include <windows.h>
 #include <string>
 
+std::string GetGPUUUIDFromNvidiaSmi();
 void PrintNvidiaSmiInfo();
 void RestoreGPU();
