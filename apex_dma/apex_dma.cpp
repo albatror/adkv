@@ -1296,16 +1296,45 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+		if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
-			printf("\nReady\n");
+			printf("\nClient Ready\n");
 		}
 
-    while (c_Base != 0 && g_Base != 0)
+    while (c_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+        uint64_t hwid_trigger_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, hwid_trigger_addr);
+        if (hwid_trigger_addr) {
+            bool trigger = false;
+            client_mem.Read<bool>(hwid_trigger_addr, trigger);
+            if (trigger && !gpu_spoofed) {
+                uint64_t real_gpu_ptr_addr = 0;
+                client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_gpu_ptr_addr);
+                uint64_t fake_gpu_ptr_addr = 0;
+                client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, fake_gpu_ptr_addr);
+
+                if (real_gpu_ptr_addr && fake_gpu_ptr_addr) {
+                    char real_uuid_buf[64] = { 0 };
+                    client_mem.ReadArray<char>(real_gpu_ptr_addr, real_uuid_buf, 64);
+                    if (strlen(real_uuid_buf) > 0) {
+                        printf("Received Real GPU UUID from client: %s. Starting spoof...\n", real_uuid_buf);
+                        if (spoof_gpu_uuid_v2(real_uuid_buf)) {
+                             printf("Spoofing completed.\n");
+                             client_mem.WriteArray<char>(fake_gpu_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
+                             client_mem.Write<bool>(add_addr + sizeof(uint64_t) * 61, true); // gpu_spoofed
+                        }
+                    }
+                }
+            }
+        }
+
+        if (g_Base == 0) continue;
+
         client_mem.Write<uint64_t>(g_Base_addr, g_Base);
         client_mem.Write<int>(spectators_addr, spectators);
         client_mem.Write<int>(allied_spectators_addr, allied_spectators);
@@ -1419,37 +1448,7 @@ while (vars_t)
             client_mem.WriteArray<char>(real_gpu_ptr_addr, real_gpu_uuid.c_str(), real_gpu_uuid.size() + 1);
         }
 
-        uint64_t fake_gpu_ptr_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, fake_gpu_ptr_addr);
-        if (fake_gpu_ptr_addr && !fake_gpu_uuid.empty()) {
-            client_mem.WriteArray<char>(fake_gpu_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
-        }
-
-        uint64_t gpu_spoofed_ptr_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr_addr);
-        if (gpu_spoofed_ptr_addr) {
-            client_mem.Write<bool>(gpu_spoofed_ptr_addr, gpu_spoofed);
-        }
-
-        uint64_t hwid_trigger_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, hwid_trigger_addr);
-        if (hwid_trigger_addr) {
-            bool trigger = false;
-            client_mem.Read<bool>(hwid_trigger_addr, trigger);
-            if (trigger && !gpu_spoofed) {
-                char real_uuid_buf[64] = { 0 };
-                client_mem.ReadArray<char>(real_gpu_ptr_addr, real_uuid_buf, 64);
-                if (strlen(real_uuid_buf) > 0) {
-                    printf("Received Real GPU UUID from client: %s. Starting spoof...\n", real_uuid_buf);
-                    if (spoof_gpu_uuid_v2(real_uuid_buf)) {
-                         printf("Spoofing completed.\n");
-                         // Write back the fake UUID so client overlay updates
-                         client_mem.WriteArray<char>(fake_gpu_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
-                         // Signal client that it's done (already handled by gpu_spoofed sync below)
-                    }
-                }
-            }
-        }
+        // Removed redundant GPU sync from here, moved to top of while(c_Base != 0)
 
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);

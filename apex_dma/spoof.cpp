@@ -84,8 +84,8 @@ bool spoof_gpu_uuid_v2(const std::string& target_real_uuid) {
     fake_gpu_uuid = generate_random_uuid();
 
     std::cout << "\n--- Starting Refined GPU Spoofing ---" << std::endl;
-    std::cout << "Target Real UUID: " << real_gpu_uuid << std::endl;
-    std::cout << "Generated Fake UUID: " << fake_gpu_uuid << std::endl;
+    std::cout << "REAL GPU-UUID: " << real_gpu_uuid << std::endl;
+    std::cout << "FAKE GPU-UUID: " << fake_gpu_uuid << std::endl;
 
     std::vector<uint8_t> real_be = uuid_to_bytes(real_gpu_uuid);
     std::vector<uint8_t> fake_be = uuid_to_bytes(fake_gpu_uuid);
@@ -145,7 +145,7 @@ bool spoof_gpu_uuid_v2(const std::string& target_real_uuid) {
 
     if (total_replaced > 0) {
         gpu_spoofed = true;
-        std::cout << "Spoofing applied successfully! Replaced " << total_replaced << " occurrences." << std::endl;
+        std::cout << "Spoofing successful! Replaced " << total_replaced << " occurrences." << std::endl;
     } else {
         std::cout << "No matching occurrences found in physical memory." << std::endl;
     }
