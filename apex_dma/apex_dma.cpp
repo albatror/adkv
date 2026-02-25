@@ -1531,15 +1531,12 @@ int main(int argc, char *argv[])
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
 
-				vars_thr = std::thread(set_vars, c_Base + add_off);
-				vars_thr.detach();
-
 				// Now that client is found, get its real UUID and spoof
 				char guest_uuid_buf[128] = {0};
 				uint64_t guest_uuid_ptr = 0;
 				// We need to read the address of guest_real_uuid from the add array
-				// Wait a bit for set_vars to initialize and for the guest to be ready
-				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				// Wait a bit for the guest to initialize its add array
+				std::this_thread::sleep_for(std::chrono::milliseconds(200));
 				client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
 				if (guest_uuid_ptr) {
 					client_mem.ReadArray<char>(guest_uuid_ptr, guest_uuid_buf, 128);
@@ -1566,6 +1563,9 @@ int main(int argc, char *argv[])
 						printf("Failed to spoof GPU UUID.\n");
 					}
 				}
+
+				vars_thr = std::thread(set_vars, c_Base + add_off);
+				vars_thr.detach();
 
 				printf("\nYou can start the game now.\n");
 				for (int i = 15; i > 0; i--) {
