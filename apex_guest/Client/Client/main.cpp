@@ -2,6 +2,10 @@
 #include "config.h"
 #include <random>
 #include <Windows.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
 //#include <chrono>
 //test
 #include <string>
@@ -163,7 +167,12 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+char real_gpu_uuid[128] = "Unknown";
+char fake_gpu_uuid[128] = "Unknown";
+char guest_real_uuid[128] = "Unknown";
+bool gpu_spoofed = false;
+
+uint64_t add[64];//48
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -420,8 +429,36 @@ void Overlay::RenderEsp()
 	}
 }
 
+std::string GetGPUUUID() {
+	std::string uuid = "Unknown";
+	FILE* pipe = _popen("nvidia-smi -L", "r");
+	if (!pipe) return uuid;
+	char buffer[128];
+	while (fgets(buffer, 128, pipe) != NULL) {
+		std::string line = buffer;
+		size_t start = line.find("UUID: ");
+		if (start != std::string::npos) {
+			uuid = line.substr(start + 6);
+			size_t end = uuid.find(")");
+			if (end != std::string::npos) {
+				uuid = uuid.substr(0, end);
+			}
+			// Trim
+			uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
+			uuid.erase(std::remove(uuid.begin(), uuid.end(), '\r'), uuid.end());
+			break;
+		}
+	}
+	_pclose(pipe);
+	return uuid;
+}
+
 int main(int argc, char** argv)
 {
+	std::string local_uuid = GetGPUUUID();
+	strncpy(guest_real_uuid, local_uuid.c_str(), 127);
+	printf("Local GPU UUID detected: %s\n", guest_real_uuid);
+
 	add[0] = (uintptr_t)&check;
 	add[1] = (uintptr_t)&aim;
 	add[2] = (uintptr_t)&esp;
@@ -477,6 +514,12 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+
+	add[51] = (uintptr_t)&real_gpu_uuid[0];
+	add[56] = (uintptr_t)&fake_gpu_uuid[0];
+	add[61] = (uintptr_t)&gpu_spoofed;
+
+	add[48] = (uintptr_t)&guest_real_uuid[0]; // Real UUID from guest to host
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -121,6 +122,10 @@ bool is_aimentity_visible = false;
 
 //map
 int map = 0;
+
+std::string real_gpu_uuid = "Unknown";
+std::string fake_gpu_uuid = "Unknown";
+bool gpu_spoofed = false;
 
 int screen_width = 2560;
 int screen_height = 1440;
@@ -1070,187 +1075,107 @@ static void AimbotLoop()
 static void set_vars(uint64_t add_addr)
 {
 	printf("Reading client vars...\n");
-	std::this_thread::sleep_for(std::chrono::milliseconds(50));
-	//Get addresses of client vars
-uint64_t check_addr = 0;
-printf("Reading check address: %lx\n", add_addr);
-if(!client_mem.Read<uint64_t>(add_addr, check_addr)) {
-  printf("Read failed!\n");
-}
+
+	uint64_t check_addr = 0;
+	int retry_count = 0;
+	while (check_addr == 0 && retry_count < 100) {
+		client_mem.Read<uint64_t>(add_addr, check_addr);
+		if (check_addr == 0) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			retry_count++;
+		}
+	}
+
+	if (check_addr == 0) {
+		printf("Failed to read client variables from add array. Quitting set_vars.\n");
+		return;
+	}
+
+	printf("Client add array initialized. Reading addresses...\n");
 
 uint64_t aim_addr = 0;  
-printf("Reading aim address: %lx\n", add_addr + sizeof(uint64_t));
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t), aim_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t), aim_addr);
 
 uint64_t esp_addr = 0;
-printf("Reading esp address: %lx\n", add_addr + sizeof(uint64_t) * 2);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 2, esp_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 2, esp_addr);
+
 uint64_t aiming_addr = 0;
-printf("Reading aiming address: %lx\n", add_addr + sizeof(uint64_t) * 3);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 3, aiming_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 3, aiming_addr);
 
 uint64_t g_Base_addr = 0;
-printf("Reading g_Base address: %lx\n", add_addr + sizeof(uint64_t) * 4);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr);
 
 uint64_t next_addr = 0;  
-printf("Reading next address: %lx\n", add_addr + sizeof(uint64_t) * 5);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr);
+
 uint64_t player_addr = 0;
-printf("Reading player address: %lx\n", add_addr + sizeof(uint64_t) * 6);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 6, player_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 6, player_addr);
 
 uint64_t valid_addr = 0;
-printf("Reading valid address: %lx\n", add_addr + sizeof(uint64_t) * 7);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 7, valid_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 7, valid_addr);
 
 uint64_t max_dist_addr = 0;
-printf("Reading max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 8);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 8, max_dist_addr)) {
-  printf("Read failed!\n");
-}
-
-//uint64_t item_glow_addr = 0;
-//printf("Reading item_glow address: %lx\n", add_addr + sizeof(uint64_t) * 9);
-//if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, item_glow_addr)) {
- // printf("Read failed!\n");
-//}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 8, max_dist_addr);
 
 uint64_t player_glow_addr = 0;
-printf("Reading player_glow address: %lx\n", add_addr + sizeof(uint64_t) * 9);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, player_glow_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, player_glow_addr);
 
 uint64_t aim_no_recoil_addr = 0;
-printf("Reading aim_no_recoil address: %lx\n", add_addr + sizeof(uint64_t) * 10);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 10, aim_no_recoil_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 10, aim_no_recoil_addr);
 
 uint64_t smooth_addr = 0;
-printf("Reading smooth address: %lx\n", add_addr + sizeof(uint64_t) * 11);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, smooth_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, smooth_addr);
 
 uint64_t max_fov_addr = 0;
-printf("Reading max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 12); 
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, max_fov_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, max_fov_addr);
 
 uint64_t bone_addr = 0;
-printf("Reading bone address: %lx\n", add_addr + sizeof(uint64_t) * 13);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 13, bone_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 13, bone_addr);
 
 uint64_t spectators_addr = 0;
-printf("Reading spectators address: %lx\n", add_addr + sizeof(uint64_t) * 14);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, spectators_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, spectators_addr);
 
 uint64_t allied_spectators_addr = 0;  
-printf("Reading allied_spectators address: %lx\n", add_addr + sizeof(uint64_t) * 15);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, allied_spectators_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, allied_spectators_addr);
 
 uint64_t glowr_addr = 0;
-printf("Reading glowr address: %lx\n", add_addr + sizeof(uint64_t) * 16);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, glowr_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, glowr_addr);
 
 uint64_t glowg_addr = 0;
-printf("Reading glowg address: %lx\n", add_addr + sizeof(uint64_t) * 17);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, glowg_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, glowg_addr);
 
 uint64_t glowb_addr = 0;
-printf("Reading glowb address: %lx\n", add_addr + sizeof(uint64_t) * 18);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, glowb_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, glowb_addr);
 
 uint64_t glowrviz_addr = 0;
-printf("Reading glowrviz address: %lx\n", add_addr + sizeof(uint64_t) * 19);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, glowrviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, glowrviz_addr);
 
 uint64_t glowgviz_addr = 0;
-printf("Reading glowgviz address: %lx\n", add_addr + sizeof(uint64_t) * 20);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 20, glowgviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 20, glowgviz_addr);
 
 uint64_t glowbviz_addr = 0;
-printf("Reading glowbviz address: %lx\n", add_addr + sizeof(uint64_t) * 21);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 21, glowbviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 21, glowbviz_addr);
 
 uint64_t glowrknocked_addr = 0;
-printf("Reading glowrknocked address: %lx\n", add_addr + sizeof(uint64_t) * 22);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowrknocked_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowrknocked_addr);
 
 uint64_t glowgknocked_addr = 0;  
-printf("Reading glowgknocked address: %lx\n", add_addr + sizeof(uint64_t) * 23);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_addr);
 
 uint64_t glowbknocked_addr = 0;
-printf("Reading glowbknocked address: %lx\n", add_addr + sizeof(uint64_t) * 24);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, glowbknocked_addr)) {
-  printf("Read failed!\n"); 
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, glowbknocked_addr);
 
 uint64_t firing_range_addr = 0;
-printf("Reading firing_range address: %lx\n", add_addr + sizeof(uint64_t) * 25);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, firing_range_addr)) {
-  printf("Read failed!\n"); 
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, firing_range_addr);
 
 uint64_t shooting_addr = 0;
-printf("Reading shooting address: %lx\n", add_addr + sizeof(uint64_t) * 26);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr)) {
-  printf("Read failed!\n"); 
-}
-
-////////
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr);
 
 uint64_t onevone_addr = 0;
-printf("Reading onevone address: %lx\n", add_addr + sizeof(uint64_t) * 27);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 27, onevone_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 27, onevone_addr);
 
 uint64_t spec_list_addr = 0;
-printf("Reading spec_list address: %lx\n", add_addr + sizeof(uint64_t) * 28);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, spec_list_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, spec_list_addr);
 
 //
 //uint64_t min_max_fov_addr = 0;
@@ -1295,16 +1220,40 @@ vars_t = true;
 while (vars_t)
 {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+			if (new_client && c_Base != 0)
 		{
 			client_mem.Write<uint32_t>(check_addr, 0);
 			new_client = false;
 			printf("\nReady\n");
 		}
 
-    while (c_Base != 0 && g_Base != 0)
+    while (c_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+        uint64_t real_uuid_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_uuid_ptr_addr);
+        if (real_uuid_ptr_addr && !real_gpu_uuid.empty()) {
+            client_mem.WriteArray<char>(real_uuid_ptr_addr, real_gpu_uuid.c_str(), real_gpu_uuid.size() + 1);
+        }
+
+        uint64_t fake_uuid_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, fake_uuid_ptr_addr);
+        if (fake_uuid_ptr_addr && !fake_gpu_uuid.empty()) {
+            client_mem.WriteArray<char>(fake_uuid_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
+        }
+
+        uint64_t gpu_spoofed_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr_addr);
+        if (gpu_spoofed_ptr_addr) {
+            client_mem.Write<bool>(gpu_spoofed_ptr_addr, gpu_spoofed);
+        }
+
+        if (g_Base == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
         client_mem.Write<uint64_t>(g_Base_addr, g_Base);
         client_mem.Write<int>(spectators_addr, spectators);
         client_mem.Write<int>(allied_spectators_addr, allied_spectators);
@@ -1462,12 +1411,15 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	// Initialize DMA connection early
+	apex_mem.open_proc("");
+
 	const char* cl_proc = "Client.exe";
 	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x2b5bb0;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
@@ -1476,65 +1428,9 @@ int main(int argc, char *argv[])
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
+	bool client_spoofed = false;
 	while (active)
 	{
-		if (apex_mem.get_proc_status() != process_status::FOUND_READY)
-		{
-			if (aim_t)
-			{
-				aim_t = false;
-				esp_t = false;
-				actions_t = false;
-				//item_t = false;
-				extern bool stuff_t;
-				stuff_t = false;
-				g_Base = 0;
-
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				//itemglow_thr.~thread();
-				stuffbot_thr.~thread();
-
-			}
-
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			printf("Searching for apex process...\n");
-			proc_not_found = apex_mem.get_proc_status() == process_status::NOT_FOUND;
-			if (proc_not_found)
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-				printf("Searching for apex process...\n");
-			}
-
-			apex_mem.open_proc(ap_proc);
-
-			if (apex_mem.get_proc_status() == process_status::FOUND_READY)
-			{
-				g_Base = apex_mem.get_proc_baseaddr();
-				if (proc_not_found)
-				{
-					printf("\nApex process found\n");
-					printf("Base: %lx\n", g_Base);
-				}
-
-				aimbot_thr = std::thread(AimbotLoop);
-				esp_thr = std::thread(EspLoop);
-				actions_thr = std::thread(DoActions);
-				stuffbot_thr = std::thread(StuffBotLoop);
-				//itemglow_thr = std::thread(item_glow_t);
-				aimbot_thr.detach();
-				esp_thr.detach();
-				actions_thr.detach();
-				stuffbot_thr.detach();
-				//itemglow_thr.detach();
-			}
-		}
-		else
-		{
-			apex_mem.check_proc();
-		}
-
 		if (client_mem.get_proc_status() != process_status::FOUND_READY)
 		{
 			if (vars_t)
@@ -1542,7 +1438,8 @@ int main(int argc, char *argv[])
 				vars_t = false;
 				c_Base = 0;
 
-				vars_thr.~thread();
+				if (vars_thr.joinable())
+					vars_thr.detach();
 			}
 			
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1555,14 +1452,123 @@ int main(int argc, char *argv[])
 				c_Base = client_mem.get_proc_baseaddr();
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
+				client_spoofed = false;
+			}
+		}
 
-				vars_thr = std::thread(set_vars, c_Base + add_off);
-				vars_thr.detach();
+		if (client_mem.get_proc_status() == process_status::FOUND_READY && !client_spoofed)
+		{
+			// Now that client is found, get its real UUID and spoof
+			char guest_uuid_buf[128] = {0};
+			uint64_t guest_uuid_ptr = 0;
+			// We need to read the address of guest_real_uuid from the add array
+			// Wait a bit for the guest to initialize its add array
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
+			if (guest_uuid_ptr) {
+				client_mem.ReadArray<char>(guest_uuid_ptr, guest_uuid_buf, 128);
+				std::string target_uuid = guest_uuid_buf;
+				printf("Guest reported real GPU UUID: %s\n", target_uuid.c_str());
+
+				// Perform spoofing
+				gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
+				if (!gpu_spoofed) {
+					printf("Driver-based spoofing failed, trying physical memory scan...\n");
+					gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid);
+					real_gpu_uuid = target_uuid;
+				} else {
+					// Also do physical spoof for good measure
+					printf("Driver spoofing succeeded, performing physical scan for good measure...\n");
+					std::string dummy;
+					physical_spoof(target_uuid, dummy);
+				}
+
+				if (gpu_spoofed) {
+					printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
+					printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
+					printf("GPU UUID Spoofed successfully!\n");
+				} else {
+					printf("Failed to spoof GPU UUID.\n");
+				}
+				client_spoofed = true;
+
+				printf("\nYou can start the game now.\n");
+				for (int i = 15; i > 0; i--) {
+					printf("Waiting for user to start the game... %d seconds remaining\r", i);
+					fflush(stdout);
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+				printf("\nStarting Apex process search...\n");
+			} else {
+				printf("Waiting for guest to provide real UUID...\n");
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
 		else
 		{
 			client_mem.check_proc();
+		}
+
+		if (client_mem.get_proc_status() == process_status::FOUND_READY) {
+			if (apex_mem.get_proc_status() != process_status::FOUND_READY)
+			{
+				if (aim_t)
+				{
+					aim_t = false;
+					esp_t = false;
+					actions_t = false;
+					//item_t = false;
+					extern bool stuff_t;
+					stuff_t = false;
+					g_Base = 0;
+
+					if (aimbot_thr.joinable()) aimbot_thr.detach();
+					if (esp_thr.joinable()) esp_thr.detach();
+					if (actions_thr.joinable()) actions_thr.detach();
+					if (stuffbot_thr.joinable()) stuffbot_thr.detach();
+				}
+
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				printf("Searching for apex process...\n");
+				proc_not_found = apex_mem.get_proc_status() == process_status::NOT_FOUND;
+				if (proc_not_found)
+				{
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+					printf("Searching for apex process...\n");
+				}
+
+				apex_mem.open_proc(ap_proc);
+
+				if (apex_mem.get_proc_status() == process_status::FOUND_READY)
+				{
+					g_Base = apex_mem.get_proc_baseaddr();
+					if (proc_not_found)
+					{
+						printf("\nApex process found\n");
+						printf("Base: %lx\n", g_Base);
+					}
+
+					if (!vars_t) {
+						vars_thr = std::thread(set_vars, c_Base + add_off);
+						vars_thr.detach();
+					}
+
+					aimbot_thr = std::thread(AimbotLoop);
+					esp_thr = std::thread(EspLoop);
+					actions_thr = std::thread(DoActions);
+					stuffbot_thr = std::thread(StuffBotLoop);
+					//itemglow_thr = std::thread(item_glow_t);
+					aimbot_thr.detach();
+					esp_thr.detach();
+					actions_thr.detach();
+					stuffbot_thr.detach();
+					//itemglow_thr.detach();
+				}
+			}
+			else
+			{
+				apex_mem.check_proc();
+			}
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
