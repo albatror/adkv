@@ -163,7 +163,11 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+char real_gpu_uuid[128] = "Unknown";
+char fake_gpu_uuid[128] = "Unknown";
+bool gpu_spoofed = false;
+
+uint64_t add[64];//48
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -477,6 +481,10 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+
+	add[51] = (uintptr_t)&real_gpu_uuid[0];
+	add[56] = (uintptr_t)&fake_gpu_uuid[0];
+	add[61] = (uintptr_t)&gpu_spoofed;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

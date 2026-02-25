@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "spoof.h"
 #include <thread>
 #include <array>
 #include <fstream>
@@ -121,6 +122,10 @@ bool is_aimentity_visible = false;
 
 //map
 int map = 0;
+
+std::string real_gpu_uuid = "Unknown";
+std::string fake_gpu_uuid = "Unknown";
+bool gpu_spoofed = false;
 
 int screen_width = 2560;
 int screen_height = 1440;
@@ -1302,9 +1307,30 @@ while (vars_t)
 			printf("\nReady\n");
 		}
 
-    while (c_Base != 0 && g_Base != 0)
+    while (c_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+        uint64_t real_uuid_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, real_uuid_ptr_addr);
+        if (real_uuid_ptr_addr && !real_gpu_uuid.empty()) {
+            client_mem.WriteArray<char>(real_uuid_ptr_addr, real_gpu_uuid.c_str(), real_gpu_uuid.size() + 1);
+        }
+
+        uint64_t fake_uuid_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, fake_uuid_ptr_addr);
+        if (fake_uuid_ptr_addr && !fake_gpu_uuid.empty()) {
+            client_mem.WriteArray<char>(fake_uuid_ptr_addr, fake_gpu_uuid.c_str(), fake_gpu_uuid.size() + 1);
+        }
+
+        uint64_t gpu_spoofed_ptr_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, gpu_spoofed_ptr_addr);
+        if (gpu_spoofed_ptr_addr) {
+            client_mem.Write<bool>(gpu_spoofed_ptr_addr, gpu_spoofed);
+        }
+
+        if (g_Base == 0) continue;
+
         client_mem.Write<uint64_t>(g_Base_addr, g_Base);
         client_mem.Write<int>(spectators_addr, spectators);
         client_mem.Write<int>(allied_spectators_addr, allied_spectators);
@@ -1462,12 +1488,33 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	// Initialize DMA connection early for spoofing
+	apex_mem.open_proc("");
+
+	printf("Proceeding to spoof NVIDIA GPU UUID...\n");
+	gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
+	if (gpu_spoofed) {
+		printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
+		printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
+		printf("GPU UUID Spoofed successfully!\n");
+	} else {
+		printf("Failed to spoof GPU UUID. Continuing anyway...\n");
+	}
+
+	printf("\nYou can start the game now.\n");
+	for (int i = 15; i > 0; i--) {
+		printf("Waiting for user to start the game... %d seconds remaining\r", i);
+		fflush(stdout);
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	printf("\nStarting Apex process search...\n");
+
 	const char* cl_proc = "Client.exe";
 	const char* ap_proc = "r5apex_dx12.ex";
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x2b5bb0;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
