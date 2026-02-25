@@ -1488,26 +1488,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	// Initialize DMA connection early for spoofing
+	// Initialize DMA connection early
 	apex_mem.open_proc("");
-
-	printf("Proceeding to spoof NVIDIA GPU UUID...\n");
-	gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
-	if (gpu_spoofed) {
-		printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
-		printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
-		printf("GPU UUID Spoofed successfully!\n");
-	} else {
-		printf("Failed to spoof GPU UUID. Continuing anyway...\n");
-	}
-
-	printf("\nYou can start the game now.\n");
-	for (int i = 15; i > 0; i--) {
-		printf("Waiting for user to start the game... %d seconds remaining\r", i);
-		fflush(stdout);
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-	}
-	printf("\nStarting Apex process search...\n");
 
 	const char* cl_proc = "Client.exe";
 	const char* ap_proc = "r5apex_dx12.ex";
@@ -1602,6 +1584,45 @@ int main(int argc, char *argv[])
 				c_Base = client_mem.get_proc_baseaddr();
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
+
+				// Now that client is found, get its real UUID and spoof
+				char guest_uuid_buf[128] = {0};
+				uint64_t guest_uuid_ptr = 0;
+				// We need to read the address of guest_real_uuid from the add array
+				client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
+				if (guest_uuid_ptr) {
+					client_mem.ReadArray<char>(guest_uuid_ptr, guest_uuid_buf, 128);
+					std::string target_uuid = guest_uuid_buf;
+					printf("Guest reported real GPU UUID: %s\n", target_uuid.c_str());
+
+					// Perform spoofing
+					gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
+					if (!gpu_spoofed) {
+						printf("Driver-based spoofing failed, trying physical memory scan...\n");
+						gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid);
+						real_gpu_uuid = target_uuid;
+					} else {
+						// Also do physical spoof for good measure
+						std::string dummy;
+						physical_spoof(target_uuid, dummy);
+					}
+
+					if (gpu_spoofed) {
+						printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
+						printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
+						printf("GPU UUID Spoofed successfully!\n");
+					} else {
+						printf("Failed to spoof GPU UUID.\n");
+					}
+				}
+
+				printf("\nYou can start the game now.\n");
+				for (int i = 15; i > 0; i--) {
+					printf("Waiting for user to start the game... %d seconds remaining\r", i);
+					fflush(stdout);
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+				printf("\nStarting Apex process search...\n");
 
 				vars_thr = std::thread(set_vars, c_Base + add_off);
 				vars_thr.detach();
