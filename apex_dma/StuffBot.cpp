@@ -2,6 +2,7 @@
 #include <thread>
 #include <chrono>
 #include <unordered_map>
+#include <cmath>
 #include "offsets.h"
 #include "Weapon.h"
 
@@ -21,45 +22,21 @@ bool stuff_t = false;
 
 bool IsInCrossHair(Entity &target)
 {
-    static uintptr_t last_t = 0;
-    static float last_crosshair_target_time = -1.f;
+    static std::unordered_map<uint64_t, float> lastTimes;
     float now_crosshair_target_time = target.lastCrossHairTime();
-    bool is_trigger = false;
 
-    if (last_t == target.ptr)
-    {
-        if(last_crosshair_target_time != -1.f)
-        {
-            if(now_crosshair_target_time > last_crosshair_target_time)
-            {
-                is_trigger = true;
-                last_crosshair_target_time = -1.f;
-            }
-            else
-            {
-                is_trigger = false;
-                last_crosshair_target_time = now_crosshair_target_time;
-            }
-        }
-        else
-        {
-            is_trigger = false;
-            last_crosshair_target_time = now_crosshair_target_time;
-        }
-    }
-    else
-    {
-        last_t = target.ptr;
-        last_crosshair_target_time = -1.f;
-    }
-    return is_trigger;
+    if (std::isnan(now_crosshair_target_time)) return false;
+
+    float last_time = lastTimes[target.ptr];
+    bool triggered = (now_crosshair_target_time > last_time) && (last_time != 0.0f);
+    lastTimes[target.ptr] = now_crosshair_target_time;
+
+    return triggered;
 }
 
 void TriggerBotRun()
 {
-    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-    std::this_thread::sleep_for(std::chrono::milliseconds(60));
-    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+    // Deprecated: Using non-blocking state machine in StuffBotLoop
 }
 
 bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
@@ -100,6 +77,9 @@ void StuffBotLoop()
     // Zoom tracking
     static auto zoomStartTime = std::chrono::steady_clock::now();
     static bool wasZooming = false;
+    // Triggerbot state
+    static bool isShooting = false;
+    static auto shootStartTime = std::chrono::steady_clock::now();
 
     while (stuff_t)
     {
@@ -111,19 +91,27 @@ void StuffBotLoop()
         if (LocalPlayer == 0) continue;
         Entity LPlayer = getEntity(LocalPlayer);
 
-        // Update zoom timing
-        bool isZooming = LPlayer.isZooming();
         auto now = std::chrono::steady_clock::now();
 
+        // Update zoom timing
+        bool isZooming = LPlayer.isZooming();
         if (isZooming && !wasZooming) {
             zoomStartTime = now;  // just started zooming
         }
-
         int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
         wasZooming = isZooming;
 
+        // Triggerbot firing state machine
+        if (isShooting) {
+            int elapsedShoot = std::chrono::duration_cast<std::chrono::milliseconds>(now - shootStartTime).count();
+            if (elapsedShoot >= 60) {
+                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                isShooting = false;
+            }
+        }
+
         // Triggerbot logic
-        if (triggerbot && triggerbot_aiming && aimentity != 0)
+        if (triggerbot && triggerbot_aiming && aimentity != 0 && !isShooting)
         {
             if (isZooming) {
                 int weaponId = LPlayer.getCurrentWeaponId();
@@ -132,7 +120,9 @@ void StuffBotLoop()
                     if (IsInCrossHair(Target))
                     {
                         printf("[TRIGGERBOT] Shooting with %s (ID: %d)\n", get_weapon_name(weaponId).c_str(), weaponId);
-                        TriggerBotRun();
+                        apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                        shootStartTime = now;
+                        isShooting = true;
                     }
                 }
             }
