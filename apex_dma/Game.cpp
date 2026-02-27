@@ -294,7 +294,7 @@ bool Entity::isGlowing()
 
 bool Entity::isZooming()
 {
-	return *(int*)(buffer + OFFSET_ZOOMING) == 1;
+	return *(uint8_t*)(buffer + OFFSET_ZOOMING) > 0;
 }
 
 /////////////////////////

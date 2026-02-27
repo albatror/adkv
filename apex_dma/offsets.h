@@ -28,8 +28,8 @@
 #define OFFSET_ABS_VELOCITY 0x0170 //[DataMap.DT_BaseEntity].m_vecAbsVelocity updated 2024/09/18
 //#define OFFSET_VISIBLE_TIME 0x1A64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/02/18
 //#define OFFSET_LAST_AIMEDAT_TIME 0x1A6C //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
-#define OFFSET_VISIBLE_TIME     0x1a62 + 0x02 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02
-#define OFFSET_LAST_AIMEDAT_TIME       8 //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
+#define OFFSET_VISIBLE_TIME     0x1a64 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02 updated 2026/02/18
+#define OFFSET_LAST_AIMEDAT_TIME       0x8 //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
 #define OFFSET_ZOOMING 0x1cb1 //[RecvTable.DT_Player].m_bZooming updated 2026/02/11
 
 #define OFFSET_VIEW_OFFSET 0x00e8 //[DataMap.DT_BaseEntity].m_currentFrame.viewOffset updated 2024/09/18
@@ -110,7 +110,7 @@
 #define GLOW_FADE 0x388+ 0x30 // ats 3rd result of 3 offsets consecutive or first + 8 updated 01/10/2024
 #define HIGHLIGHT_SETTINGS 0x6B95E00 //[Miscellaneous].HighlightSettings updated 2026/02/18
 #define HIGHLIGHT_TYPE_SIZE 0x34 //? updated 01/10/2024
-#define OFFSET_CROSSHAIR_LAST OFFSET_VISIBLE_TIME + 0x19f8 //[Miscellaneous].CWeaponX!lastCrosshairTargetTime updated 2025/04/18
+#define OFFSET_CROSSHAIR_LAST OFFSET_VISIBLE_TIME + OFFSET_LAST_AIMEDAT_TIME //[Miscellaneous].CWeaponX!lastCrosshairTargetTime updated 2026/02/18
 //#define OFFSET_CROSSHAIR_START 0x1958 //CPlayer!crosshairTargetStartTime updated 01/9/2024
 #define OFFSET_INPUT_SYSTEM 0x2034500 //[Miscellaneous].InputSystem updated 2026/02/18 
 
