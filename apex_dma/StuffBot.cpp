@@ -7,7 +7,6 @@
 #include "offsets.h"
 #include "Weapon.h"
 #include "prediction.h"
-#include "Skynade.h"
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
@@ -24,11 +23,6 @@ extern int triggerbot_delay;
 extern float triggerbot_padding;
 extern bool triggerbot_hitboxes;
 extern bool triggerbot_prediction;
-
-extern bool skynade;
-extern float skynade_aim_x;
-extern float skynade_aim_y;
-extern bool skynade_aim_valid;
 
 extern bool firing_range;
 extern bool is_aimentity_visible;
@@ -148,7 +142,6 @@ void StuffBotLoop()
     // Zoom tracking
     static auto zoomStartTime = std::chrono::steady_clock::now();
     static bool wasZooming = false;
-    Skynade skynade_engine;
 
     while (stuff_t)
     {
@@ -252,63 +245,6 @@ void StuffBotLoop()
                     {
                         printf("[TRIGGERBOT] Shooting with %s (ID: %d)\n", get_weapon_name(weaponId).c_str(), weaponId);
                         TriggerBotRun(triggerbot_delay);
-                    }
-                }
-            }
-        }
-
-        // Skynade logic
-        if (skynade) {
-            skynade_aim_valid = false;
-            int weaponId = LPlayer.getCurrentWeaponId();
-            if (weaponId == WeaponIDs::FRAG_GRENADE || weaponId == WeaponIDs::ARC_STAR || weaponId == WeaponIDs::THERMITE_GRENADE) {
-                if (aimentity != 0) {
-                    Entity target = getEntity(aimentity);
-                    if (target.isAlive() && (!target.isKnocked() || firing_range)) {
-                        WeaponXEntity curweap = WeaponXEntity();
-                        curweap.update(LocalPlayer);
-                        float bulletSpeed = curweap.get_projectile_speed();
-                        float bulletScale = curweap.get_projectile_scale();
-                        // Read mod bitfield - usually at offset 0x20 of weapon
-                        uint32_t weaponMod = 0;
-                        // For simplicity, we just use the projectile data
-                        auto aimAngles = skynade_engine.calculateAngle(
-                            weaponId,
-                            weaponMod,
-                            bulletScale,
-                            bulletSpeed,
-                            LPlayer.GetCamPos(),
-                            target.getBonePositionByHitbox(2) // Upper chest
-                        );
-
-                        if (aimAngles) {
-                            extern int screen_width;
-                            extern int screen_height;
-                            uint64_t viewRenderer = 0;
-                            apex_mem.Read<uint64_t>(g_Base + OFFSET_RENDER, viewRenderer);
-                            uint64_t viewMatrixPtr = 0;
-                            apex_mem.Read<uint64_t>(viewRenderer + OFFSET_MATRIX, viewMatrixPtr);
-                            Matrix4x4 m = {};
-                            apex_mem.Read<Matrix4x4>(viewMatrixPtr, m);
-
-                            // Project the required angles back to screen to show where to aim
-                            // This is a bit tricky. We need a target position that corresponds to these angles.
-                            // Better way: The guest script should probably handle the visual if we give it the angles.
-                            // But the request said "visual too". Let's calculate a 3D point in front of us with these angles.
-                            float pitch = DEG2RAD(aimAngles->x);
-                            float yaw = DEG2RAD(aimAngles->y);
-                            Vector forward;
-                            forward.x = cos(pitch) * cos(yaw);
-                            forward.y = cos(pitch) * sin(yaw);
-                            forward.z = -sin(pitch);
-                            Vector aimPoint = LPlayer.GetCamPos() + (forward * 1000.0f);
-                            Vector screenPos;
-                            if (WorldToScreen(aimPoint, m.matrix, screen_width, screen_height, screenPos)) {
-                                skynade_aim_x = screenPos.x;
-                                skynade_aim_y = screenPos.y;
-                                skynade_aim_valid = true;
-                            }
-                        }
                     }
                 }
             }

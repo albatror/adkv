@@ -18,9 +18,6 @@ enum WeaponIDs {
     WINGMAN = 117,
     REPEATER_3030 = 120,
     NEMESIS = 122,
-    FRAG_GRENADE = 123,
-    ARC_STAR = 124,
-    THERMITE_GRENADE = 125,
     BOCEK = 182,
 };
 

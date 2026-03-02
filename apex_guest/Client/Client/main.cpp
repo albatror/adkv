@@ -33,11 +33,6 @@ int triggerbot_type = 1; // 0 = isAimedat check, 1 = Bounding Box
 int triggerbot_delay = 50;
 float triggerbot_padding = 0.1f;
 
-bool skynade = false;
-float skynade_aim_x = 0;
-float skynade_aim_y = 0;
-bool skynade_aim_valid = false;
-
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -494,10 +489,6 @@ int main(int argc, char** argv)
 	add[53] = (uintptr_t)&triggerbot_padding;
 	add[54] = (uintptr_t)&v.triggerbot_hitboxes;
 	add[55] = (uintptr_t)&v.triggerbot_prediction;
-	add[57] = (uintptr_t)&skynade;
-	add[58] = (uintptr_t)&skynade_aim_x;
-	add[59] = (uintptr_t)&skynade_aim_y;
-	add[60] = (uintptr_t)&skynade_aim_valid;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
