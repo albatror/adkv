@@ -48,6 +48,7 @@ extern bool walljump;
 extern float flickbot_fov;
 extern float flickbot_smooth;
 extern float triggerbot_fov;
+extern bool skynade;
 extern int triggerbot_type;
 extern int triggerbot_delay;
 extern float triggerbot_padding;
@@ -119,6 +120,7 @@ void SaveConfig(const std::string& filename) {
     file << "flickbot_fov " << flickbot_fov << "\n";
     file << "flickbot_smooth " << flickbot_smooth << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
+    file << "skynade " << std::boolalpha << skynade << "\n";
     file << "triggerbot_type " << triggerbot_type << "\n";
     file << "triggerbot_delay " << triggerbot_delay << "\n";
     file << "triggerbot_padding " << triggerbot_padding << "\n";
@@ -192,6 +194,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "flickbot_fov") ss >> flickbot_fov;
         else if (key == "flickbot_smooth") ss >> flickbot_smooth;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
+        else if (key == "skynade") ss >> std::boolalpha >> skynade;
         else if (key == "triggerbot_type") ss >> triggerbot_type;
         else if (key == "triggerbot_delay") ss >> triggerbot_delay;
         else if (key == "triggerbot_padding") ss >> triggerbot_padding;

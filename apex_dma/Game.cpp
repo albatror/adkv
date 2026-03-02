@@ -647,6 +647,11 @@ float WeaponXEntity::get_projectile_speed()
 	return projectile_speed;
 }
 
+float WeaponXEntity::get_projectile_scale()
+{
+	return projectile_scale;
+}
+
 float WeaponXEntity::get_projectile_gravity()
 {
 	return 750.0f * projectile_scale;

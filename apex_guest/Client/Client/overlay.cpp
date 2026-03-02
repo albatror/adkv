@@ -36,6 +36,11 @@ extern int triggerbot_type;
 extern int triggerbot_delay;
 extern float triggerbot_padding;
 
+extern bool skynade;
+extern float skynade_aim_x;
+extern float skynade_aim_y;
+extern bool skynade_aim_valid;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -211,6 +216,7 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+			ImGui::Checkbox(XorStr("Skynade"), &skynade);
 			const char* triggerTypes[] = { XorStr("AimedAt Only"), XorStr("Bounding Box") };
 			ImGui::Combo(XorStr("Trigger Mode"), &triggerbot_type, triggerTypes, IM_ARRAYSIZE(triggerTypes));
 			ImGui::SliderInt(XorStr("Trigger Delay (ms)"), &triggerbot_delay, 0, 200);
@@ -560,6 +566,15 @@ DWORD Overlay::CreateOverlay()
 			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (skynade && skynade_aim_valid)
+		{
+			ImGui::Begin("##skynade", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(skynade_aim_x, skynade_aim_y), 10.0f, IM_COL32(255, 255, 0, 255), 12, 2.0f);
+			draw->AddLine(ImVec2(skynade_aim_x - 15, skynade_aim_y), ImVec2(skynade_aim_x + 15, skynade_aim_y), IM_COL32(255, 255, 0, 255), 1.0f);
+			draw->AddLine(ImVec2(skynade_aim_x, skynade_aim_y - 15), ImVec2(skynade_aim_x, skynade_aim_y + 15), IM_COL32(255, 255, 0, 255), 1.0f);
 			ImGui::End();
 		}
 		RenderEsp();

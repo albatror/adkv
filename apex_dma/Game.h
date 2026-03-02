@@ -106,6 +106,7 @@ class WeaponXEntity
 public:
 	void update(uint64_t LocalPlayer);
 	float get_projectile_speed();
+	float get_projectile_scale();
 	float get_projectile_gravity();
 	float get_zoom_fov();
 	int get_ammo();

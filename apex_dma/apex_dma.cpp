@@ -80,6 +80,11 @@ float triggerbot_padding = 0.1f;
 bool triggerbot_hitboxes = false;
 bool triggerbot_prediction = false;
 
+bool skynade = false;
+float skynade_aim_x = 0;
+float skynade_aim_y = 0;
+bool skynade_aim_valid = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -1533,6 +1538,23 @@ while (vars_t)
         uint64_t triggerbot_prediction_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, triggerbot_prediction_addr);
         if (triggerbot_prediction_addr) client_mem.Read<bool>(triggerbot_prediction_addr, triggerbot_prediction);
+
+        uint64_t skynade_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, skynade_addr);
+        if (skynade_addr) client_mem.Read<bool>(skynade_addr, skynade);
+
+        uint64_t skynade_aim_x_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, skynade_aim_x_addr);
+        uint64_t skynade_aim_y_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, skynade_aim_y_addr);
+        uint64_t skynade_aim_valid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, skynade_aim_valid_addr);
+
+        if (skynade) {
+            client_mem.Write<float>(skynade_aim_x_addr, skynade_aim_x);
+            client_mem.Write<float>(skynade_aim_y_addr, skynade_aim_y);
+            client_mem.Write<bool>(skynade_aim_valid_addr, skynade_aim_valid);
+        }
 
         if (esp && next)
         {

@@ -12,3 +12,8 @@
 extern int triggerbot_type;
 extern int triggerbot_delay;
 extern float triggerbot_padding;
+
+extern bool skynade;
+extern float skynade_aim_x;
+extern float skynade_aim_y;
+extern bool skynade_aim_valid;
