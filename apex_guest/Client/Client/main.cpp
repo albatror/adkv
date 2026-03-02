@@ -1,4 +1,5 @@
 #include "main.h"
+#include "types.h"
 #include "config.h"
 #include <random>
 #include <Windows.h>
@@ -11,26 +12,6 @@
 //test contraste texte
 #include ".\imgui\imgui.h"
 
-typedef struct player
-{
-	float dist = 0;
-	int entity_team = 0;
-	float boxMiddle = 0;
-	float h_y = 0;
-	float width = 0;
-	float height = 0;
-	float b_x = 0;
-	float b_y = 0;
-	bool knocked = false;
-	bool visible = false;
-	int health = 0;
-	int shield = 0;
-	int maxshield = 0;
-	int armortype = 0;
-	int xp_level = 0;
-	char name[33] = { 0 };
-	float bones[15][2] = { 0 };
-}player;
 
 typedef struct spectator {
 	bool is_spec = false;
@@ -52,6 +33,9 @@ bool triggerbot = false;
 int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+int triggerbot_type = 1; // 0 = isAimedat check, 1 = Bounding Box
+int triggerbot_delay = 50;
+float triggerbot_padding = 0.1f;
 
 bool superglide = false;
 bool bhop = false;
@@ -365,6 +349,33 @@ void Overlay::RenderEsp()
 						}
 					}
 
+					if (v.triggerbot_hitboxes)
+					{
+						ImColor boxColor = (i == best_player_idx && triggerbot_aiming) ? RED : ORANGE;
+						for (int b = 0; b < 4; b++) {
+							if (players[i].hitbox_visible[b]) {
+								// Bottom face
+								for (int j = 0; j < 4; j++) {
+									DrawLine(ImVec2(players[i].hitbox_corners[b][j][0], players[i].hitbox_corners[b][j][1]),
+										ImVec2(players[i].hitbox_corners[b][(j + 1) % 4][0], players[i].hitbox_corners[b][(j + 1) % 4][1]),
+										boxColor, 1.0f);
+								}
+								// Top face
+								for (int j = 0; j < 4; j++) {
+									DrawLine(ImVec2(players[i].hitbox_corners[b][j + 4][0], players[i].hitbox_corners[b][j + 4][1]),
+										ImVec2(players[i].hitbox_corners[b][((j + 1) % 4) + 4][0], players[i].hitbox_corners[b][((j + 1) % 4) + 4][1]),
+										boxColor, 1.0f);
+								}
+								// Connecting lines
+								for (int j = 0; j < 4; j++) {
+									DrawLine(ImVec2(players[i].hitbox_corners[b][j][0], players[i].hitbox_corners[b][j][1]),
+										ImVec2(players[i].hitbox_corners[b][j + 4][0], players[i].hitbox_corners[b][j + 4][1]),
+										boxColor, 1.0f);
+								}
+							}
+						}
+					}
+
 				}
 			}
 
@@ -477,6 +488,11 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[49] = (uintptr_t)&triggerbot_type;
+	add[52] = (uintptr_t)&triggerbot_delay;
+	add[53] = (uintptr_t)&triggerbot_padding;
+	add[54] = (uintptr_t)&v.triggerbot_hitboxes;
+	add[55] = (uintptr_t)&v.triggerbot_prediction;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

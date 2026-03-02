@@ -8,6 +8,7 @@
 #include <cfloat>
 #include "offsets_dynamic.h"
 #include "Game.h"
+#include "prediction.h"
 #include "StuffBot.h"
 #include <thread>
 #include <array>
@@ -73,6 +74,11 @@ bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+int triggerbot_type = 1;
+int triggerbot_delay = 50;
+float triggerbot_padding = 0.1f;
+bool triggerbot_hitboxes = false;
+bool triggerbot_prediction = false;
 
 bool superglide = false;
 bool bhop = false;
@@ -131,6 +137,7 @@ int tapstrafe = 0;  // InitialisÃ© Ã  0, commence le comptage
 
 bool forward_hold = false;  // InitialisÃ© Ã  faux, pas de clÃ© maintenue au dÃ©but
 
+#pragma pack(push, 1)
 typedef struct player
 {
 	float dist = 0;
@@ -150,12 +157,15 @@ typedef struct player
 	int player_xp_level = 0;
 	char name[33] = { 0 };
 	float bones[15][2] = { 0 };
+	float hitbox_corners[4][8][2] = { 0 };
+	bool hitbox_visible[4] = { 0 };
 }player;
 
 typedef struct spectator{
 	bool is_spec = false;
 	char name[33] = { 0 };
 }spectator;
+#pragma pack(pop)
 
 struct Matrix
 {
@@ -826,6 +836,44 @@ Entity LPlayer = getEntity(LocalPlayer);
 								//Target.read_xp_level()
 							};
 
+							if (triggerbot_hitboxes) {
+								std::vector<int> bones = { 0, 1, 2, 3 };
+								for (int b = 0; b < 4; b++) {
+									Vector bonePos = Target.getBonePositionByHitbox(bones[b]);
+									if (triggerbot_prediction) {
+										WeaponXEntity curweap = WeaponXEntity();
+										curweap.update(LocalPlayer);
+										float bulletSpeed = curweap.get_projectile_speed();
+										float bulletGrav = curweap.get_projectile_gravity();
+										if (bulletSpeed > 1.0f) {
+											PredictCtx ctx;
+											ctx.StartPos = LPlayer.GetCamPos();
+											ctx.TargetPos = bonePos;
+											ctx.BulletSpeed = bulletSpeed - (bulletSpeed * 0.08f);
+											ctx.BulletGravity = bulletGrav + (bulletGrav * 0.05f);
+											ctx.TargetVel = Target.getAbsVelocity();
+											if (BulletPredict(ctx)) bonePos = ctx.TargetPos;
+										}
+									}
+									Vector dimensions = GetBoxDimensionsForBone(bones[b]);
+									dimensions.x *= (1.0f + triggerbot_padding);
+									dimensions.y *= (1.0f + triggerbot_padding);
+									dimensions.z *= (1.0f + triggerbot_padding);
+									std::vector<Vector> corners = CalculateBoxCorners(bonePos, dimensions);
+									bool allIn = true;
+									for (int j = 0; j < 8; j++) {
+										Vector sPos;
+										if (WorldToScreen(corners[j], m.matrix, screen_width, screen_height, sPos)) {
+											players[c].hitbox_corners[b][j][0] = sPos.x;
+											players[c].hitbox_corners[b][j][1] = sPos.y;
+										} else {
+											allIn = false;
+										}
+									}
+									players[c].hitbox_visible[b] = allIn;
+								}
+							}
+
 							if (skeleton)
 							{
 								// 0:Pelvis, 1:UpperChest, 2:LowerChest, 3:L_Shoulder, 4:L_Elbow, 5:L_Hand, 6:R_Shoulder, 7:R_Elbow, 8:R_Hand, 9:L_Hip, 10:L_Knee, 11:L_Foot, 12:R_Hip, 13:R_Knee, 14:R_Foot
@@ -931,6 +979,44 @@ Entity LPlayer = getEntity(LocalPlayer);
 								armortype,
 								//Target.read_xp_level()
 							};
+
+							if (triggerbot_hitboxes) {
+								std::vector<int> bones = { 0, 1, 2, 3 };
+								for (int b = 0; b < 4; b++) {
+									Vector bonePos = Target.getBonePositionByHitbox(bones[b]);
+									if (triggerbot_prediction) {
+										WeaponXEntity curweap = WeaponXEntity();
+										curweap.update(LocalPlayer);
+										float bulletSpeed = curweap.get_projectile_speed();
+										float bulletGrav = curweap.get_projectile_gravity();
+										if (bulletSpeed > 1.0f) {
+											PredictCtx ctx;
+											ctx.StartPos = LPlayer.GetCamPos();
+											ctx.TargetPos = bonePos;
+											ctx.BulletSpeed = bulletSpeed - (bulletSpeed * 0.08f);
+											ctx.BulletGravity = bulletGrav + (bulletGrav * 0.05f);
+											ctx.TargetVel = Target.getAbsVelocity();
+											if (BulletPredict(ctx)) bonePos = ctx.TargetPos;
+										}
+									}
+									Vector dimensions = GetBoxDimensionsForBone(bones[b]);
+									dimensions.x *= (1.0f + triggerbot_padding);
+									dimensions.y *= (1.0f + triggerbot_padding);
+									dimensions.z *= (1.0f + triggerbot_padding);
+									std::vector<Vector> corners = CalculateBoxCorners(bonePos, dimensions);
+									bool allIn = true;
+									for (int j = 0; j < 8; j++) {
+										Vector sPos;
+										if (WorldToScreen(corners[j], m.matrix, screen_width, screen_height, sPos)) {
+											players[i].hitbox_corners[b][j][0] = sPos.x;
+											players[i].hitbox_corners[b][j][1] = sPos.y;
+										} else {
+											allIn = false;
+										}
+									}
+									players[i].hitbox_visible[b] = allIn;
+								}
+							}
 
 							if (skeleton)
 							{
@@ -1427,6 +1513,26 @@ while (vars_t)
         uint64_t triggerbot_fov_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        uint64_t triggerbot_type_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, triggerbot_type_addr);
+        if (triggerbot_type_addr) client_mem.Read<int>(triggerbot_type_addr, triggerbot_type);
+
+        uint64_t triggerbot_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, triggerbot_delay_addr);
+        if (triggerbot_delay_addr) client_mem.Read<int>(triggerbot_delay_addr, triggerbot_delay);
+
+        uint64_t triggerbot_padding_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, triggerbot_padding_addr);
+        if (triggerbot_padding_addr) client_mem.Read<float>(triggerbot_padding_addr, triggerbot_padding);
+
+        uint64_t triggerbot_hitboxes_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, triggerbot_hitboxes_addr);
+        if (triggerbot_hitboxes_addr) client_mem.Read<bool>(triggerbot_hitboxes_addr, triggerbot_hitboxes);
+
+        uint64_t triggerbot_prediction_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, triggerbot_prediction_addr);
+        if (triggerbot_prediction_addr) client_mem.Read<bool>(triggerbot_prediction_addr, triggerbot_prediction);
 
         if (esp && next)
         {

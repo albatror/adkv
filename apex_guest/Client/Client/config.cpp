@@ -48,6 +48,9 @@ extern bool walljump;
 extern float flickbot_fov;
 extern float flickbot_smooth;
 extern float triggerbot_fov;
+extern int triggerbot_type;
+extern int triggerbot_delay;
+extern float triggerbot_padding;
 extern bool fov;
 extern float cfsize;
 extern visuals v;
@@ -116,8 +119,13 @@ void SaveConfig(const std::string& filename) {
     file << "flickbot_fov " << flickbot_fov << "\n";
     file << "flickbot_smooth " << flickbot_smooth << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
+    file << "triggerbot_type " << triggerbot_type << "\n";
+    file << "triggerbot_delay " << triggerbot_delay << "\n";
+    file << "triggerbot_padding " << triggerbot_padding << "\n";
     file << "flickbot_fov_circle " << std::boolalpha << v.flickbot_fov_circle << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
+    file << "triggerbot_hitboxes " << std::boolalpha << v.triggerbot_hitboxes << "\n";
+    file << "triggerbot_prediction " << std::boolalpha << v.triggerbot_prediction << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
 
@@ -184,8 +192,13 @@ void LoadConfig(const std::string& filename) {
         else if (key == "flickbot_fov") ss >> flickbot_fov;
         else if (key == "flickbot_smooth") ss >> flickbot_smooth;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
+        else if (key == "triggerbot_type") ss >> triggerbot_type;
+        else if (key == "triggerbot_delay") ss >> triggerbot_delay;
+        else if (key == "triggerbot_padding") ss >> triggerbot_padding;
         else if (key == "flickbot_fov_circle") ss >> std::boolalpha >> v.flickbot_fov_circle;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
+        else if (key == "triggerbot_hitboxes") ss >> std::boolalpha >> v.triggerbot_hitboxes;
+        else if (key == "triggerbot_prediction") ss >> std::boolalpha >> v.triggerbot_prediction;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
     }

@@ -31,6 +31,9 @@ extern float flickbot_smooth;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
+extern int triggerbot_type;
+extern int triggerbot_delay;
+extern float triggerbot_padding;
 
 extern bool superglide;
 extern bool bhop;
@@ -207,6 +210,12 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+			const char* triggerTypes[] = { XorStr("AimedAt Only"), XorStr("Bounding Box") };
+			ImGui::Combo(XorStr("Trigger Mode"), &triggerbot_type, triggerTypes, IM_ARRAYSIZE(triggerTypes));
+			ImGui::SliderInt(XorStr("Trigger Delay (ms)"), &triggerbot_delay, 0, 200);
+			ImGui::SliderFloat(XorStr("Hitbox Expansion"), &triggerbot_padding, 0.0f, 0.5f, "%.2f");
+			ImGui::Checkbox(XorStr("Show Hitboxes"), &v.triggerbot_hitboxes);
+			ImGui::Checkbox(XorStr("Show Prediction"), &v.triggerbot_prediction);
 
 			ImGui::EndTabItem();
 		}

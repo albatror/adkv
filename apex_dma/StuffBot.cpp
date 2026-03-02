@@ -2,8 +2,11 @@
 #include <thread>
 #include <chrono>
 #include <unordered_map>
+#include <cfloat>
+#include <algorithm>
 #include "offsets.h"
 #include "Weapon.h"
+#include "prediction.h"
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
@@ -15,9 +18,47 @@ extern float flickbot_smooth;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
+extern int triggerbot_type;
+extern int triggerbot_delay;
+extern float triggerbot_padding;
+extern bool triggerbot_hitboxes;
+extern bool triggerbot_prediction;
+
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
+
+struct Matrix4x4 {
+    float matrix[16];
+};
+
+Vector GetBoxDimensionsForBone(int boneIndex) {
+    switch (boneIndex) {
+    case 0: // Head
+        return { 5.0f, 5.0f, 5.0f };
+    case 1: // Neck
+        return { 4.0f, 4.0f, 4.0f };
+    case 2: // Upper Chest
+        return { 7.0f, 7.0f, 10.0f };
+    case 3: // Lower Chest
+        return { 8.0f, 8.0f, 12.0f };
+    default:
+        return { 6.0f, 6.0f, 8.0f };
+    }
+}
+
+std::vector<Vector> CalculateBoxCorners(Vector bonePos, Vector dimensions) {
+    return {
+        {bonePos.x + dimensions.x, bonePos.y + dimensions.y, bonePos.z + dimensions.z},
+        {bonePos.x - dimensions.x, bonePos.y + dimensions.y, bonePos.z + dimensions.z},
+        {bonePos.x - dimensions.x, bonePos.y - dimensions.y, bonePos.z + dimensions.z},
+        {bonePos.x + dimensions.x, bonePos.y - dimensions.y, bonePos.z + dimensions.z},
+        {bonePos.x + dimensions.x, bonePos.y + dimensions.y, bonePos.z - dimensions.z},
+        {bonePos.x - dimensions.x, bonePos.y + dimensions.y, bonePos.z - dimensions.z},
+        {bonePos.x - dimensions.x, bonePos.y - dimensions.y, bonePos.z - dimensions.z},
+        {bonePos.x + dimensions.x, bonePos.y - dimensions.y, bonePos.z - dimensions.z}
+    };
+}
 
 bool IsInCrossHair(Entity &target)
 {
@@ -55,8 +96,9 @@ bool IsInCrossHair(Entity &target)
     return is_trigger;
 }
 
-void TriggerBotRun()
+void TriggerBotRun(int delay)
 {
+    if (delay > 0) std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
     std::this_thread::sleep_for(std::chrono::milliseconds(60));
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
@@ -129,10 +171,80 @@ void StuffBotLoop()
                 int weaponId = LPlayer.getCurrentWeaponId();
                 if (isAllowedWeapon(weaponId, zoomElapsedMs)) {
                     Entity Target = getEntity(aimentity);
-                    if (IsInCrossHair(Target))
+                    bool shouldTrigger = false;
+
+                    if (triggerbot_type == 0) {
+                        shouldTrigger = IsInCrossHair(Target);
+                    } else if (triggerbot_type == 1) {
+                        // Bounding Box Logic
+                        extern int screen_width;
+                        extern int screen_height;
+                        uint64_t viewRenderer = 0;
+                        apex_mem.Read<uint64_t>(g_Base + OFFSET_RENDER, viewRenderer);
+                        uint64_t viewMatrixPtr = 0;
+                        apex_mem.Read<uint64_t>(viewRenderer + OFFSET_MATRIX, viewMatrixPtr);
+                        Matrix4x4 m = {};
+                        apex_mem.Read<Matrix4x4>(viewMatrixPtr, m);
+
+                        std::vector<int> bones = { 0, 1, 2, 3 };
+                        for (int boneIndex : bones) {
+                            Vector bonePos = Target.getBonePositionByHitbox(boneIndex);
+                            if (bonePos.IsZero()) continue;
+
+                            if (triggerbot_prediction) {
+                                WeaponXEntity curweap = WeaponXEntity();
+                                curweap.update(LocalPlayer);
+                                float bulletSpeed = curweap.get_projectile_speed();
+                                float bulletGrav = curweap.get_projectile_gravity();
+
+                                if (bulletSpeed > 1.0f) {
+                                    PredictCtx ctx;
+                                    ctx.StartPos = LPlayer.GetCamPos();
+                                    ctx.TargetPos = bonePos;
+                                    ctx.BulletSpeed = bulletSpeed - (bulletSpeed * 0.08f);
+                                    ctx.BulletGravity = bulletGrav + (bulletGrav * 0.05f);
+                                    ctx.TargetVel = Target.getAbsVelocity();
+                                    if (BulletPredict(ctx)) {
+                                        bonePos = ctx.TargetPos;
+                                    }
+                                }
+                            }
+
+                            Vector dimensions = GetBoxDimensionsForBone(boneIndex);
+                            dimensions.x *= (1.0f + triggerbot_padding);
+                            dimensions.y *= (1.0f + triggerbot_padding);
+                            dimensions.z *= (1.0f + triggerbot_padding);
+
+                            std::vector<Vector> corners = CalculateBoxCorners(bonePos, dimensions);
+                            float minX = FLT_MAX, maxX = -FLT_MAX, minY = FLT_MAX, maxY = -FLT_MAX;
+                            bool anyVisible = false;
+
+                            for (const auto& corner : corners) {
+                                Vector screenPos;
+                                if (WorldToScreen(corner, m.matrix, screen_width, screen_height, screenPos)) {
+                                    anyVisible = true;
+                                    minX = std::min(minX, screenPos.x);
+                                    maxX = std::max(maxX, screenPos.x);
+                                    minY = std::min(minY, screenPos.y);
+                                    maxY = std::max(maxY, screenPos.y);
+                                }
+                            }
+
+                            if (anyVisible) {
+                                float centerX = screen_width / 2.0f;
+                                float centerY = screen_height / 2.0f;
+                                if (centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY) {
+                                    shouldTrigger = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (shouldTrigger)
                     {
                         printf("[TRIGGERBOT] Shooting with %s (ID: %d)\n", get_weapon_name(weaponId).c_str(), weaponId);
-                        TriggerBotRun();
+                        TriggerBotRun(triggerbot_delay);
                     }
                 }
             }
