@@ -208,7 +208,10 @@ void Overlay::RenderMenu()
 			//ImGui::Checkbox(XorStr("Glow items"), &item_glow);
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
 
-			ImGui::Separator();
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("StuffBot")))
+		{
 			ImGui::Checkbox(XorStr("Flickbot (LSHIFT)"), &flickbot);
 			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 1000.0f, "%.2f");
 			ImGui::SliderFloat(XorStr("Flick Smooth"), &flickbot_smooth, 1.0f, 1000.0f, "%.2f");
@@ -216,7 +219,6 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
-			ImGui::Checkbox(XorStr("Skynade"), &skynade);
 			const char* triggerTypes[] = { XorStr("AimedAt Only"), XorStr("Bounding Box") };
 			ImGui::Combo(XorStr("Trigger Mode"), &triggerbot_type, triggerTypes, IM_ARRAYSIZE(triggerTypes));
 			ImGui::SliderInt(XorStr("Trigger Delay (ms)"), &triggerbot_delay, 0, 200);
@@ -228,6 +230,7 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Misc")))
 		{
+			ImGui::Checkbox(XorStr("Skynade"), &skynade);
 			ImGui::Checkbox(XorStr("Superglide"), &superglide);
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
