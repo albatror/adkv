@@ -1,4 +1,5 @@
 #include "overlay.h"
+#include "types.h"
 #include "config.h"
 #include <fstream>
 #include <iomanip>

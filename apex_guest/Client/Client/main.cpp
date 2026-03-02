@@ -13,10 +13,6 @@
 #include ".\imgui\imgui.h"
 
 
-typedef struct spectator {
-	bool is_spec = false;
-	char name[33] = { 0 };
-}spectator;
 
 uint32_t check = 0xABCD;
 
@@ -282,7 +278,7 @@ void Overlay::RenderEsp()
 					{
 						std::string distance = std::to_string(players[i].dist / 39.62);
 						distance = distance.substr(0, distance.find('.')) + "m (" + std::to_string(players[i].entity_team) + ")";
-						//distance += " |" + std::to_string(players[i].xp_level) + "|";
+						//distance += " |" + std::to_string(players[i].player_xp_level) + "|";
 
 						// Display the distance just below the name
 						if (players[i].knocked)
