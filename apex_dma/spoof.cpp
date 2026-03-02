@@ -69,15 +69,19 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
         return false;
     }
 
-    // Resolve GpuMgrGetGpuFromId address from the call located near pattern + 0x3B
+    // Resolve GpuMgrGetGpuFromId address from the call/jmp located near pattern + 0x3B
     uint64_t GpuMgrGetGpuFromId_addr = 0;
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 256; i++) {
         size_t off = pattern_off + 0x3B + i;
         if (off + 5 >= scan_size) break;
-        if (module_data[off] == 0xE8) {
+        uint8_t op = module_data[off];
+        if (op == 0xE8 || op == 0xE9) {
+            // Avoid false positives from filler bytes (0xCC)
+            if (off > 0 && module_data[off-1] == 0xCC) continue;
+
             int32_t rel_offset = *(int32_t*)&module_data[off + 1];
             GpuMgrGetGpuFromId_addr = module_info.base + off + 5 + rel_offset;
-            printf("GpuMgrGetGpuFromId resolved to: %lx (from call at +%zx)\n", GpuMgrGetGpuFromId_addr, off);
+            printf("GpuMgrGetGpuFromId resolved to: %lx (from %s at +%zx)\n", GpuMgrGetGpuFromId_addr, op == 0xE8 ? "call" : "jmp", off);
             break;
         }
     }
@@ -92,7 +96,7 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
     // Scan for UuidValidOffset near the pattern
     uint32_t uuid_valid_offset = 0;
     size_t scan_start_off = (pattern_off > 0x200) ? pattern_off - 0x200 : 0;
-    size_t scan_end_off = std::min(pattern_off + 0x400, scan_size);
+    size_t scan_end_off = std::min(pattern_off + 0x300, scan_size);
 
     for (size_t i = scan_start_off; i < scan_end_off - 7; i++) {
         // Pattern 1: 80 BB ?? ?? 00 00 00
@@ -151,7 +155,7 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
         uint64_t gpu_array = 0;
         kernel->read_raw_into(gpu_array_ptr, CSliceMut<uint8_t>((char*)&gpu_array, 8));
         if (gpu_array) {
-            for (int i = 0; i < 32; i++) {
+            for (int i = 0; i < 64; i++) {
                 uint64_t gpu_object = 0;
                 kernel->read_raw_into(gpu_array + (i * 8), CSliceMut<uint8_t>((char*)&gpu_object, 8));
                 if (gpu_object) {
