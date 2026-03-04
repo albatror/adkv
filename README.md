@@ -101,7 +101,7 @@ GameVersion v3.0.3.24
     ```bash
     sudo -E ./apex_dma
     ```
-5. **Guest Side:** Press INSERT to active the menu and save your config. You can aswell choose to show Overlay Base Infos and/or Spectators's List at start by slecting them in menu. 
+5. **Guest Side:** Press INSERT to active the menu and save your config. You can aswell choose to show Overlay Base Infos and/or Spectators's List at start by selecting them in menu. 
 
 ### Hotkeys
 - **INSERT:** Open/Close Overlay Menu.
