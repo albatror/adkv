@@ -35,6 +35,7 @@ extern float triggerbot_fov;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool rapidfire;
 
 //extern float esp_distance;
 
@@ -215,6 +216,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Superglide"), &superglide);
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
+			ImGui::Checkbox(XorStr("RapidFire"), &rapidfire);
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);
 			ImGui::Checkbox(XorStr("1v1"), &onevone);
 			ImGui::EndTabItem();

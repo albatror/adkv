@@ -77,6 +77,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool rapidfire = false;
 
 ///////////
 //bool medbackpack = true;
@@ -586,10 +587,10 @@ if (bhop && SuperKey) {
 			tmp_aimentity = 0;
 			is_aimentity_visible = false;
 
-			// Read shooting state from game
-			kbutton_t in_attack_button;
-			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
-			shooting = (in_attack_button.state & 1) != 0;
+			// Read shooting state from game (commented out to use guest intent for rapidfire)
+			// kbutton_t in_attack_button;
+			// apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
+			// shooting = (in_attack_button.state & 1) != 0;
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;
@@ -1328,7 +1329,7 @@ while (vars_t)
         client_mem.Read<float>(glowgknocked_addr, glowgknocked);
         client_mem.Read<float>(glowbknocked_addr, glowbknocked);
         client_mem.Read<bool>(firing_range_addr, firing_range);
-        //client_mem.Read<bool>(shooting_addr, shooting);
+        client_mem.Read<bool>(shooting_addr, shooting);
         client_mem.Read<bool>(onevone_addr, onevone);
 
         uint64_t skeleton_addr = 0;
@@ -1411,6 +1412,12 @@ while (vars_t)
         uint64_t lock_target_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr);
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
+
+        uint64_t rapidfire_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, rapidfire_addr);
+        if (rapidfire_addr) client_mem.Read<bool>(rapidfire_addr, rapidfire);
+
+        client_mem.Read<bool>(shooting_addr, shooting);
 
         uint64_t superkey_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr);

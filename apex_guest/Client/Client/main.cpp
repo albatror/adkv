@@ -56,6 +56,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool rapidfire = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -163,7 +164,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];//64
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -477,6 +478,7 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[48] = (uintptr_t)&rapidfire;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
