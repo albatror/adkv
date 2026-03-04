@@ -1414,7 +1414,7 @@ while (vars_t)
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
 
         uint64_t rapidfire_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, rapidfire_addr);
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 62, rapidfire_addr);
         if (rapidfire_addr) client_mem.Read<bool>(rapidfire_addr, rapidfire);
 
         client_mem.Read<bool>(shooting_addr, shooting);

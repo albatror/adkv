@@ -106,24 +106,74 @@ bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
             return false; // Not ready yet
     }
 
-    // List of allowed weapons
+    // List of allowed weapons from Triggerbot.hpp
     return (
-        weaponId == WeaponIDs::KRABER ||
-        weaponId == WeaponIDs::WINGMAN ||
-        weaponId == WeaponIDs::LONGBOW ||
-        weaponId == WeaponIDs::SENTINEL ||
+        weaponId == WeaponIDs::P2020 ||
+        weaponId == WeaponIDs::RE45 ||
+        weaponId == WeaponIDs::ALTERNATOR ||
+        weaponId == WeaponIDs::R99 ||
+        weaponId == WeaponIDs::R301 ||
+        weaponId == WeaponIDs::SPITFIRE ||
         weaponId == WeaponIDs::G7_SCOUT ||
+        weaponId == WeaponIDs::FLATLINE ||
+        weaponId == WeaponIDs::PROWLER ||
         weaponId == WeaponIDs::HEMLOK ||
         weaponId == WeaponIDs::REPEATER_3030 ||
+        weaponId == WeaponIDs::RAMPAGE ||
+        weaponId == WeaponIDs::CAR ||
+        weaponId == WeaponIDs::HAVOC ||
+        weaponId == WeaponIDs::DEVOTION ||
+        weaponId == WeaponIDs::LSTAR ||
         weaponId == WeaponIDs::TRIPLE_TAKE ||
-        weaponId == WeaponIDs::BOCEK ||
-        weaponId == WeaponIDs::THROWING_KNIFE ||
-        weaponId == WeaponIDs::P2020 ||
+        weaponId == WeaponIDs::VOLT ||
+        weaponId == WeaponIDs::NEMESIS ||
         weaponId == WeaponIDs::MOZAMBIQUE ||
-        weaponId == WeaponIDs::EVA8 ||
         weaponId == WeaponIDs::PEACEKEEPER ||
         weaponId == WeaponIDs::MASTIFF ||
-        weaponId == WeaponIDs::NEMESIS
+        weaponId == WeaponIDs::LONGBOW ||
+        weaponId == WeaponIDs::CHARGE_RIFLE ||
+        weaponId == WeaponIDs::SENTINEL ||
+        weaponId == WeaponIDs::WINGMAN ||
+        weaponId == WeaponIDs::EVA8 ||
+        weaponId == WeaponIDs::BOCEK ||
+        weaponId == WeaponIDs::KRABER ||
+        weaponId == WeaponIDs::THROWING_KNIFE
+    );
+}
+
+bool isAllowedFlickWeapon(int weaponId) {
+    // List of allowed weapons from Flickbot.hpp
+    return (
+        weaponId == WeaponIDs::P2020 ||
+        weaponId == WeaponIDs::RE45 ||
+        weaponId == WeaponIDs::ALTERNATOR ||
+        weaponId == WeaponIDs::R99 ||
+        weaponId == WeaponIDs::R301 ||
+        weaponId == WeaponIDs::SPITFIRE ||
+        weaponId == WeaponIDs::G7_SCOUT ||
+        weaponId == WeaponIDs::FLATLINE ||
+        weaponId == WeaponIDs::PROWLER ||
+        weaponId == WeaponIDs::HEMLOK ||
+        weaponId == WeaponIDs::REPEATER_3030 ||
+        weaponId == WeaponIDs::RAMPAGE ||
+        weaponId == WeaponIDs::CAR ||
+        weaponId == WeaponIDs::HAVOC ||
+        weaponId == WeaponIDs::DEVOTION ||
+        weaponId == WeaponIDs::LSTAR ||
+        weaponId == WeaponIDs::TRIPLE_TAKE ||
+        weaponId == WeaponIDs::VOLT ||
+        weaponId == WeaponIDs::NEMESIS ||
+        weaponId == WeaponIDs::MOZAMBIQUE ||
+        weaponId == WeaponIDs::PEACEKEEPER ||
+        weaponId == WeaponIDs::MASTIFF ||
+        weaponId == WeaponIDs::LONGBOW ||
+        weaponId == WeaponIDs::CHARGE_RIFLE ||
+        weaponId == WeaponIDs::SENTINEL ||
+        weaponId == WeaponIDs::WINGMAN ||
+        weaponId == WeaponIDs::EVA8 ||
+        weaponId == WeaponIDs::BOCEK ||
+        weaponId == WeaponIDs::KRABER ||
+        weaponId == WeaponIDs::THROWING_KNIFE
     );
 }
 
@@ -159,13 +209,18 @@ void StuffBotLoop()
         bool trigger_active = false;
         if (triggerbot && triggerbot_aiming && aimentity != 0)
         {
-            if (isZooming) {
-                int weaponId = LPlayer.getCurrentWeaponId();
+            int weaponId = LPlayer.getCurrentWeaponId();
+            bool isShotgun = (weaponId == WeaponIDs::MOZAMBIQUE ||
+                             weaponId == WeaponIDs::EVA8 ||
+                             weaponId == WeaponIDs::PEACEKEEPER ||
+                             weaponId == WeaponIDs::MASTIFF);
+
+            if (isZooming || isShotgun) {
                 if (isAllowedWeapon(weaponId, zoomElapsedMs)) {
                     Entity Target = getEntity(aimentity);
                     if (IsInCrossHair(Target))
                     {
-                        printf("[TRIGGERBOT] Shooting with %s (ID: %d)\n", get_weapon_name(weaponId).c_str(), weaponId);
+                        printf("[TRIGGERBOT] Shooting with %s\n", get_weapon_name(weaponId).c_str());
                         trigger_active = true;
                     }
                 }
@@ -177,27 +232,35 @@ void StuffBotLoop()
         static auto lastFlickTime = std::chrono::steady_clock::now();
         if (flickbot && flickbot_aiming && aimentity != 0)
         {
-            auto nowFlick = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(nowFlick - lastFlickTime).count() > 200)
+            int weaponId = LPlayer.getCurrentWeaponId();
+            if (isAllowedFlickWeapon(weaponId))
             {
-                Entity Target = getEntity(aimentity);
-                if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
+                auto nowFlick = std::chrono::steady_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(nowFlick - lastFlickTime).count() > 400) // Increased cooldown for more "flick" feel
                 {
-                    float fov = CalculateFov(LPlayer, Target);
-                    if (fov <= flickbot_fov)
+                    Entity Target = getEntity(aimentity);
+                    if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
                     {
-                        QAngle old_angles = LPlayer.GetViewAngles();
-                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-                        if (aim_angles.x != 0 || aim_angles.y != 0)
+                        float fov = CalculateFov(LPlayer, Target);
+                        if (fov <= flickbot_fov)
                         {
-                            LPlayer.SetViewAngles(aim_angles);
-                            apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                            std::this_thread::sleep_for(std::chrono::milliseconds(20)); // Keep sleep short or use state machine
-                            apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                            QAngle old_angles = LPlayer.GetViewAngles();
+                            // zap-client style StartAiming sequence
+                            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
+                            if (aim_angles.x != 0 || aim_angles.y != 0)
+                            {
+                                LPlayer.SetViewAngles(aim_angles);
+                                // AutoShoot logic from zap-client
+                                std::this_thread::sleep_for(std::chrono::milliseconds(20)); // AutoShootDelay
+                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 
-                            // Zap-client like flickback
-                            LPlayer.SetViewAngles(old_angles);
-                            lastFlickTime = nowFlick;
+                                // FlickBack logic from zap-client
+                                std::this_thread::sleep_for(std::chrono::milliseconds(20)); // FlickBackDelay
+                                LPlayer.SetViewAngles(old_angles);
+                                lastFlickTime = nowFlick;
+                            }
                         }
                     }
                 }
