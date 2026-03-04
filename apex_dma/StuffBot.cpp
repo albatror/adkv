@@ -80,11 +80,11 @@ bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
         weaponId == WeaponIDs::LONGBOW ||
         weaponId == WeaponIDs::SENTINEL ||
         weaponId == WeaponIDs::G7_SCOUT ||
-        weaponId == WeaponIDs::HEMLOK ||
+        weaponId == WeaponIDs::HEMLOCK ||
         weaponId == WeaponIDs::REPEATER_3030 ||
         weaponId == WeaponIDs::TRIPLE_TAKE ||
         weaponId == WeaponIDs::BOCEK ||
-        weaponId == WeaponIDs::THROWING_KNIFE ||
+        weaponId == WeaponIDs::KNIFE ||
         weaponId == WeaponIDs::P2020 ||
         weaponId == WeaponIDs::MOZAMBIQUE ||
         weaponId == WeaponIDs::EVA8 ||
