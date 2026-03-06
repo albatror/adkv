@@ -8,6 +8,7 @@
 extern Memory apex_mem;
 extern uint64_t g_Base;
 extern uintptr_t aimentity;
+extern float smooth;
 extern bool flickbot;
 extern bool flickbot_aiming;
 extern float flickbot_fov;
@@ -15,6 +16,7 @@ extern float flickbot_smooth;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
+extern bool triggerbot_use_weapon_list;
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
@@ -90,7 +92,21 @@ bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
         weaponId == WeaponIDs::EVA8 ||
         weaponId == WeaponIDs::PEACEKEEPER ||
         weaponId == WeaponIDs::MASTIFF ||
-        weaponId == WeaponIDs::NEMESIS
+        weaponId == WeaponIDs::NEMESIS ||
+        weaponId == WeaponIDs::RE45 ||
+        weaponId == WeaponIDs::ALTERNATOR ||
+        weaponId == WeaponIDs::R99 ||
+        weaponId == WeaponIDs::R301 ||
+        weaponId == WeaponIDs::SPITFIRE ||
+        weaponId == WeaponIDs::FLATLINE ||
+        weaponId == WeaponIDs::PROWLER ||
+        weaponId == WeaponIDs::RAMPAGE ||
+        weaponId == WeaponIDs::CAR ||
+        weaponId == WeaponIDs::HAVOC ||
+        weaponId == WeaponIDs::DEVOTION ||
+        weaponId == WeaponIDs::LSTAR ||
+        weaponId == WeaponIDs::VOLT ||
+        weaponId == WeaponIDs::CHARGE_RIFLE
     );
 }
 
@@ -125,16 +141,29 @@ void StuffBotLoop()
         // Triggerbot logic
         if (triggerbot && triggerbot_aiming && aimentity != 0)
         {
-            if (isZooming) {
+            Entity Target = getEntity(aimentity);
+
+            // Aim-assist style tracking
+            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, triggerbot_fov, smooth);
+            if (aim_angles.x != 0 || aim_angles.y != 0)
+            {
+                LPlayer.SetViewAngles(aim_angles);
+            }
+
+            bool shoot = false;
+            if (triggerbot_use_weapon_list) {
                 int weaponId = LPlayer.getCurrentWeaponId();
                 if (isAllowedWeapon(weaponId, zoomElapsedMs)) {
-                    Entity Target = getEntity(aimentity);
-                    if (IsInCrossHair(Target))
-                    {
-                        printf("[TRIGGERBOT] Shooting with %s (ID: %d)\n", get_weapon_name(weaponId).c_str(), weaponId);
-                        TriggerBotRun();
-                    }
+                    if (IsInCrossHair(Target)) shoot = true;
                 }
+            } else {
+                if (IsInCrossHair(Target)) shoot = true;
+            }
+
+            if (shoot) {
+                int weaponId = LPlayer.getCurrentWeaponId();
+                printf("[TRIGGERBOT] Shooting with %s\n", get_weapon_name(weaponId).c_str());
+                TriggerBotRun();
             }
         }
 
