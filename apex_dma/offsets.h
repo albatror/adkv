@@ -14,7 +14,7 @@
 #define OFFSET_SIGNONSTATE OFFSET_CLIENTSTATE + 0xAC //SignonState (ClientState + 0xAC)  //updated 1/10/2024
 //#define OFFSET_SIGNONSTATE OFFSET_CLIENTSTATE 0x16d699c
 #define OFFSET_HOST_MAP 0x1e94d90 + 0x58 //[ConVars].host_map + 0x58 updated 2026/03/05
-//#define OFFSET_GAME_MODE 0x2867148 //[ConVars]mp_gamemode + 0x48
+//#define OFFSET_GAME_MODE 0x2868088 //[ConVars]mp_gamemode + 0x48
  
 #define OFFSET_TEAM 0x334 //[RecvTable.DT_BaseEntity].m_iTeamNum updated 2026/03/05
 #define OFFSET_HEALTH 0x324 //0x950 //[RecvTable.DT_Player].m_iHealth updated updated 2026/03/05
