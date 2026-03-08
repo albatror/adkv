@@ -37,7 +37,7 @@
 
 #define OFFSET_SPECTATOR_LIST OFFSET_OBSERVER_LIST //? updated 2024/11/15
 #define OFFSET_OBSERVER_LIST 0x644f158 //[Miscellaneous].observerList updated 2026/03/05
-#define OFFSET_OBSERVER_ARRAY 0x968 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2026/03/05
+#define OFFSET_OBSERVER_ARRAY 0x964 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2026/03/08
 
 #define OFFSET_IN_DUCKSTATE 0x2abc //[RecvTable.DT_Player].m_duckState updated 2026/03/05
 
