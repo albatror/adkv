@@ -431,39 +431,55 @@ void Entity::getWeaponModelName(char* name, int max_len)
     }
 
 //Deathboxes
-//bool Item::isBox()
-//{
-//	char class_name[33] = {};
-//	get_class_name(ptr, class_name);
-//
-//	return strncmp(class_name, "CDeathBoxProp", 13) == 0;
-//}
+bool Item::isBox()
+{
+	char class_name[33] = {};
+	get_class_name(ptr, class_name);
+
+	return strncmp(class_name, "CDeathBoxProp", 13) == 0;
+}
 //Traps
-//bool Item::isTrap()
-//{
-//	char class_name[33] = {};
-//	get_class_name(ptr, class_name);
-//
-//	return strncmp(class_name, "caustic_trap", 13) == 0;
-//}
+bool Item::isTrap()
+{
+	char class_name[33] = {};
+	get_class_name(ptr, class_name);
 
-//bool Item::isItem()
-//{
-//	char class_name[33] = {};
-//	get_class_name(ptr, class_name);
-//
-//	return strncmp(class_name, "CPropSurvival", 13) == 0;
-//}
+	return strncmp(class_name, "caustic_trap", 12) == 0;
+}
 
-//bool Item::isGlowing()
-//{
-//	return *(int*)(buffer + OFFSET_ITEM_GLOW) == 1363184265;
-//}
+bool Item::isItem()
+{
+	char class_name[33] = {};
+	get_class_name(ptr, class_name);
 
-//Vector Item::getPosition()
-//{
-//	return *(Vector*)(buffer + OFFSET_ORIGIN);
-//}
+	return strncmp(class_name, "CPropSurvival", 13) == 0;
+}
+
+bool Item::isGlowing()
+{
+	uint8_t glowEnable = 0;
+	apex_mem.Read<uint8_t>(ptr + OFFSET_GLOW_ENABLE, glowEnable);
+	return glowEnable != 0;
+}
+
+Vector Item::getPosition()
+{
+	Vector pos;
+	apex_mem.Read<Vector>(ptr + OFFSET_ORIGIN, pos);
+	return pos;
+}
+
+void Item::enableGlow()
+{
+	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_ENABLE, 65);
+	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_THROUGH_WALLS, 2);
+}
+
+void Item::disableGlow()
+{
+	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_ENABLE, 0);
+	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_THROUGH_WALLS, 0);
+}
 
 float CalculateFov(Entity& from, Entity& target)
 {
@@ -583,13 +599,13 @@ Entity getEntity(uintptr_t ptr)
     }
     return entity;}
 
-//Item getItem(uintptr_t ptr)
-//{
-//	Item entity = Item();
-//	entity.ptr = ptr;
-//	apex_mem.ReadArray<uint8_t>(ptr, entity.buffer, sizeof(entity.buffer));
-//	return entity;
-//}
+Item getItem(uintptr_t ptr)
+{
+	Item entity = Item();
+	entity.ptr = ptr;
+	// No full read, individual functions will handle their own reads
+	return entity;
+}
 
 bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHeight, Vector& to)
 {

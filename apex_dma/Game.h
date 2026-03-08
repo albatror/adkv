@@ -30,7 +30,18 @@ struct Fade
 
 struct GlowMode
 {
-    int8_t GeneralGlowMode, BorderGlowMode, BorderSize, TransparentLevel;
+    uint8_t GeneralGlowMode, BorderGlowMode, BorderSize, TransparentLevel;
+
+    bool operator==(const GlowMode& other) const {
+        return GeneralGlowMode == other.GeneralGlowMode &&
+               BorderGlowMode == other.BorderGlowMode &&
+               BorderSize == other.BorderSize &&
+               TransparentLevel == other.TransparentLevel;
+    }
+
+    bool operator!=(const GlowMode& other) const {
+        return !(*this == other);
+    }
 };
 //////////////////////////////////
 
@@ -86,20 +97,19 @@ public:
 	int read_xp_level();
 };
 
-//class Item
-//{
-//public:
-//	uint64_t ptr;
-//	uint8_t buffer[0x3FF0];
-//	Vector getPosition();
-//	bool isItem();
-//	bool isBox();
-//	bool isTrap();
-//	bool isGlowing();
-//	void BlueGlow();
-//	void enableGlow();
-//	void disableGlow();
-//};
+class Item
+{
+public:
+	uint64_t ptr;
+	uint8_t buffer[0x3FF0];
+	Vector getPosition();
+	bool isItem();
+	bool isBox();
+	bool isTrap();
+	bool isGlowing();
+	void enableGlow();
+	void disableGlow();
+};
 
 class WeaponXEntity
 {
@@ -157,7 +167,7 @@ struct InState
 ///////////////////////////////////
 
 Entity getEntity(uintptr_t ptr);
-//Item getItem(uintptr_t ptr);
+Item getItem(uintptr_t ptr);
 bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHeight, Vector& to);
 float CalculateFov(Entity& from, Entity& target);
 QAngle CalculateBestBoneAim(Entity& from, uintptr_t target, float max_fov, float smoothing);

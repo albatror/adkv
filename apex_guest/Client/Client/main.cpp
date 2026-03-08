@@ -67,6 +67,7 @@ int aim = 0; //read
 bool esp = false; //read
 //bool item_glow = false;
 bool player_glow = false;
+bool item_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
 bool aiming = false; //read
@@ -164,7 +165,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -479,6 +480,7 @@ int main(int argc, char** argv)
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&triggerbot_use_weapon_list;
+	add[49] = (uintptr_t)&item_glow;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
