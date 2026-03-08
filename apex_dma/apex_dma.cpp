@@ -1478,9 +1478,9 @@ void item_glow_t()
 			apex_mem.Read<uint64_t>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
 			if (highlightSettingsPtr == 0) continue;
 
-			// Gold, Red, Purple, Blue, Grey, Weapons, Ammo
-			const std::vector<uint8_t> itemHighlightIDs = { 15, 42, 47, 54, 65, 9, 58 };
-			const GlowMode itemGlowMode = { 137, 138, 64, 127 }; // Light inside, Light 1 outline
+			// White, Blue, Purple, Yellow, Red
+			const std::vector<uint8_t> itemHighlightIDs = { 34, 35, 36, 37, 38 };
+			const GlowMode itemGlowMode = { 137, 138, 64, 64 };
 
 			for (uint8_t id : itemHighlightIDs)
 			{
@@ -1501,7 +1501,25 @@ void item_glow_t()
 				{
 					if (!item.isGlowing())
 					{
-						item.enableGlow();
+						uint32_t scriptInt = 0;
+						apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
+						uint8_t highlightID = 65; // Default
+
+						if (item.isBox())
+						{
+							highlightID = 38; // Red
+						}
+						else
+						{
+							// Rarity based IDs
+							if (scriptInt == 1) highlightID = 34; // White
+							else if (scriptInt == 2) highlightID = 35; // Blue
+							else if (scriptInt == 3) highlightID = 36; // Purple
+							else if (scriptInt == 4) highlightID = 37; // Yellow
+							else if (scriptInt >= 5) highlightID = 38; // Red
+							else highlightID = 65;
+						}
+						item.enableGlow(highlightID);
 					}
 				}
 			}

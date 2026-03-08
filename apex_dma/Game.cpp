@@ -469,9 +469,9 @@ Vector Item::getPosition()
 	return pos;
 }
 
-void Item::enableGlow()
+void Item::enableGlow(uint8_t id)
 {
-	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_ENABLE, 65);
+	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_ENABLE, id);
 	apex_mem.Write<uint8_t>(ptr + OFFSET_GLOW_THROUGH_WALLS, 2);
 }
 

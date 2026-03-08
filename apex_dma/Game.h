@@ -107,7 +107,7 @@ public:
 	bool isBox();
 	bool isTrap();
 	bool isGlowing();
-	void enableGlow();
+	void enableGlow(uint8_t id = 65);
 	void disableGlow();
 };
 
