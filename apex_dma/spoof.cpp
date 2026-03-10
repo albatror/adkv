@@ -69,43 +69,58 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
         return false;
     }
 
-    // Resolve GpuMgrGetGpuFromId address from the call located near pattern + 0x3B
-    uint64_t GpuMgrGetGpuFromId_addr = 0;
-    for (int i = 0; i < 128; i++) {
+    // Gist: GpuMgrGetGpuFromId is the first call in the pattern
+    int32_t gpumgr_rel_off = *(int32_t*)&module_data[pattern_off + 1];
+    uint64_t GpuMgrGetGpuFromId_addr = module_info.base + pattern_off + 5 + (int64_t)gpumgr_rel_off;
+    printf("GpuMgrGetGpuFromId resolved to: %lx\n", GpuMgrGetGpuFromId_addr);
+
+    // Gist: gpuGetGidInfo is the call at pattern + 0x3B
+    uint64_t gpuGetGidInfo_addr = 0;
+    for (int i = 0; i < 64; i++) {
         size_t off = pattern_off + 0x3B + i;
         if (off + 5 >= scan_size) break;
         if (module_data[off] == 0xE8) {
             int32_t rel_offset = *(int32_t*)&module_data[off + 1];
-            GpuMgrGetGpuFromId_addr = module_info.base + off + 5 + rel_offset;
-            printf("GpuMgrGetGpuFromId resolved to: %lx (from call at +%zx)\n", GpuMgrGetGpuFromId_addr, off);
+            gpuGetGidInfo_addr = module_info.base + off + 5 + (int64_t)rel_offset;
+            printf("gpuGetGidInfo resolved to: %lx (at +%zx)\n", gpuGetGidInfo_addr, off);
             break;
         }
     }
 
-    if (!GpuMgrGetGpuFromId_addr) {
-        // Fallback to first call in pattern if +0x3B failed
-        uint32_t call_rel_offset = *(uint32_t*)&module_data[pattern_off + 1];
-        GpuMgrGetGpuFromId_addr = pattern_addr + 5 + call_rel_offset;
-        printf("GpuMgrGetGpuFromId fallback resolved to: %lx\n", GpuMgrGetGpuFromId_addr);
-    }
-
-    // Scan for UuidValidOffset near the pattern
     uint32_t uuid_valid_offset = 0;
-    size_t scan_start_off = (pattern_off > 0x200) ? pattern_off - 0x200 : 0;
-    size_t scan_end_off = std::min(pattern_off + 0x400, scan_size);
-
-    for (size_t i = scan_start_off; i < scan_end_off - 7; i++) {
-        // Pattern 1: 80 BB ?? ?? 00 00 00
-        if (module_data[i] == 0x80 && module_data[i+1] == 0xBB && module_data[i+4] == 0x00 && module_data[i+5] == 0x00 && module_data[i+6] == 0x00) {
-            uuid_valid_offset = *(uint16_t*)&module_data[i+2];
-            printf("Found UuidValidOffset via primary pattern: %x\n", uuid_valid_offset);
-            break;
+    if (gpuGetGidInfo_addr) {
+        size_t func_off = gpuGetGidInfo_addr - module_info.base;
+        if (func_off < scan_size - 400) {
+            // Gist: Search for CMP [RCX + offset], DIL -> 40 38 B9 ?? ?? ?? ??
+            // We use a larger scan range (400) to ensure we find it within the function
+            for (size_t i = func_off; i < func_off + 400 - 7; i++) {
+                if (module_data[i] == 0x40 && module_data[i+1] == 0x38 && module_data[i+2] == 0xB9) {
+                    uuid_valid_offset = *(uint32_t*)&module_data[i+3];
+                    printf("Found UuidValidOffset via Gist pattern in gpuGetGidInfo: %x\n", uuid_valid_offset);
+                    break;
+                }
+            }
         }
-        // Pattern 2: 0F B6 83 ?? ?? ?? ??
-        if (module_data[i] == 0x0F && module_data[i+1] == 0xB6 && module_data[i+2] == 0x83) {
-            uuid_valid_offset = *(uint32_t*)&module_data[i+3];
-            printf("Found UuidValidOffset via secondary pattern: %x\n", uuid_valid_offset);
-            break;
+    }
+
+    if (!uuid_valid_offset) {
+        printf("Gist pattern failed, trying fallback UuidValidOffset scans near pattern...\n");
+        size_t scan_start_off = (pattern_off > 0x200) ? pattern_off - 0x200 : 0;
+        size_t scan_end_off = std::min(pattern_off + 0x400, scan_size);
+
+        for (size_t i = scan_start_off; i < scan_end_off - 7; i++) {
+            // Pattern 1: 80 BB ?? ?? 00 00 00
+            if (module_data[i] == 0x80 && module_data[i+1] == 0xBB && module_data[i+4] == 0x00 && module_data[i+5] == 0x00 && module_data[i+6] == 0x00) {
+                uuid_valid_offset = *(uint16_t*)&module_data[i+2];
+                printf("Found UuidValidOffset via primary fallback: %x\n", uuid_valid_offset);
+                break;
+            }
+            // Pattern 2: 0F B6 83 ?? ?? ?? ??
+            if (module_data[i] == 0x0F && module_data[i+1] == 0xB6 && module_data[i+2] == 0x83) {
+                uuid_valid_offset = *(uint32_t*)&module_data[i+3];
+                printf("Found UuidValidOffset via secondary fallback: %x\n", uuid_valid_offset);
+                break;
+            }
         }
     }
 
