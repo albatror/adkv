@@ -12,12 +12,17 @@
 
 extern int aim;
 extern bool esp;
+extern bool item_glow;
+extern int item_glow_filter;
 extern bool player_glow;
 extern bool aim_no_recoil;
 extern bool lock_target;
 extern float max_dist;
+extern float aim_dist;
 extern float default_smooth;
 extern float default_fov;
+extern float ads_fov;
+extern float non_ads_fov;
 extern int bone;
 extern float glowr;
 extern float glowg;
@@ -49,6 +54,10 @@ extern bool walljump;
 extern float flickbot_fov;
 extern float flickbot_smooth;
 extern float triggerbot_fov;
+extern float triggerbot_speed;
+extern float triggerbot_gravity;
+extern int glow_fill;
+extern int glow_outline_thickness;
 extern bool fov;
 extern float cfsize;
 extern visuals v;

@@ -32,6 +32,16 @@ extern float flickbot_smooth;
 extern bool triggerbot;
 extern float triggerbot_fov;
 extern bool triggerbot_use_weapon_list;
+extern float triggerbot_speed;
+extern float triggerbot_gravity;
+
+extern bool item_glow;
+extern int item_glow_filter;
+extern float aim_dist;
+extern float ads_fov;
+extern float non_ads_fov;
+extern int glow_fill;
+extern int glow_outline_thickness;
 
 extern bool superglide;
 extern bool bhop;
