@@ -24,6 +24,7 @@ GameVersion v3.0.3.24
 - **Extra Info:** XP Level, Player Name, Distance, and Snap-lines.
 - **Spectator List:** Keep track of who is watching you (Count + Names).
 - **Target Indicator:** A visual DOT and FOV circle for Aimbot targets.
+- **Glow Items:** First stage re-enable Glow items
 
 ### 🔫 Combat & Aimbot
 - **Aimbot:** Smooth and adjustable aiming with FOV locking.
