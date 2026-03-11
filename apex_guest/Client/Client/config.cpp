@@ -72,14 +72,22 @@ void SaveConfig(const std::string& filename) {
 
     file << "aim " << aim << "\n";
     file << "esp " << std::boolalpha << esp << "\n";
+    file << "item_glow " << std::boolalpha << item_glow << "\n";
+    file << "item_glow_filter " << item_glow_filter << "\n";
     file << "player_glow " << std::boolalpha << player_glow << "\n";
     file << "aim_no_recoil " << std::boolalpha << aim_no_recoil << "\n";
     file << "lock_target " << std::boolalpha << lock_target << "\n";
     file << "max_dist " << max_dist << "\n";
+    file << "aim_dist " << aim_dist << "\n";
+    file << "glow_fill " << glow_fill << "\n";
+    file << "glow_outline_thickness " << glow_outline_thickness << "\n";
     file << "default_smooth " << default_smooth << "\n";
     file << "default_fov " << default_fov << "\n";
+    file << "ads_fov " << ads_fov << "\n";
+    file << "non_ads_fov " << non_ads_fov << "\n";
     file << "bone " << bone << "\n";
     file << "healthbar " << std::boolalpha << v.healthbar << "\n";
+    file << "modelname " << std::boolalpha << v.modelname << "\n";
     file << "shieldbar " << std::boolalpha << v.shieldbar << "\n";
     file << "distance " << std::boolalpha << v.distance << "\n";
     file << "line " << std::boolalpha << v.line << "\n";
@@ -112,6 +120,8 @@ void SaveConfig(const std::string& filename) {
     file << "flickbot " << std::boolalpha << flickbot << "\n";
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
     file << "triggerbot_use_weapon_list " << std::boolalpha << triggerbot_use_weapon_list << "\n";
+    file << "triggerbot_speed " << triggerbot_speed << "\n";
+    file << "triggerbot_gravity " << triggerbot_gravity << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
@@ -141,14 +151,22 @@ void LoadConfig(const std::string& filename) {
 
         if (key == "aim") ss >> aim;
         else if (key == "esp") ss >> std::boolalpha >> esp;
+        else if (key == "item_glow") ss >> std::boolalpha >> item_glow;
+        else if (key == "item_glow_filter") ss >> item_glow_filter;
         else if (key == "player_glow") ss >> std::boolalpha >> player_glow;
         else if (key == "aim_no_recoil") ss >> std::boolalpha >> aim_no_recoil;
         else if (key == "lock_target") ss >> std::boolalpha >> lock_target;
         else if (key == "max_dist") ss >> max_dist;
+        else if (key == "aim_dist") ss >> aim_dist;
+        else if (key == "glow_fill") ss >> glow_fill;
+        else if (key == "glow_outline_thickness") ss >> glow_outline_thickness;
         else if (key == "default_smooth") ss >> default_smooth;
         else if (key == "default_fov") ss >> default_fov;
+        else if (key == "ads_fov") ss >> ads_fov;
+        else if (key == "non_ads_fov") ss >> non_ads_fov;
         else if (key == "bone") ss >> bone;
         else if (key == "healthbar") ss >> std::boolalpha >> v.healthbar;
+        else if (key == "modelname") ss >> std::boolalpha >> v.modelname;
         else if (key == "shieldbar") ss >> std::boolalpha >> v.shieldbar;
         else if (key == "distance") ss >> std::boolalpha >> v.distance;
         else if (key == "line") ss >> std::boolalpha >> v.line;
@@ -181,6 +199,8 @@ void LoadConfig(const std::string& filename) {
         else if (key == "flickbot") ss >> std::boolalpha >> flickbot;
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
         else if (key == "triggerbot_use_weapon_list") ss >> std::boolalpha >> triggerbot_use_weapon_list;
+        else if (key == "triggerbot_speed") ss >> triggerbot_speed;
+        else if (key == "triggerbot_gravity") ss >> triggerbot_gravity;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;

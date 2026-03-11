@@ -29,6 +29,7 @@ typedef struct player
 	int armortype = 0;
 	int xp_level = 0;
 	char name[33] = { 0 };
+	char modelname[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
 
@@ -53,6 +54,8 @@ int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 bool triggerbot_use_weapon_list = false;
+float triggerbot_speed = 0.0f;
+float triggerbot_gravity = 0.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -65,7 +68,7 @@ bool dds_active = false;
 extern visuals v;
 int aim = 0; //read
 bool esp = false; //read
-//bool item_glow = false;
+bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
@@ -77,6 +80,12 @@ float smooth = 200.00f;
 float max_fov = 3.80f;
 float default_smooth = 200.00f;
 float default_fov = 3.80f;
+float ads_fov = 3.80f;
+float non_ads_fov = 5.0f;
+float aim_dist = 200.0f * 40.0f;
+int glow_fill = 6;
+int glow_outline_thickness = 32;
+int item_glow_filter = 0; // 0: all, 1: white+, 2: blue+, 3: purple+, 4: gold+
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
@@ -164,7 +173,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -330,6 +339,14 @@ void Overlay::RenderEsp()
 							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 15)), GREEN, players[i].name);  // NAME in GREEN if not knocked
 					}
 
+					if (v.modelname)
+					{
+						if (players[i].knocked)
+							String(ImVec2(players[i].boxMiddle, (players[i].b_y + (v.name ? 25 : 15))), RED, players[i].modelname);
+						else
+							String(ImVec2(players[i].boxMiddle, (players[i].b_y + (v.name ? 25 : 15))), GREEN, players[i].modelname);
+					}
+
 					if (v.skeleton)
 					{
 						ImColor skelColor = players[i].visible ? GREEN : RED;
@@ -432,12 +449,18 @@ int main(int argc, char** argv)
 	add[6] = (uintptr_t)&players[0];
 	add[7] = (uintptr_t)&valid;
 	add[8] = (uintptr_t)&max_dist;
-	//add[9] = (uintptr_t)&item_glow;
 	add[9] = (uintptr_t)&player_glow;
+	add[54] = (uintptr_t)&item_glow;
+	add[55] = (uintptr_t)&item_glow_filter;
 	add[10] = (uintptr_t)&aim_no_recoil;
 	add[11] = (uintptr_t)&smooth;
 	add[12] = (uintptr_t)&max_fov;
 	add[13] = (uintptr_t)&bone;
+	add[49] = (uintptr_t)&ads_fov;
+	add[50] = (uintptr_t)&non_ads_fov;
+	add[51] = (uintptr_t)&aim_dist;
+	add[52] = (uintptr_t)&glow_fill;
+	add[53] = (uintptr_t)&glow_outline_thickness;
 	add[14] = (uintptr_t)&spectators;
 	add[15] = (uintptr_t)&allied_spectators;
 
@@ -479,6 +502,8 @@ int main(int argc, char** argv)
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&triggerbot_use_weapon_list;
+	add[56] = (uintptr_t)&triggerbot_speed;
+	add[57] = (uintptr_t)&triggerbot_gravity;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -530,7 +555,7 @@ int main(int argc, char** argv)
 			// aim = 2;
 			player_glow = !player_glow;
 			k_f6 = 1;
-			//item_glow = !item_glow;
+			item_glow = !item_glow;
 		}
 		else if (!IsKeyDown(VK_F1) && k_f1 == 1)
 		{
@@ -584,7 +609,7 @@ int main(int argc, char** argv)
 		if (IsKeyDown(VK_F8) && k_f8 == 0)
 		{
 			k_f8 = 1;
-			//item_glow = !item_glow;
+			item_glow = !item_glow;
 		}
 		else if (!IsKeyDown(VK_F8) && k_f8 == 1)
 		{

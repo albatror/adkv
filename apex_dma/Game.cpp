@@ -376,6 +376,18 @@ void Entity::get_name(uint64_t g_Base, char* name)
 	apex_mem.ReadArray<char>(name_ptr, name, 32);
 }
 
+void Entity::get_model_name(char* name, int max_len)
+{
+	uint64_t model_name_ptr = 0;
+	apex_mem.Read<uint64_t>(ptr + OFFSET_MODELNAME, model_name_ptr);
+	if (model_name_ptr) {
+		apex_mem.ReadArray<char>(model_name_ptr, name, max_len);
+	}
+	else {
+		strncpy(name, "unknown", max_len);
+	}
+}
+
 void Entity::getWeaponModelName(char* name, int max_len)
 {
 	uint64_t wep_handle = 0;

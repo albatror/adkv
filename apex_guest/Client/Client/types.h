@@ -19,6 +19,8 @@ typedef struct player {
     int armortype = 0;
     int xp_level = 0;
     char name[33] = { 0 };
+    char modelname[33] = { 0 };
+    float bones[15][2] = { 0 };
 } player;
 
 typedef struct spectator {

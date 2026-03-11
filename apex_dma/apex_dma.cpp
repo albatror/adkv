@@ -29,12 +29,19 @@ float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
 int team_player = 0;
 float max_fov = 5;
+float ads_fov = 5;
+float non_ads_fov = 10;
+float aim_dist = 200.0f * 40.0f;
+int glow_fill = 6;
+int glow_outline_thickness = 32;
 const int toRead = 100;
 
 int aim = false;
 bool esp = false;
 bool skeleton = false;
 //bool item_glow = false;
+bool item_glow = false;
+int item_glow_filter = 0;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
@@ -74,6 +81,8 @@ int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 bool triggerbot_use_weapon_list = false;
+float triggerbot_speed = 0.0f;
+float triggerbot_gravity = 0.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -112,7 +121,7 @@ bool actions_t = false;
 bool esp_t = false;
 bool aim_t = false;
 bool vars_t = false;
-//bool item_t = false;
+bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
 bool next = false;
@@ -150,6 +159,7 @@ typedef struct player
 	int armortype = 0;
 	int player_xp_level = 0;
 	char name[33] = { 0 };
+	char modelname[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
 
@@ -244,6 +254,8 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (dist > max_dist)
 		return;
 
+	bool can_aim = (dist <= aim_dist);
+
 	if(!firing_range && !onevone)
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
@@ -262,7 +274,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else if (aim == 2)
 	{
-		if (visible && fov <= max_fov)
+		if (visible && fov <= max_fov && can_aim)
 		{
 			if (fov < max)
 			{
@@ -280,7 +292,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov)
+		if (fov <= max_fov && can_aim)
 		{
 			if (fov < max)
 			{
@@ -844,6 +856,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							}
 
 							Target.get_name(g_Base, &players[c].name[0]);
+							Target.get_model_name(&players[c].modelname[0], 32);
 							lastvis_esp[c] = Target.lastVisTime();
 							valid = true;
 							c++;
@@ -950,6 +963,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							}
 
 							Target.get_name(g_Base, &players[i].name[0]);
+							Target.get_model_name(&players[i].modelname[0], 32);
 							lastvis_esp[i] = Target.lastVisTime();
 							valid = true;
 						}
@@ -1001,6 +1015,11 @@ static void AimbotLoop()
 
 			if (aim > 0)
 			{
+				if (isZooming)
+					max_fov = ads_fov;
+				else
+					max_fov = non_ads_fov;
+
 				if (aimentity == 0 || !aiming)
 				{
 					lock = false;
@@ -1136,6 +1155,14 @@ printf("Reading player_glow address: %lx\n", add_addr + sizeof(uint64_t) * 9);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, player_glow_addr)) {
   printf("Read failed!\n");
 }
+
+uint64_t item_glow_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, item_glow_addr);
+if (item_glow_addr) client_mem.Read<bool>(item_glow_addr, item_glow);
+
+uint64_t item_glow_filter_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, item_glow_filter_addr);
+if (item_glow_filter_addr) client_mem.Read<int>(item_glow_filter_addr, item_glow_filter);
 
 uint64_t aim_no_recoil_addr = 0;
 printf("Reading aim_no_recoil address: %lx\n", add_addr + sizeof(uint64_t) * 10);
@@ -1433,6 +1460,40 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, triggerbot_use_weapon_list_addr);
         if (triggerbot_use_weapon_list_addr) client_mem.Read<bool>(triggerbot_use_weapon_list_addr, triggerbot_use_weapon_list);
 
+        uint64_t triggerbot_speed_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, triggerbot_speed_addr);
+        if (triggerbot_speed_addr) client_mem.Read<float>(triggerbot_speed_addr, triggerbot_speed);
+
+        uint64_t triggerbot_gravity_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, triggerbot_gravity_addr);
+        if (triggerbot_gravity_addr) client_mem.Read<float>(triggerbot_gravity_addr, triggerbot_gravity);
+
+        uint64_t ads_fov_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, ads_fov_addr);
+        if (ads_fov_addr) client_mem.Read<float>(ads_fov_addr, ads_fov);
+
+        uint64_t non_ads_fov_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, non_ads_fov_addr);
+        if (non_ads_fov_addr) client_mem.Read<float>(non_ads_fov_addr, non_ads_fov);
+
+        uint64_t aim_dist_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aim_dist_addr);
+        if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
+
+        uint64_t glow_fill_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, glow_fill_addr);
+        if (glow_fill_addr) {
+            client_mem.Read<int>(glow_fill_addr, glow_fill);
+            insidevalue = (unsigned char)glow_fill;
+        }
+
+        uint64_t glow_outline_thickness_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, glow_outline_thickness_addr);
+        if (glow_outline_thickness_addr) {
+            client_mem.Read<int>(glow_outline_thickness_addr, glow_outline_thickness);
+            outlinesize = (unsigned char)glow_outline_thickness;
+        }
+
         if (esp && next)
         {
             if (valid)
@@ -1455,6 +1516,37 @@ vars_t = false;
 }
 
 // Item Glow Stuff
+void item_glow_t()
+{
+	item_t = true;
+	while (item_t)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		if (g_Base != 0 && item_glow)
+		{
+			for (int i = 0; i < 10000; i++)
+			{
+				uint64_t centity = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + ((uint64_t)i << 5), centity);
+				if (centity == 0) continue;
+
+				int item_id = 0;
+				apex_mem.Read<int>(centity + OFFSET_ITEM_ID, item_id);
+
+				// Basic item identification - this is simplified
+				// Rarity is often stored in m_customScriptInt (OFFSET_ITEM_ID)
+				// 1: white, 2: blue, 3: purple, 4: gold, 5: red
+
+				if (item_id >= item_glow_filter && item_id > 0 && item_id < 100)
+				{
+					apex_mem.Write<int>(centity + OFFSET_GLOW_ENABLE, 1);
+					apex_mem.Write<int>(centity + OFFSET_GLOW_THROUGH_WALLS, 2);
+				}
+			}
+			std::this_thread::sleep_for(std::chrono::seconds(2));
+		}
+	}
+}
 
 
 int main(int argc, char *argv[])
@@ -1476,7 +1568,7 @@ int main(int argc, char *argv[])
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
-	//std::thread itemglow_thr;
+	std::thread itemglow_thr;
 	std::thread stuffbot_thr;
 
 	std::thread vars_thr;
@@ -1490,7 +1582,7 @@ int main(int argc, char *argv[])
 				aim_t = false;
 				esp_t = false;
 				actions_t = false;
-				//item_t = false;
+				item_t = false;
 				extern bool stuff_t;
 				stuff_t = false;
 				g_Base = 0;
@@ -1498,7 +1590,7 @@ int main(int argc, char *argv[])
 				aimbot_thr.~thread();
 				esp_thr.~thread();
 				actions_thr.~thread();
-				//itemglow_thr.~thread();
+				itemglow_thr.~thread();
 				stuffbot_thr.~thread();
 
 			}
@@ -1527,12 +1619,12 @@ int main(int argc, char *argv[])
 				esp_thr = std::thread(EspLoop);
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
-				//itemglow_thr = std::thread(item_glow_t);
+				itemglow_thr = std::thread(item_glow_t);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
-				//itemglow_thr.detach();
+				itemglow_thr.detach();
 			}
 		}
 		else

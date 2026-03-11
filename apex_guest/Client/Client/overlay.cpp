@@ -197,7 +197,12 @@ void Overlay::RenderMenu()
 				aim = 0;
 			}
 
-			//ImGui::Checkbox(XorStr("Glow items"), &item_glow);
+			ImGui::Checkbox(XorStr("Glow items"), &item_glow);
+			if (item_glow)
+			{
+				ImGui::SameLine();
+				ImGui::Combo(XorStr("Filter"), &item_glow_filter, "All\0White+\0Blue+\0Purple+\0Gold+\0\0");
+			}
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
 
 			ImGui::Separator();
@@ -210,6 +215,8 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Use weapon list"), &triggerbot_use_weapon_list);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("Trigger Speed"), &triggerbot_speed, 0.0f, 20000.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("Trigger Gravity"), &triggerbot_gravity, 0.0f, 5000.0f, "%.2f");
 
 			ImGui::EndTabItem();
 		}
@@ -229,11 +236,22 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(max_dist / 40));
 
+			ImGui::Text(XorStr("Aim distance:"));
+			ImGui::SliderFloat(XorStr("##aimdist"), &aim_dist, 10.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(aim_dist / 40));
+
 			ImGui::Text(XorStr("Smooth aim value:"));
 			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
 
 			ImGui::Text(XorStr("Max FOV:"));
 			ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 1000.0f, "%.2f");
+
+			ImGui::Text(XorStr("ADS FOV:"));
+			ImGui::SliderFloat(XorStr("##adsfov"), &ads_fov, 1.0f, 1000.0f, "%.2f");
+
+			ImGui::Text(XorStr("Non-ADS FOV:"));
+			ImGui::SliderFloat(XorStr("##nonadsfov"), &non_ads_fov, 1.0f, 1000.0f, "%.2f");
 			
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
@@ -287,6 +305,8 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Name"), &v.name);
 			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Model"), &v.modelname);
+			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Distance"), &v.distance);
 
 			ImGui::Checkbox(XorStr("Health bar"), &v.healthbar);
@@ -322,6 +342,12 @@ void Overlay::RenderMenu()
 				glowgviz = glowcolorviz[1] * 250;
 				glowbviz = glowcolorviz[2] * 250;
 			}
+
+			ImGui::Text(XorStr("Glow Fill:"));
+			ImGui::SliderInt(XorStr("##glowfill"), &glow_fill, 0, 14);
+
+			ImGui::Text(XorStr("Glow Outline Thickness:"));
+			ImGui::SliderInt(XorStr("##glowoutline"), &glow_outline_thickness, 0, 255);
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Not Visable:"));
 			ImGui::ColorEdit3("##Glow Color Not Visable", glowcolor);

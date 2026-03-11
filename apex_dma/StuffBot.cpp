@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "offsets.h"
 #include "Weapon.h"
+#include "prediction.h"
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
@@ -17,6 +18,8 @@ extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
 extern bool triggerbot_use_weapon_list;
+extern float triggerbot_speed;
+extern float triggerbot_gravity;
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
@@ -143,12 +146,53 @@ void StuffBotLoop()
         {
             Entity Target = getEntity(aimentity);
 
-            // Aim-assist style tracking
-            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, triggerbot_fov, smooth);
-            if (aim_angles.x != 0 || aim_angles.y != 0)
-            {
-                LPlayer.SetViewAngles(aim_angles);
+            // Save original bone and aim_no_recoil settings if needed, but here we just override for the call
+            extern int bone;
+            int old_bone = bone;
+            bone = 0; // Headshot focus
+
+            // Custom prediction if provided
+            WeaponXEntity curweap = WeaponXEntity();
+            curweap.update(LPlayer.ptr);
+            float speed = triggerbot_speed > 0 ? triggerbot_speed : curweap.get_projectile_speed();
+            float gravity = triggerbot_gravity > 0 ? triggerbot_gravity : curweap.get_projectile_gravity();
+
+            // Calculate angles with headshot focus and custom prediction
+            // Note: We'd need to modify CalculateBestBoneAim or implement a specific version here
+            // For now, let's use a simplified headshot aim
+            Vector LocalCamera = LPlayer.GetCamPos();
+            Vector TargetHead = Target.getBonePositionByHitbox(0);
+
+            if (speed > 1.0f) {
+                PredictCtx Ctx;
+                Ctx.StartPos = LocalCamera;
+                Ctx.TargetPos = TargetHead;
+                Ctx.BulletSpeed = speed;
+                Ctx.BulletGravity = gravity;
+                Ctx.TargetVel = Target.getAbsVelocity();
+
+                if (BulletPredict(Ctx)) {
+                    QAngle aim_angles = { -RAD2DEG(Ctx.AimAngles.x), RAD2DEG(Ctx.AimAngles.y), 0.f };
+
+                    // Apply recoil compensation if enabled
+                    extern bool aim_no_recoil;
+                    if (aim_no_recoil) {
+                        aim_angles -= LPlayer.GetSwayAngles() - LPlayer.GetViewAngles();
+                    }
+                    Math::NormalizeAngles(aim_angles);
+
+                    // Smoothing
+                    QAngle view_angles = LPlayer.GetViewAngles();
+                    QAngle delta = aim_angles - view_angles;
+                    Math::NormalizeAngles(delta);
+                    LPlayer.SetViewAngles(view_angles + delta / smooth);
+                }
+            } else {
+                 QAngle aim_angles = Math::CalcAngle(LocalCamera, TargetHead);
+                 LPlayer.SetViewAngles(aim_angles);
             }
+
+            bone = old_bone; // Restore original bone
 
             bool shoot = false;
             if (triggerbot_use_weapon_list) {

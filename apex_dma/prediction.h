@@ -13,12 +13,12 @@ struct PredictCtx
 	Vector2D AimAngles;
 };
 
-Vector ExtrapolatePos(const PredictCtx& Ctx, float Time)
+inline Vector ExtrapolatePos(const PredictCtx& Ctx, float Time)
 {
 	return Ctx.TargetPos + (Ctx.TargetVel * Time);
 }
 
-bool OptimalPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
+inline bool OptimalPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
 {
 	float Vel = Ctx.BulletSpeed, Grav = Ctx.BulletGravity, DirX = Dir2D.x, DirY = Dir2D.y;
 	float Root = Vel * Vel * Vel * Vel - Grav * (Grav * DirX * DirX + 2.f * DirY * Vel * Vel);
@@ -26,7 +26,7 @@ bool OptimalPitch(const PredictCtx& Ctx, const Vector2D& Dir2D, float* OutPitch)
 	return false;
 }
 
-bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* TravelTime)
+inline bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* TravelTime)
 {
 	Vector Dir = ExtrPos - Ctx.StartPos;
 	Vector2D Dir2D = { sqrtf(Dir.x * Dir.x + Dir.y * Dir.y), Dir.z };
@@ -43,7 +43,7 @@ bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* TravelTime)
 	return true;
 }
 
-bool BulletPredict(PredictCtx& Ctx)
+inline bool BulletPredict(PredictCtx& Ctx)
 {
 	float MAX_TIME = 1.f, TIME_STEP = (1.f / 256.f);
 	for (float CurrentTime = 0.f; CurrentTime <= MAX_TIME; CurrentTime += TIME_STEP)
