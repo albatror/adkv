@@ -69,7 +69,7 @@ bool dds_active = false;
 extern visuals v;
 int aim = 0; //read
 bool esp = false; //read
-//bool item_glow = false;
+bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
@@ -439,7 +439,6 @@ int main(int argc, char** argv)
 	add[6] = (uintptr_t)&players[0];
 	add[7] = (uintptr_t)&valid;
 	add[8] = (uintptr_t)&max_dist;
-	//add[9] = (uintptr_t)&item_glow;
 	add[9] = (uintptr_t)&player_glow;
 	add[10] = (uintptr_t)&aim_no_recoil;
 	add[11] = (uintptr_t)&smooth;
@@ -485,6 +484,7 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
+	add[48] = (uintptr_t)&item_glow;
 	add[49] = (uintptr_t)&aim_dist;
 	add[50] = (uintptr_t)&insidevalue;
 	add[51] = (uintptr_t)&outlinesize;
@@ -544,7 +544,7 @@ int main(int argc, char** argv)
 			// aim = 2;
 			player_glow = !player_glow;
 			k_f6 = 1;
-			//item_glow = !item_glow;
+			item_glow = !item_glow;
 		}
 		else if (!IsKeyDown(VK_F1) && k_f1 == 1)
 		{
@@ -598,7 +598,7 @@ int main(int argc, char** argv)
 		if (IsKeyDown(VK_F8) && k_f8 == 0)
 		{
 			k_f8 = 1;
-			//item_glow = !item_glow;
+			item_glow = !item_glow;
 		}
 		else if (!IsKeyDown(VK_F8) && k_f8 == 1)
 		{
