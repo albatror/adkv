@@ -47,12 +47,16 @@ int flickbot_key = VK_LSHIFT;
 bool flickbot_aiming = false;
 float flickbot_fov = 10.0f;
 float flickbot_smooth = 20.0f;
+bool flickbot_auto_shoot = false;
+int flickbot_auto_shoot_delay = 50;
+bool flickbot_flickback = false;
+int flickbot_flickback_delay = 10;
+int flickbot_delay = 500;
 
 bool triggerbot = false;
 int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
-bool triggerbot_use_weapon_list = false;
 
 bool superglide = false;
 bool bhop = false;
@@ -481,10 +485,14 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
-	add[48] = (uintptr_t)&triggerbot_use_weapon_list;
 	add[49] = (uintptr_t)&aim_dist;
 	add[50] = (uintptr_t)&insidevalue;
 	add[51] = (uintptr_t)&outlinesize;
+	add[52] = (uintptr_t)&flickbot_auto_shoot;
+	add[53] = (uintptr_t)&flickbot_auto_shoot_delay;
+	add[54] = (uintptr_t)&flickbot_flickback;
+	add[55] = (uintptr_t)&flickbot_flickback_delay;
+	add[57] = (uintptr_t)&flickbot_delay;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

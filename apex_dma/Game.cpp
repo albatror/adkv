@@ -3,6 +3,7 @@
 #include <cassert>
 #include <ostream>
 #include <iostream>
+#include <cfloat>
 
 
 extern Memory apex_mem;
@@ -520,7 +521,7 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 
   // Find best bone
   if (bone_auto) {
-    float NearestBoneDistance = max_dist;
+    float NearestBoneDistance = FLT_MAX;
     for (int i = 0; i < 4; i++) {
       Vector currentBonePosition = target.getBonePositionByHitbox(i);
       float DistanceFromCrosshair =
