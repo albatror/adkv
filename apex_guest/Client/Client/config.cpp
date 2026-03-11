@@ -12,6 +12,7 @@
 
 extern int aim;
 extern bool esp;
+extern bool item_glow;
 extern bool player_glow;
 extern bool aim_no_recoil;
 extern bool lock_target;
@@ -79,6 +80,7 @@ void SaveConfig(const std::string& filename) {
 
     file << "aim " << aim << "\n";
     file << "esp " << std::boolalpha << esp << "\n";
+    file << "item_glow " << std::boolalpha << item_glow << "\n";
     file << "player_glow " << std::boolalpha << player_glow << "\n";
     file << "aim_no_recoil " << std::boolalpha << aim_no_recoil << "\n";
     file << "lock_target " << std::boolalpha << lock_target << "\n";
@@ -155,6 +157,7 @@ void LoadConfig(const std::string& filename) {
 
         if (key == "aim") ss >> aim;
         else if (key == "esp") ss >> std::boolalpha >> esp;
+        else if (key == "item_glow") ss >> std::boolalpha >> item_glow;
         else if (key == "player_glow") ss >> std::boolalpha >> player_glow;
         else if (key == "aim_no_recoil") ss >> std::boolalpha >> aim_no_recoil;
         else if (key == "lock_target") ss >> std::boolalpha >> lock_target;

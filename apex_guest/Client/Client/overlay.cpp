@@ -7,7 +7,7 @@
 using namespace std;
 extern int aim;
 extern bool esp;
-//extern bool item_glow;
+extern bool item_glow;
 extern bool player_glow;
 extern bool aim_no_recoil;
 extern bool lock_target;
@@ -204,7 +204,7 @@ void Overlay::RenderMenu()
 				aim = 0;
 			}
 
-			//ImGui::Checkbox(XorStr("Glow items"), &item_glow);
+			ImGui::Checkbox(XorStr("Glow items"), &item_glow);
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
 
 			ImGui::Separator();
