@@ -39,7 +39,6 @@ extern int flickbot_delay;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
-extern bool triggerbot_use_weapon_list;
 
 extern bool superglide;
 extern bool bhop;
@@ -228,8 +227,6 @@ void Overlay::RenderMenu()
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
-			ImGui::SameLine();
-			ImGui::Checkbox(XorStr("Use weapon list"), &triggerbot_use_weapon_list);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::EndTabItem();

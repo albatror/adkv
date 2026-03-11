@@ -79,7 +79,6 @@ bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
-bool triggerbot_use_weapon_list = false;
 
 bool superglide = false;
 bool bhop = false;
@@ -1434,10 +1433,6 @@ while (vars_t)
         uint64_t triggerbot_fov_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
-
-        uint64_t triggerbot_use_weapon_list_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, triggerbot_use_weapon_list_addr);
-        if (triggerbot_use_weapon_list_addr) client_mem.Read<bool>(triggerbot_use_weapon_list_addr, triggerbot_use_weapon_list);
 
         uint64_t aim_dist_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, aim_dist_addr);

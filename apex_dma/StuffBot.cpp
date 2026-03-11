@@ -21,7 +21,6 @@ extern int flickbot_delay;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
-extern bool triggerbot_use_weapon_list;
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
@@ -34,58 +33,9 @@ void TriggerBotRun()
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 }
 
-bool isAllowedWeapon(int weaponId, int zoomElapsedMs) {
-    // Special long zoom delay for Kraber and Sentinel
-    if (weaponId == WeaponIDs::KRABER || weaponId == WeaponIDs::SENTINEL) {
-        if (zoomElapsedMs < 950)
-            return false; // Not ready to shoot yet
-    } else {
-        // All other weapons need some delay after zoom
-        if (zoomElapsedMs < 600)
-            return false; // Not ready yet
-    }
-
-    // List of allowed weapons
-    return (
-        weaponId == WeaponIDs::KRABER ||
-        weaponId == WeaponIDs::WINGMAN ||
-        weaponId == WeaponIDs::LONGBOW ||
-        weaponId == WeaponIDs::SENTINEL ||
-        weaponId == WeaponIDs::G7_SCOUT ||
-        weaponId == WeaponIDs::HEMLOCK ||
-        weaponId == WeaponIDs::REPEATER_3030 ||
-        weaponId == WeaponIDs::TRIPLE_TAKE ||
-        weaponId == WeaponIDs::BOCEK ||
-        weaponId == WeaponIDs::KNIFE ||
-        weaponId == WeaponIDs::P2020 ||
-        weaponId == WeaponIDs::MOZAMBIQUE ||
-        weaponId == WeaponIDs::EVA8 ||
-        weaponId == WeaponIDs::PEACEKEEPER ||
-        weaponId == WeaponIDs::MASTIFF ||
-        weaponId == WeaponIDs::NEMESIS ||
-        weaponId == WeaponIDs::RE45 ||
-        weaponId == WeaponIDs::ALTERNATOR ||
-        weaponId == WeaponIDs::R99 ||
-        weaponId == WeaponIDs::R301 ||
-        weaponId == WeaponIDs::SPITFIRE ||
-        weaponId == WeaponIDs::FLATLINE ||
-        weaponId == WeaponIDs::PROWLER ||
-        weaponId == WeaponIDs::RAMPAGE ||
-        weaponId == WeaponIDs::CAR ||
-        weaponId == WeaponIDs::HAVOC ||
-        weaponId == WeaponIDs::DEVOTION ||
-        weaponId == WeaponIDs::LSTAR ||
-        weaponId == WeaponIDs::VOLT ||
-        weaponId == WeaponIDs::CHARGE_RIFLE
-    );
-}
-
 void StuffBotLoop()
 {
     stuff_t = true;
-    // Zoom tracking
-    static auto zoomStartTime = std::chrono::steady_clock::now();
-    static bool wasZooming = false;
 
     while (stuff_t)
     {
@@ -96,17 +46,6 @@ void StuffBotLoop()
         apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
         if (LocalPlayer == 0) continue;
         Entity LPlayer = getEntity(LocalPlayer);
-
-        // Update zoom timing
-        bool isZooming = LPlayer.isZooming();
-        auto now = std::chrono::steady_clock::now();
-
-        if (isZooming && !wasZooming) {
-            zoomStartTime = now;  // just started zooming
-        }
-
-        int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
-        wasZooming = isZooming;
 
         // Triggerbot logic
         if (triggerbot && triggerbot_aiming)
@@ -166,34 +105,30 @@ void StuffBotLoop()
             auto now_flick = std::chrono::steady_clock::now();
             if (std::chrono::duration_cast<std::chrono::milliseconds>(now_flick - lastFlickTime).count() >= flickbot_delay)
             {
-                int weaponId = LPlayer.getCurrentWeaponId();
-                if (isAllowedWeapon(weaponId, zoomElapsedMs))
+                Entity Target = getEntity(aimentity);
+                if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
                 {
-                    Entity Target = getEntity(aimentity);
-                    if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
+                    float fov = CalculateFov(LPlayer, Target);
+                    if (fov <= flickbot_fov)
                     {
-                        float fov = CalculateFov(LPlayer, Target);
-                        if (fov <= flickbot_fov)
+                        QAngle old_angles = LPlayer.GetViewAngles();
+                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
+                        if (aim_angles.x != 0 || aim_angles.y != 0)
                         {
-                            QAngle old_angles = LPlayer.GetViewAngles();
-                            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, flickbot_smooth);
-                            if (aim_angles.x != 0 || aim_angles.y != 0)
+                            LPlayer.SetViewAngles(aim_angles);
+                            if (flickbot_auto_shoot)
                             {
-                                LPlayer.SetViewAngles(aim_angles);
-                                if (flickbot_auto_shoot)
-                                {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(flickbot_auto_shoot_delay));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-                                }
-                                if (flickbot_flickback)
-                                {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(flickbot_flickback_delay));
-                                    LPlayer.SetViewAngles(old_angles);
-                                }
-                                lastFlickTime = std::chrono::steady_clock::now();
+                                std::this_thread::sleep_for(std::chrono::milliseconds(flickbot_auto_shoot_delay));
+                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
                             }
+                            if (flickbot_flickback)
+                            {
+                                std::this_thread::sleep_for(std::chrono::milliseconds(flickbot_flickback_delay));
+                                LPlayer.SetViewAngles(old_angles);
+                            }
+                            lastFlickTime = std::chrono::steady_clock::now();
                         }
                     }
                 }
