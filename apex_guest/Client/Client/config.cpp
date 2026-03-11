@@ -16,6 +16,7 @@ extern bool player_glow;
 extern bool aim_no_recoil;
 extern bool lock_target;
 extern float max_dist;
+extern float aim_dist;
 extern float default_smooth;
 extern float default_fov;
 extern int bone;
@@ -27,6 +28,8 @@ extern float glowrviz;
 extern float glowgviz;
 extern float glowbviz;
 extern float glowcolorviz[3];
+extern unsigned char insidevalue;
+extern unsigned char outlinesize;
 extern float glowrknocked;
 extern float glowgknocked;
 extern float glowbknocked;
@@ -76,6 +79,7 @@ void SaveConfig(const std::string& filename) {
     file << "aim_no_recoil " << std::boolalpha << aim_no_recoil << "\n";
     file << "lock_target " << std::boolalpha << lock_target << "\n";
     file << "max_dist " << max_dist << "\n";
+    file << "aim_dist " << aim_dist << "\n";
     file << "default_smooth " << default_smooth << "\n";
     file << "default_fov " << default_fov << "\n";
     file << "bone " << bone << "\n";
@@ -100,6 +104,8 @@ void SaveConfig(const std::string& filename) {
     file << "glowgknocked " << glowgknocked << "\n";
     file << "glowbknocked " << glowbknocked << "\n";
     file << "glowcolorknocked " << glowcolorknocked[0] << " " << glowcolorknocked[1] << " " << glowcolorknocked[2] << "\n";
+    file << "insidevalue " << (int)insidevalue << "\n";
+    file << "outlinesize " << (int)outlinesize << "\n";
     file << "firing_range " << std::boolalpha << firing_range << "\n";
     file << "onevone " << std::boolalpha << onevone << "\n";
     file << "DDS " << DDS << "\n";
@@ -145,6 +151,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "aim_no_recoil") ss >> std::boolalpha >> aim_no_recoil;
         else if (key == "lock_target") ss >> std::boolalpha >> lock_target;
         else if (key == "max_dist") ss >> max_dist;
+        else if (key == "aim_dist") ss >> aim_dist;
         else if (key == "default_smooth") ss >> default_smooth;
         else if (key == "default_fov") ss >> default_fov;
         else if (key == "bone") ss >> bone;
@@ -169,6 +176,8 @@ void LoadConfig(const std::string& filename) {
         else if (key == "glowgknocked") ss >> glowgknocked;
         else if (key == "glowbknocked") ss >> glowbknocked;
         else if (key == "glowcolorknocked") ss >> glowcolorknocked[0] >> glowcolorknocked[1] >> glowcolorknocked[2];
+        else if (key == "insidevalue") { int val; ss >> val; insidevalue = (unsigned char)val; }
+        else if (key == "outlinesize") { int val; ss >> val; outlinesize = (unsigned char)val; }
         else if (key == "firing_range") ss >> std::boolalpha >> firing_range;
         else if (key == "onevone") ss >> std::boolalpha >> onevone;
         else if (key == "DDS") ss >> DDS;

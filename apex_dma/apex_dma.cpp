@@ -27,6 +27,7 @@ uintptr_t tmp_aimentity = 0;
 uintptr_t lastaimentity = 0;
 float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
+float aim_dist = 200.0f * 40.0f;
 int team_player = 0;
 float max_fov = 5;
 const int toRead = 100;
@@ -262,7 +263,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else if (aim == 2)
 	{
-		if (visible && fov <= max_fov)
+		if (visible && fov <= max_fov && dist <= aim_dist)
 		{
 			if (fov < max)
 			{
@@ -280,7 +281,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov)
+		if (fov <= max_fov && dist <= aim_dist)
 		{
 			if (fov < max)
 			{
@@ -1432,6 +1433,18 @@ while (vars_t)
         uint64_t triggerbot_use_weapon_list_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, triggerbot_use_weapon_list_addr);
         if (triggerbot_use_weapon_list_addr) client_mem.Read<bool>(triggerbot_use_weapon_list_addr, triggerbot_use_weapon_list);
+
+        uint64_t aim_dist_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, aim_dist_addr);
+        if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
+
+        uint64_t insidevalue_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, insidevalue_addr);
+        if (insidevalue_addr) client_mem.Read<unsigned char>(insidevalue_addr, insidevalue);
+
+        uint64_t outlinesize_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr);
+        if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
 
         if (esp && next)
         {

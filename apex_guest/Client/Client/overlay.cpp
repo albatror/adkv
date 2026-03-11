@@ -14,7 +14,10 @@ extern bool lock_target;
 extern bool ready;
 extern bool use_nvidia;
 extern float max_dist;
+extern float aim_dist;
 extern float smooth;
+extern unsigned char insidevalue;
+extern unsigned char outlinesize;
 extern float max_fov;
 extern float default_smooth;
 extern float default_fov;
@@ -224,10 +227,15 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
 		{
-			ImGui::Text(XorStr("Max distance:"));
+			ImGui::Text(XorStr("ESP Max distance:"));
 			ImGui::SliderFloat(XorStr("##1"), &max_dist, 100.0f * 40, 800.0f * 40, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(max_dist / 40));
+
+			ImGui::Text(XorStr("AIM Max distance:"));
+			ImGui::SliderFloat(XorStr("##aim_dist"), &aim_dist, 100.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(aim_dist / 40));
 
 			ImGui::Text(XorStr("Smooth aim value:"));
 			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
@@ -338,6 +346,15 @@ void Overlay::RenderMenu()
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
 			}
+			ImGui::Separator();
+			static unsigned char min_val = 0;
+			static unsigned char max_val_fill = 100;
+			static unsigned char max_val_thick = 255;
+			ImGui::Text(XorStr("Glow Fill:"));
+			ImGui::SliderScalar("##GlowFill", ImGuiDataType_U8, &insidevalue, &min_val, &max_val_fill);
+			ImGui::Text(XorStr("Glow Thickness:"));
+			ImGui::SliderScalar("##GlowThickness", ImGuiDataType_U8, &outlinesize, &min_val, &max_val_thick);
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
