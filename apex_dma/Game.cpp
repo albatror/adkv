@@ -3,11 +3,14 @@
 #include <cassert>
 #include <ostream>
 #include <iostream>
+#include <cfloat>
 
 
 extern Memory apex_mem;
 
 extern bool firing_range;
+extern unsigned char insidevalue;
+extern unsigned char outlinesize;
 float smooth = 12.0f;
 extern bool aim_no_recoil;
 int bone = 2;
@@ -316,8 +319,14 @@ bool Entity::isZooming()
 
 		//static const int contextId = 0;
 		//int settingIndex = 50;
+
+		// Map 0-100 fill to 0-14 and 100-125
+		unsigned char fill = 0;
+		if (insidevalue <= 14) fill = insidevalue;
+		else if (insidevalue > 14) fill = 100 + (insidevalue - 14) * (25 / 86.0f);
+
 		std::array<unsigned char, 4> highlightFunctionBits = {
-			insidevalue,   // InsideFunction
+			fill,   // InsideFunction
 			outsidevalue, // OutlineFunction: HIGHLIGHT_OUTLINE_OBJECTIVE
 			outlinesize,  // OutlineRadius: size * 255 / 8
 			64   // (EntityVisible << 6) | State & 0x3F | (AfterPostProcess << 7)
@@ -528,7 +537,7 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 
   // Find best bone
   if (bone_auto) {
-    float NearestBoneDistance = max_dist;
+    float NearestBoneDistance = FLT_MAX;
     for (int i = 0; i < 4; i++) {
       Vector currentBonePosition = target.getBonePositionByHitbox(i);
       float DistanceFromCrosshair =

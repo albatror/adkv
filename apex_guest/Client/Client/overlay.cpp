@@ -14,7 +14,10 @@ extern bool lock_target;
 extern bool ready;
 extern bool use_nvidia;
 extern float max_dist;
+extern float aim_dist;
 extern float smooth;
+extern unsigned char insidevalue;
+extern unsigned char outlinesize;
 extern float max_fov;
 extern float default_smooth;
 extern float default_fov;
@@ -28,10 +31,14 @@ extern bool firing_range;
 extern bool flickbot;
 extern float flickbot_fov;
 extern float flickbot_smooth;
+extern bool flickbot_auto_shoot;
+extern int flickbot_auto_shoot_delay;
+extern bool flickbot_flickback;
+extern int flickbot_flickback_delay;
+extern int flickbot_delay;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
-extern bool triggerbot_use_weapon_list;
 
 extern bool superglide;
 extern bool bhop;
@@ -204,11 +211,22 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Flickbot (LSHIFT)"), &flickbot);
 			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 1000.0f, "%.2f");
 			ImGui::SliderFloat(XorStr("Flick Smooth"), &flickbot_smooth, 1.0f, 1000.0f, "%.2f");
+			ImGui::Checkbox(XorStr("Flick Auto Shoot"), &flickbot_auto_shoot);
+			if (flickbot_auto_shoot)
+			{
+				ImGui::SameLine();
+				ImGui::SliderInt(XorStr("Shoot Delay"), &flickbot_auto_shoot_delay, 0, 1000);
+			}
+			ImGui::Checkbox(XorStr("Flickback"), &flickbot_flickback);
+			if (flickbot_flickback)
+			{
+				ImGui::SameLine();
+				ImGui::SliderInt(XorStr("Flickback Delay"), &flickbot_flickback_delay, 0, 1000);
+			}
+			ImGui::SliderInt(XorStr("Flick Delay"), &flickbot_delay, 0, 2000);
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
-			ImGui::SameLine();
-			ImGui::Checkbox(XorStr("Use weapon list"), &triggerbot_use_weapon_list);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::EndTabItem();
@@ -224,10 +242,15 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Config")))
 		{
-			ImGui::Text(XorStr("Max distance:"));
+			ImGui::Text(XorStr("ESP Max distance:"));
 			ImGui::SliderFloat(XorStr("##1"), &max_dist, 100.0f * 40, 800.0f * 40, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(max_dist / 40));
+
+			ImGui::Text(XorStr("AIM Max distance:"));
+			ImGui::SliderFloat(XorStr("##aim_dist"), &aim_dist, 100.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(aim_dist / 40));
 
 			ImGui::Text(XorStr("Smooth aim value:"));
 			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
@@ -338,6 +361,15 @@ void Overlay::RenderMenu()
 				glowgknocked = glowcolorknocked[1] * 250;
 				glowbknocked = glowcolorknocked[2] * 250;
 			}
+			ImGui::Separator();
+			static unsigned char min_val = 0;
+			static unsigned char max_val_fill = 100;
+			static unsigned char max_val_thick = 255;
+			ImGui::Text(XorStr("Glow Fill:"));
+			ImGui::SliderScalar("##GlowFill", ImGuiDataType_U8, &insidevalue, &min_val, &max_val_fill);
+			ImGui::Text(XorStr("Glow Thickness:"));
+			ImGui::SliderScalar("##GlowThickness", ImGuiDataType_U8, &outlinesize, &min_val, &max_val_thick);
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();

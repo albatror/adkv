@@ -27,6 +27,7 @@ uintptr_t tmp_aimentity = 0;
 uintptr_t lastaimentity = 0;
 float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
+float aim_dist = 200.0f * 40.0f;
 int team_player = 0;
 float max_fov = 5;
 const int toRead = 100;
@@ -68,12 +69,16 @@ int flickbot_key = 0xA0; // VK_LSHIFT
 bool flickbot_aiming = false;
 float flickbot_fov = 10.0f;
 float flickbot_smooth = 20.0f;
+bool flickbot_auto_shoot = false;
+int flickbot_auto_shoot_delay = 0;
+bool flickbot_flickback = false;
+int flickbot_flickback_delay = 0;
+int flickbot_delay = 0;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
-bool triggerbot_use_weapon_list = false;
 
 bool superglide = false;
 bool bhop = false;
@@ -262,7 +267,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else if (aim == 2)
 	{
-		if (visible && fov <= max_fov)
+		if (visible && fov <= max_fov && dist <= aim_dist)
 		{
 			if (fov < max)
 			{
@@ -280,7 +285,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov)
+		if (fov <= max_fov && dist <= aim_dist)
 		{
 			if (fov < max)
 			{
@@ -1432,9 +1437,37 @@ while (vars_t)
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr);
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
-        uint64_t triggerbot_use_weapon_list_addr = 0;
-        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, triggerbot_use_weapon_list_addr);
-        if (triggerbot_use_weapon_list_addr) client_mem.Read<bool>(triggerbot_use_weapon_list_addr, triggerbot_use_weapon_list);
+        uint64_t aim_dist_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, aim_dist_addr);
+        if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
+
+        uint64_t insidevalue_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, insidevalue_addr);
+        if (insidevalue_addr) client_mem.Read<unsigned char>(insidevalue_addr, insidevalue);
+
+        uint64_t outlinesize_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr);
+        if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
+
+        uint64_t flickbot_auto_shoot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, flickbot_auto_shoot_addr);
+        if (flickbot_auto_shoot_addr) client_mem.Read<bool>(flickbot_auto_shoot_addr, flickbot_auto_shoot);
+
+        uint64_t flickbot_auto_shoot_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, flickbot_auto_shoot_delay_addr);
+        if (flickbot_auto_shoot_delay_addr) client_mem.Read<int>(flickbot_auto_shoot_delay_addr, flickbot_auto_shoot_delay);
+
+        uint64_t flickbot_flickback_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, flickbot_flickback_addr);
+        if (flickbot_flickback_addr) client_mem.Read<bool>(flickbot_flickback_addr, flickbot_flickback);
+
+        uint64_t flickbot_flickback_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, flickbot_flickback_delay_addr);
+        if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
+
+        uint64_t flickbot_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_addr);
+        if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
 
         if (esp && next)
         {
