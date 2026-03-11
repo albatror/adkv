@@ -1588,21 +1588,6 @@ void item_glow_t()
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 			uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-			uint64_t highlightSettingsPtr = 0;
-			apex_mem.Read<uint64_t>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
-			if (highlightSettingsPtr == 0) continue;
-
-			// White, Blue, Purple, Yellow, Red
-			const std::vector<uint8_t> itemHighlightIDs = { 34, 35, 36, 37, 38 };
-			const GlowMode itemGlowMode = { 137, 138, 64, 64 };
-
-			for (uint8_t id : itemHighlightIDs)
-			{
-				GlowMode currentGlowMode;
-				apex_mem.Read<GlowMode>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * id + 0, currentGlowMode);
-				if (currentGlowMode != itemGlowMode)
-					apex_mem.Write<GlowMode>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * id + 0, itemGlowMode);
-			}
 
 			for (int i = 0; i < 10000; i++)
 			{
