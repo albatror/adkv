@@ -11,6 +11,7 @@
 #include "StuffBot.h"
 #include <thread>
 #include <array>
+#include <vector>
 #include <fstream>
 #include <unordered_map>
 #include <cmath>
@@ -35,7 +36,7 @@ const int toRead = 100;
 int aim = false;
 bool esp = false;
 bool skeleton = false;
-//bool item_glow = false;
+bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
@@ -117,7 +118,7 @@ bool actions_t = false;
 bool esp_t = false;
 bool aim_t = false;
 bool vars_t = false;
-//bool item_t = false;
+bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
 bool next = false;
@@ -1374,6 +1375,10 @@ while (vars_t)
 
         client_mem.WriteArray<spectator>(spec_list_addr, spectator_list, toRead);
 
+        uint64_t item_glow_addr_val = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, item_glow_addr_val);
+        if (item_glow_addr_val) client_mem.Read<bool>(item_glow_addr_val, item_glow);
+
         uint64_t screen_width_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 32, screen_width_addr);
         if (screen_width_addr)
@@ -1488,6 +1493,93 @@ vars_t = false;
 }
 
 // Item Glow Stuff
+void item_glow_t()
+{
+	item_t = true;
+	bool last_item_glow = false;
+
+	while (item_t)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		if (g_Base == 0 || c_Base == 0) continue;
+
+		if (item_glow)
+		{
+			last_item_glow = true;
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+			uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+			uint64_t highlightSettingsPtr = 0;
+			apex_mem.Read<uint64_t>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
+			if (highlightSettingsPtr == 0) continue;
+
+			// White, Blue, Purple, Yellow, Red
+			const std::vector<uint8_t> itemHighlightIDs = { 34, 35, 36, 37, 38 };
+			const GlowMode itemGlowMode = { 137, 138, 64, 64 };
+
+			for (uint8_t id : itemHighlightIDs)
+			{
+				GlowMode currentGlowMode;
+				apex_mem.Read<GlowMode>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * id + 0, currentGlowMode);
+				if (currentGlowMode != itemGlowMode)
+					apex_mem.Write<GlowMode>(highlightSettingsPtr + HIGHLIGHT_TYPE_SIZE * id + 0, itemGlowMode);
+			}
+
+			for (int i = 0; i < 10000; i++)
+			{
+				uint64_t centity = 0;
+				apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+				if (centity == 0) continue;
+
+				Item item = getItem(centity);
+				if (item.isItem() || item.isBox())
+				{
+					if (!item.isGlowing())
+					{
+						uint32_t scriptInt = 0;
+						apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
+						uint8_t highlightID = 65; // Default
+
+						if (item.isBox())
+						{
+							highlightID = 38; // Red
+						}
+						else
+						{
+							// Rarity based IDs
+							if (scriptInt == 1) highlightID = 34; // White
+							else if (scriptInt == 2) highlightID = 35; // Blue
+							else if (scriptInt == 3) highlightID = 36; // Purple
+							else if (scriptInt == 4) highlightID = 37; // Yellow
+							else if (scriptInt >= 5) highlightID = 38; // Red
+							else highlightID = 65;
+						}
+						item.enableGlow(highlightID);
+					}
+				}
+			}
+		}
+		else if (last_item_glow)
+		{
+			// Disable cleanup
+			uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+			for (int i = 0; i < 10000; i++)
+			{
+				uint64_t centity = 0;
+				apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+				if (centity == 0) continue;
+
+				Item item = getItem(centity);
+				if ((item.isItem() || item.isBox()) && item.isGlowing())
+				{
+					item.disableGlow();
+				}
+			}
+			last_item_glow = false;
+		}
+	}
+	item_t = false;
+}
 
 
 int main(int argc, char *argv[])
@@ -1509,7 +1601,7 @@ int main(int argc, char *argv[])
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
-	//std::thread itemglow_thr;
+	std::thread itemglow_thr;
 	std::thread stuffbot_thr;
 
 	std::thread vars_thr;
@@ -1523,7 +1615,7 @@ int main(int argc, char *argv[])
 				aim_t = false;
 				esp_t = false;
 				actions_t = false;
-				//item_t = false;
+				item_t = false;
 				extern bool stuff_t;
 				stuff_t = false;
 				g_Base = 0;
@@ -1531,7 +1623,7 @@ int main(int argc, char *argv[])
 				aimbot_thr.~thread();
 				esp_thr.~thread();
 				actions_thr.~thread();
-				//itemglow_thr.~thread();
+				itemglow_thr.~thread();
 				stuffbot_thr.~thread();
 
 			}
@@ -1560,12 +1652,12 @@ int main(int argc, char *argv[])
 				esp_thr = std::thread(EspLoop);
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
-				//itemglow_thr = std::thread(item_glow_t);
+				itemglow_thr = std::thread(item_glow_t);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
-				//itemglow_thr.detach();
+				itemglow_thr.detach();
 			}
 		}
 		else
