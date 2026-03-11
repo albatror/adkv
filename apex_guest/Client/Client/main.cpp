@@ -439,7 +439,7 @@ int main(int argc, char** argv)
 	add[6] = (uintptr_t)&players[0];
 	add[7] = (uintptr_t)&valid;
 	add[8] = (uintptr_t)&max_dist;
-	add[9] = (uintptr_t)&player_glow;
+	add[9] = (uintptr_t)&item_glow;
 	add[10] = (uintptr_t)&aim_no_recoil;
 	add[11] = (uintptr_t)&smooth;
 	add[12] = (uintptr_t)&max_fov;
@@ -484,7 +484,7 @@ int main(int argc, char** argv)
 	add[45] = (uintptr_t)&flickbot_smooth;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
-	add[48] = (uintptr_t)&item_glow;
+	add[48] = (uintptr_t)&player_glow;
 	add[49] = (uintptr_t)&aim_dist;
 	add[50] = (uintptr_t)&insidevalue;
 	add[51] = (uintptr_t)&outlinesize;
