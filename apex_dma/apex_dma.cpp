@@ -69,6 +69,11 @@ int flickbot_key = 0xA0; // VK_LSHIFT
 bool flickbot_aiming = false;
 float flickbot_fov = 10.0f;
 float flickbot_smooth = 20.0f;
+bool flickbot_auto_shoot = false;
+int flickbot_auto_shoot_delay = 0;
+bool flickbot_flickback = false;
+int flickbot_flickback_delay = 0;
+int flickbot_delay = 0;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
@@ -1445,6 +1450,26 @@ while (vars_t)
         uint64_t outlinesize_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr);
         if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
+
+        uint64_t flickbot_auto_shoot_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, flickbot_auto_shoot_addr);
+        if (flickbot_auto_shoot_addr) client_mem.Read<bool>(flickbot_auto_shoot_addr, flickbot_auto_shoot);
+
+        uint64_t flickbot_auto_shoot_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, flickbot_auto_shoot_delay_addr);
+        if (flickbot_auto_shoot_delay_addr) client_mem.Read<int>(flickbot_auto_shoot_delay_addr, flickbot_auto_shoot_delay);
+
+        uint64_t flickbot_flickback_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, flickbot_flickback_addr);
+        if (flickbot_flickback_addr) client_mem.Read<bool>(flickbot_flickback_addr, flickbot_flickback);
+
+        uint64_t flickbot_flickback_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, flickbot_flickback_delay_addr);
+        if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
+
+        uint64_t flickbot_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_addr);
+        if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
 
         if (esp && next)
         {

@@ -31,6 +31,11 @@ extern bool firing_range;
 extern bool flickbot;
 extern float flickbot_fov;
 extern float flickbot_smooth;
+extern bool flickbot_auto_shoot;
+extern int flickbot_auto_shoot_delay;
+extern bool flickbot_flickback;
+extern int flickbot_flickback_delay;
+extern int flickbot_delay;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
@@ -207,6 +212,19 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Flickbot (LSHIFT)"), &flickbot);
 			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 1000.0f, "%.2f");
 			ImGui::SliderFloat(XorStr("Flick Smooth"), &flickbot_smooth, 1.0f, 1000.0f, "%.2f");
+			ImGui::Checkbox(XorStr("Flick Auto Shoot"), &flickbot_auto_shoot);
+			if (flickbot_auto_shoot)
+			{
+				ImGui::SameLine();
+				ImGui::SliderInt(XorStr("Shoot Delay"), &flickbot_auto_shoot_delay, 0, 1000);
+			}
+			ImGui::Checkbox(XorStr("Flickback"), &flickbot_flickback);
+			if (flickbot_flickback)
+			{
+				ImGui::SameLine();
+				ImGui::SliderInt(XorStr("Flickback Delay"), &flickbot_flickback_delay, 0, 1000);
+			}
+			ImGui::SliderInt(XorStr("Flick Delay"), &flickbot_delay, 0, 2000);
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
