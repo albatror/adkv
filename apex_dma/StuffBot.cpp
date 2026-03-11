@@ -21,41 +21,6 @@ extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
 
-bool IsInCrossHair(Entity &target)
-{
-    static uintptr_t last_t = 0;
-    static float last_crosshair_target_time = -1.f;
-    float now_crosshair_target_time = target.lastCrossHairTime();
-    bool is_trigger = false;
-
-    if (last_t == target.ptr)
-    {
-        if(last_crosshair_target_time != -1.f)
-        {
-            if(now_crosshair_target_time > last_crosshair_target_time)
-            {
-                is_trigger = true;
-                last_crosshair_target_time = -1.f;
-            }
-            else
-            {
-                is_trigger = false;
-                last_crosshair_target_time = now_crosshair_target_time;
-            }
-        }
-        else
-        {
-            is_trigger = false;
-            last_crosshair_target_time = now_crosshair_target_time;
-        }
-    }
-    else
-    {
-        last_t = target.ptr;
-        last_crosshair_target_time = -1.f;
-    }
-    return is_trigger;
-}
 
 void TriggerBotRun()
 {
@@ -139,31 +104,53 @@ void StuffBotLoop()
         wasZooming = isZooming;
 
         // Triggerbot logic
-        if (triggerbot && triggerbot_aiming && aimentity != 0)
+        if (triggerbot && triggerbot_aiming)
         {
-            Entity Target = getEntity(aimentity);
+            uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+            for (int i = 0; i < 100; i++) {
+                uint64_t centity = 0;
+                if (!apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity) || centity == 0 || centity == LocalPlayer) continue;
 
-            // Aim-assist style tracking
-            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, triggerbot_fov, smooth);
-            if (aim_angles.x != 0 || aim_angles.y != 0)
-            {
-                LPlayer.SetViewAngles(aim_angles);
-            }
+                // Targeted reads to avoid getEntity overhead
+                int health = 0;
+                apex_mem.Read<int>(centity + OFFSET_HEALTH, health);
+                if (health <= 0) continue;
 
-            bool shoot = false;
-            if (triggerbot_use_weapon_list) {
-                int weaponId = LPlayer.getCurrentWeaponId();
-                if (isAllowedWeapon(weaponId, zoomElapsedMs)) {
-                    if (IsInCrossHair(Target)) shoot = true;
+                int team = 0;
+                apex_mem.Read<int>(centity + OFFSET_TEAM, team);
+                if (team == LPlayer.getTeamId() && !firing_range) continue;
+
+                // Dummy check if firing range
+                if (firing_range) {
+                    char class_name[33] = {};
+                    get_class_name(centity, class_name);
+                    if (strncmp(class_name, "CAI_BaseNPC", 11) != 0) continue;
                 }
-            } else {
-                if (IsInCrossHair(Target)) shoot = true;
-            }
 
-            if (shoot) {
-                int weaponId = LPlayer.getCurrentWeaponId();
-                printf("[TRIGGERBOT] Shooting with %s\n", get_weapon_name(weaponId).c_str());
-                TriggerBotRun();
+                // Check FOV
+                Vector EntityPosition;
+                apex_mem.Read<Vector>(centity + OFFSET_ORIGIN, EntityPosition);
+                float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), EntityPosition));
+                if (fov > triggerbot_fov) continue;
+
+                // Finally check crosshair
+                float now_crosshair_target_time = 0;
+                apex_mem.Read<float>(centity + OFFSET_CROSSHAIR_LAST, now_crosshair_target_time);
+
+                static std::unordered_map<uint64_t, float> last_crosshair_times;
+                if (last_crosshair_times.find(centity) == last_crosshair_times.end()) {
+                    last_crosshair_times[centity] = now_crosshair_target_time;
+                    continue;
+                }
+
+                if (now_crosshair_target_time > last_crosshair_times[centity]) {
+                    int weaponId = LPlayer.getCurrentWeaponId();
+                    printf("[TRIGGERBOT] Shooting at entity %d with weapon %s\n", i, get_weapon_name(weaponId).c_str());
+                    TriggerBotRun();
+                    last_crosshair_times[centity] = now_crosshair_target_time;
+                    break;
+                }
+                last_crosshair_times[centity] = now_crosshair_target_time;
             }
         }
 

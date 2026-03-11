@@ -72,6 +72,7 @@ bool lock_target = false;
 bool aiming = false; //read
 uint64_t g_Base = 0; //write
 float max_dist = 120.0f * 40.0f;
+float aim_dist = 120.0f * 40.0f;
 //float esp_distance = 300.0f * 40.0f;
 float smooth = 200.00f;
 float max_fov = 3.80f;
@@ -143,6 +144,8 @@ int screen_width = 2560;
 int screen_height = 1440;
 
 //Player Glow Color and Brightness
+unsigned char insidevalue = 6;
+unsigned char outlinesize = 32;
 float glowr = 100.0f; //Red Value
 float glowg = 0.0f; //Green Value
 float glowb = 0.0f; //Blue Value
@@ -164,7 +167,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[48];//48
+uint64_t add[64];
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -479,6 +482,9 @@ int main(int argc, char** argv)
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&triggerbot_use_weapon_list;
+	add[49] = (uintptr_t)&aim_dist;
+	add[50] = (uintptr_t)&insidevalue;
+	add[51] = (uintptr_t)&outlinesize;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -665,7 +671,7 @@ int main(int argc, char** argv)
 			flickbot_aiming = false;
 		}
 
-		if (triggerbot && IsKeyDown(triggerbot_key))
+		if (triggerbot && IsKeyDown(VK_LSHIFT))
 		{
 			triggerbot_aiming = true;
 		}
