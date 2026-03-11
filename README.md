@@ -106,8 +106,9 @@ GameVersion v3.0.3.24
 
 ### Hotkeys
 - **INSERT:** Open/Close Overlay Menu.
-- **F1:** Activate Full Suite (Glow, ESP, Aimbot).
-- **F5:** Activate ESP Only.
+- **F1:** Activate/Deactivate Full Suite (Glow players, Glow items and ESP).
+- **F5:** Activate/Deactivate ESP Only.
+- **F8:** Activate/Deactivate Items Glow Only
 - **F9:** Run Full Offset Dump.
 - **F10:** Update Offsets from INI.
 - **F4:** Emergency Close (Guest).
