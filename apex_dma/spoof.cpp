@@ -467,13 +467,18 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
     printf("Physical memory range: 0 - %lx\n", max_addr);
 
     size_t found_count = 0;
-    size_t chunk_size = 2 * 1024 * 1024; // 2MB chunks
-    size_t overlap = 256;
+    size_t chunk_size = 16 * 1024 * 1024; // Increased to 16MB chunks for speed
+    size_t overlap = 512;
     std::vector<uint8_t> buffer(chunk_size + overlap);
 
+    uint8_t ascii_start = (uint8_t)target_uuid[0];
+    uint8_t bin_start = target_bin[0];
+    uint8_t guid_start = target_guid[0];
+    size_t uuid_len = target_uuid.length();
+
     for (uint64_t addr = 0; addr < max_addr; addr += chunk_size) {
-        if (addr % (1024ULL * 1024 * 1024) == 0) {
-            printf("Scanning physical memory... %lu GB / %lu GB (Found: %zu)\r", addr / (1024*1024*1024), max_addr / (1024*1024*1024), found_count);
+        if (addr % (512ULL * 1024 * 1024) == 0) {
+            printf("Scanning physical memory... %.1f GB / %.1f GB (Found: %zu)\r", (double)addr / (1024*1024*1024), (double)max_addr / (1024*1024*1024), found_count);
             fflush(stdout);
         }
 
@@ -484,39 +489,47 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
             continue;
         }
 
-        // Search for ASCII string
-        for (size_t i = 0; i <= to_read - target_uuid.length() && i < to_read; ++i) {
-            if (memcmp(buffer.data() + i, target_uuid.c_str(), target_uuid.length()) == 0) {
-                printf("\nFound ASCII UUID at physical address %lx. Patching...\n", addr + i);
-                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), fake_uuid.length())) == 0) {
-                    found_count++;
-                    // Copy patched data back to buffer to avoid double detection of same occurrence in overlap
-                    memcpy(buffer.data() + i, fake_uuid.c_str(), fake_uuid.length());
+        // Single-pass search for all three formats
+        for (size_t i = 0; i <= to_read - 16; ++i) {
+            uint8_t b = buffer[i];
+
+            // Match ASCII
+            if (b == ascii_start && (to_read - i) >= uuid_len) {
+                if (memcmp(buffer.data() + i, target_uuid.c_str(), uuid_len) == 0) {
+                    printf("\nFound ASCII UUID at physical address %lx. Patching...\n", addr + i);
+                    if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), uuid_len)) == 0) {
+                        found_count++;
+                        memcpy(buffer.data() + i, fake_uuid.c_str(), uuid_len);
+                        i += uuid_len - 1;
+                        continue;
+                    }
                 }
-                else
-                    printf("Failed to patch ASCII UUID at %lx\n", addr + i);
             }
-        }
 
-        // Search for binary GUID (Straight)
-        for (size_t i = 0; i <= to_read - 16 && i < to_read; ++i) {
-            if (memcmp(buffer.data() + i, target_bin.data(), 16) == 0) {
-                printf("\nFound Binary UUID (Straight) at physical address %lx. Patching...\n", addr + i);
-                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_bin.data(), 16)) == 0)
-                    found_count++;
-                else
-                    printf("Failed to patch Binary UUID (Straight) at %lx\n", addr + i);
+            // Match Binary (Straight)
+            if (b == bin_start) {
+                if (memcmp(buffer.data() + i, target_bin.data(), 16) == 0) {
+                    printf("\nFound Binary UUID (Straight) at physical address %lx. Patching...\n", addr + i);
+                    if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_bin.data(), 16)) == 0) {
+                        found_count++;
+                        memcpy(buffer.data() + i, fake_bin.data(), 16);
+                        i += 15;
+                        continue;
+                    }
+                }
             }
-        }
 
-        // Search for binary GUID (LE)
-        for (size_t i = 0; i <= to_read - 16 && i < to_read; ++i) {
-            if (memcmp(buffer.data() + i, target_guid.data(), 16) == 0) {
-                printf("\nFound Binary UUID (LE) at physical address %lx. Patching...\n", addr + i);
-                if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_guid.data(), 16)) == 0)
-                    found_count++;
-                else
-                    printf("Failed to patch Binary UUID (LE) at %lx\n", addr + i);
+            // Match Binary (LE)
+            if (b == guid_start) {
+                if (memcmp(buffer.data() + i, target_guid.data(), 16) == 0) {
+                    printf("\nFound Binary UUID (LE) at physical address %lx. Patching...\n", addr + i);
+                    if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_guid.data(), 16)) == 0) {
+                        found_count++;
+                        memcpy(buffer.data() + i, fake_guid.data(), 16);
+                        i += 15;
+                        continue;
+                    }
+                }
             }
         }
     }
