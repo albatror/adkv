@@ -1470,7 +1470,7 @@ int main(int argc, char *argv[])
 				bool done = false;
 				while (!done) {
 					printf("\n--- GPU Spoofing Menu ---\n");
-					printf("1. Try spoofing by Driver (NVIDIA internal structures)\n");
+					printf("1. Try spoofing by Driver (NVIDIA internal structures) (deactivated)\n");
 					printf("2. Try spoofing by Physical Memory Patching (Full RAM scan)\n");
 					printf("3. Continue without spoofing\n");
 					printf("4. Quit\n");
@@ -1483,6 +1483,8 @@ int main(int argc, char *argv[])
 					}
 
 					if (choice == 1) {
+						printf("[*] Choice 1 is currently deactivated.\n");
+						/*
 						gpu_spoofed = spoof_gpu_uuid(target_uuid, real_gpu_uuid, fake_gpu_uuid);
 						if (gpu_spoofed) {
 							printf("[+] Driver spoofing successful!\n");
@@ -1490,14 +1492,25 @@ int main(int argc, char *argv[])
 						} else {
 							printf("[-] Driver spoofing failed.\n");
 						}
+						*/
 					} else if (choice == 2) {
-						printf("\n--- Physical Memory Spoofing Options ---\n");
-						printf("1. With logs (show every match found)\n");
-						printf("2. Without logs (progress bar only)\n");
-						printf("Choice: ");
-						int subchoice = 0;
-						scanf("%d", &subchoice);
-						bool verbose = (subchoice == 1);
+						bool sub_done = false;
+						bool verbose = false;
+						while (!sub_done) {
+							printf("\n--- Physical Memory Spoofing Options ---\n");
+							printf("1. With logs (show every match found)\n");
+							printf("2. Without logs (progress bar only)\n");
+							printf("Choice: ");
+							int subchoice = 0;
+							if (scanf("%d", &subchoice) != 1) {
+								while (getchar() != '\n');
+								continue;
+							}
+							if (subchoice == 1 || subchoice == 2) {
+								verbose = (subchoice == 1);
+								sub_done = true;
+							}
+						}
 
 						gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid, verbose);
 						if (gpu_spoofed) {

@@ -560,7 +560,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid, bool
         }
 
         // Single-pass search for all three formats
-        for (size_t i = 0; i <= to_read - 16; ++i) {
+        for (size_t i = 0; i + 16 <= to_read; ++i) {
             uint8_t b = buffer[i];
 
             // Match ASCII
