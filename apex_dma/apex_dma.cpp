@@ -1483,7 +1483,7 @@ int main(int argc, char *argv[])
 					}
 
 					if (choice == 1) {
-						gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
+						gpu_spoofed = spoof_gpu_uuid(target_uuid, real_gpu_uuid, fake_gpu_uuid);
 						if (gpu_spoofed) {
 							printf("[+] Driver spoofing successful!\n");
 							done = true;

@@ -18,23 +18,8 @@ namespace offsets {
     constexpr uint64_t GPU_MGR_GPU_ARRAY = 0x19E0;
     constexpr size_t GPU_UUID_SIZE = 16;
     constexpr size_t GPU_UUID_SEARCH_SIZE = 0x2000;
-    const std::vector<uint64_t> KNOWN_UUID_OFFSETS = {
-        0x4D9, 0x4DA, 0x848, 0x849, 0xBB5, 0xBBC, 0xBCC, 0xBCD, 0xC34, 0xC35,
-    };
 }
 
-enum class UuidConfidence {
-    Exact,
-    High,
-    Medium,
-    Low,
-};
-
-struct UuidCandidate {
-    uint64_t offset;
-    uint8_t uuid[16];
-    UuidConfidence confidence;
-};
 
 struct GpuDevice {
     uint32_t index;
@@ -181,84 +166,6 @@ std::vector<GpuDevice> enumerate_legacy(uint64_t driver_base) {
     return devices;
 }
 
-// Heuristic UUID scanning logic
-bool all_zero(const uint8_t* data, size_t size) {
-    for (size_t i = 0; i < size; i++) if (data[i] != 0) return false;
-    return true;
-}
-
-bool all_same(const uint8_t* data, size_t size) {
-    if (size == 0) return true;
-    uint8_t first = data[0];
-    for (size_t i = 1; i < size; i++) if (data[i] != first) return false;
-    return true;
-}
-
-bool looks_like_pointer(const uint8_t* data) {
-    uint64_t val = *(uint64_t*)data;
-    return val > 0xFFFF000000000000;
-}
-
-int unique_byte_count(const uint8_t* data, size_t size) {
-    bool seen[256] = {false};
-    int count = 0;
-    for (size_t i = 0; i < size; i++) {
-        if (!seen[data[i]]) {
-            seen[data[i]] = true;
-            count++;
-        }
-    }
-    return count;
-}
-
-UuidConfidence check_uuid_confidence(const std::vector<uint8_t>& data, size_t offset) {
-    const uint8_t* uuid_bytes = &data[offset];
-    if (all_zero(uuid_bytes, 16) || all_same(uuid_bytes, 16)) return (UuidConfidence)-1;
-    if (looks_like_pointer(uuid_bytes)) return (UuidConfidence)-1;
-
-    int unique = unique_byte_count(uuid_bytes, 16);
-    if (unique < 6) return (UuidConfidence)-1;
-
-    if (offset > 0 && data[offset - 1] == 1) {
-        int zeros_before = 0;
-        size_t start = (offset > 17) ? offset - 17 : 0;
-        for (size_t i = start; i < offset - 1; i++) if (data[i] == 0) zeros_before++;
-        if (zeros_before >= 8) return UuidConfidence::High;
-        return UuidConfidence::Medium;
-    }
-
-    if (unique >= 10) {
-        int zeros_after = 0;
-        size_t end = (offset + 32 < data.size()) ? offset + 32 : data.size();
-        for (size_t i = offset + 16; i < end; i++) if (data[i] == 0 || data[i] == 0xff) zeros_after++;
-        if (zeros_after >= 8) return UuidConfidence::Medium;
-    }
-
-    if (unique >= 8) return UuidConfidence::Low;
-    return (UuidConfidence)-1;
-}
-
-std::vector<UuidCandidate> find_uuid_candidates(uint64_t gpu_addr) {
-    std::vector<UuidCandidate> candidates;
-    std::vector<uint8_t> data(offsets::GPU_UUID_SEARCH_SIZE);
-    if (kernel->read_raw_into(gpu_addr, CSliceMut<uint8_t>((char*)data.data(), data.size())) != 0) return candidates;
-
-    for (size_t i = 0; i < data.size() - 17; i++) {
-        UuidConfidence confidence = check_uuid_confidence(data, i);
-        if ((int)confidence != -1) {
-            UuidCandidate c;
-            c.offset = i;
-            memcpy(c.uuid, &data[i], 16);
-            c.confidence = confidence;
-            candidates.push_back(c);
-        }
-    }
-
-    std::sort(candidates.begin(), candidates.end(), [](const UuidCandidate& a, const UuidCandidate& b) {
-        return (int)a.confidence < (int)b.confidence;
-    });
-    return candidates;
-}
 
 uint64_t find_gpu_manager_array(uint64_t driver_base, uint64_t driver_size) {
     const uint8_t pattern[] = {0x33, 0xC9, 0x4C, 0x8D, 0x05};
@@ -320,6 +227,29 @@ std::vector<GpuDevice> enumerate_from_gpu_manager_array(uint64_t driver_base, ui
     return devices;
 }
 
+// Prepare binary forms (ported from physical_spoof helper)
+std::vector<uint8_t> string_to_binary(const std::string& s) {
+    std::vector<uint8_t> bin;
+    std::string clean = "";
+    for (char c : s) if (isxdigit((unsigned char)c)) clean += c;
+    try {
+        for (size_t i = 0; i + 1 < clean.length(); i += 2) {
+            bin.push_back((uint8_t)std::stoul(clean.substr(i, 2), nullptr, 16));
+        }
+    } catch (...) {
+        return std::vector<uint8_t>();
+    }
+    return bin;
+}
+
+std::vector<uint8_t> to_guid_bin(std::vector<uint8_t> bin) {
+    if (bin.size() != 16) return bin;
+    std::swap(bin[0], bin[3]); std::swap(bin[1], bin[2]);
+    std::swap(bin[4], bin[5]);
+    std::swap(bin[6], bin[7]);
+    return bin;
+}
+
 // Helper to convert GUID to string
 std::string guid_to_string(const uint8_t* guid) {
     std::stringstream ss;
@@ -336,8 +266,16 @@ std::string guid_to_string(const uint8_t* guid) {
     return ss.str();
 }
 
-bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
+bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std::string &fake_uuid) {
     if (!kernel) return false;
+
+    std::vector<uint8_t> target_bin = string_to_binary(target_uuid);
+    std::vector<uint8_t> target_guid = to_guid_bin(target_bin);
+
+    if (target_bin.size() != 16) {
+        printf("[-] Invalid target UUID format for driver spoof\n");
+        return false;
+    }
 
     ModuleInfo module_info;
     if (kernel->module_by_name("nvlddmkm.sys", &module_info) != 0) {
@@ -364,25 +302,35 @@ bool spoof_gpu_uuid(std::string &real_uuid, std::string &fake_uuid) {
 
     bool any_success = false;
     for (const auto& dev : devices) {
-        printf("[*] Scanning GPU object at 0x%lx...\n", dev.address);
-        std::vector<UuidCandidate> candidates = find_uuid_candidates(dev.address);
+        printf("[*] Scanning GPU object at 0x%lx for UUID matching %s...\n", dev.address, target_uuid.c_str());
 
-        if (candidates.empty()) {
-            printf("[-] No UUID candidates found for GPU at 0x%lx\n", dev.address);
+        std::vector<uint8_t> data(offsets::GPU_UUID_SEARCH_SIZE);
+        if (kernel->read_raw_into(dev.address, CSliceMut<uint8_t>((char*)data.data(), data.size())) != 0) continue;
+
+        size_t found_offset = (size_t)-1;
+        // Search for target binary patterns in this GPU object
+        for (size_t i = 0; i <= data.size() - 16; i++) {
+            if (memcmp(&data[i], target_bin.data(), 16) == 0 || memcmp(&data[i], target_guid.data(), 16) == 0) {
+                found_offset = i;
+                break;
+            }
+        }
+
+        if (found_offset == (size_t)-1) {
+            printf("[-] Target UUID not found in GPU object at 0x%lx\n", dev.address);
             continue;
         }
 
-        const auto& best = candidates[0];
-        real_uuid = guid_to_string(best.uuid);
+        real_uuid = guid_to_string(&data[found_offset]);
 
         uint8_t new_uuid[16];
         std::random_device rd; std::mt19937 gen(rd()); std::uniform_int_distribution<> dis(0, 255);
         for (int j = 0; j < 16; j++) new_uuid[j] = dis(gen);
         fake_uuid = guid_to_string(new_uuid);
 
-        if (kernel->write_raw(dev.address + best.offset, CSliceRef<uint8_t>((char*)new_uuid, 16)) == 0) {
-            printf("[+] GPU spoofed via driver heuristic: %s -> %s (Confidence: %d)\n",
-                real_uuid.c_str(), fake_uuid.c_str(), (int)best.confidence);
+        if (kernel->write_raw(dev.address + found_offset, CSliceRef<uint8_t>((char*)new_uuid, 16)) == 0) {
+            printf("[+] GPU successfully spoofed via driver structures: %s -> %s\n",
+                real_uuid.c_str(), fake_uuid.c_str());
             any_success = true;
         } else {
             printf("[-] Failed to write new UUID to GPU object\n");
@@ -423,31 +371,6 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
     fake_uuid = new_uuid;
     printf("Generated fake UUID: %s\n", fake_uuid.c_str());
 
-    // Prepare binary forms
-    auto string_to_binary = [](const std::string& s) {
-        std::vector<uint8_t> bin;
-        std::string clean = "";
-        for (char c : s) if (isxdigit((unsigned char)c)) clean += c;
-        try {
-            for (size_t i = 0; i + 1 < clean.length(); i += 2) {
-                bin.push_back((uint8_t)std::stoul(clean.substr(i, 2), nullptr, 16));
-            }
-        } catch (...) {
-            return std::vector<uint8_t>();
-        }
-        return bin;
-    };
-
-    auto to_guid_bin = [](std::vector<uint8_t> bin) {
-        if (bin.size() != 16) return bin;
-        // GUID: Data1 (4 LE), Data2 (2 LE), Data3 (2 LE), Data4 (8 BE)
-        // UUID string: 83904901-65ad-9709-a59d-7a664aa707c1
-        // bin has them in straight order: [83 90 49 01] [65 ad] [97 09] [a5 9d 7a 66 4a a7 07 c1]
-        std::swap(bin[0], bin[3]); std::swap(bin[1], bin[2]); // Data1
-        std::swap(bin[4], bin[5]); // Data2
-        std::swap(bin[6], bin[7]); // Data3
-        return bin;
-    };
 
     std::vector<uint8_t> target_bin = string_to_binary(target_uuid);
     std::vector<uint8_t> fake_bin = string_to_binary(fake_uuid);
