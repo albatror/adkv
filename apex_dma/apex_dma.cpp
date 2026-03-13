@@ -1606,17 +1606,17 @@ void item_glow_t()
 
 						if (item.isBox())
 						{
-							highlightID = 38; // Red
+							highlightID = 14; // Legendary/Orange
 						}
 						else
 						{
-							// Rarity based IDs
-							if (scriptInt == 1) highlightID = 34; // White
-							else if (scriptInt == 2) highlightID = 35; // Blue
-							else if (scriptInt == 3) highlightID = 36; // Purple
-							else if (scriptInt == 4) highlightID = 37; // Yellow
-							else if (scriptInt >= 5) highlightID = 38; // Red
-							else highlightID = 65;
+							// Rarity based IDs (Default game IDs)
+							if (scriptInt == 1) highlightID = 11;      // White
+							else if (scriptInt == 2) highlightID = 12; // Blue
+							else if (scriptInt == 3) highlightID = 13; // Purple
+							else if (scriptInt == 4) highlightID = 14; // Yellow/Orange
+							else if (scriptInt >= 5) highlightID = 15; // Red
+							else highlightID = 11;
 						}
 						item.enableGlow(highlightID);
 					}
