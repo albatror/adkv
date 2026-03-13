@@ -1491,7 +1491,15 @@ int main(int argc, char *argv[])
 							printf("[-] Driver spoofing failed.\n");
 						}
 					} else if (choice == 2) {
-						gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid);
+						printf("\n--- Physical Memory Spoofing Options ---\n");
+						printf("1. With logs (show every match found)\n");
+						printf("2. Without logs (progress bar only)\n");
+						printf("Choice: ");
+						int subchoice = 0;
+						scanf("%d", &subchoice);
+						bool verbose = (subchoice == 1);
+
+						gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid, verbose);
 						if (gpu_spoofed) {
 							real_gpu_uuid = target_uuid;
 							printf("[+] Physical memory spoofing successful!\n");

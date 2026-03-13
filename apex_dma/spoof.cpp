@@ -377,6 +377,8 @@ bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std:
         if (kernel->read_raw_into(dev.address, CSliceMut<uint8_t>((char*)data.data(), data.size())) != 0) continue;
 
         auto scan_and_patch = [&](uint64_t addr, const std::vector<uint8_t>& buf) -> bool {
+            bool found_any = false;
+            // 1. Search for Binary/GUID patterns
             for (size_t i = 0; i <= buf.size() - 16; i++) {
                 if (memcmp(&buf[i], target_bin.data(), 16) == 0 || memcmp(&buf[i], target_guid.data(), 16) == 0) {
                     real_uuid = guid_to_string(&buf[i]);
@@ -386,17 +388,41 @@ bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std:
                     fake_uuid = guid_to_string(new_uuid);
 
                     if (kernel->write_raw(addr + i, CSliceRef<uint8_t>((char*)new_uuid, 16)) == 0) {
-                        printf("[+] Successfully patched UUID at 0x%lx: %s -> %s\n", addr + i, real_uuid.c_str(), fake_uuid.c_str());
-                        // If we have UuidValidOffset, try to set the valid flag to true as well
-                        if (uuid_valid_offset > 0 && addr == dev.address) {
-                            uint8_t valid = 1;
-                            kernel->write_raw(dev.address + uuid_valid_offset, CSliceRef<uint8_t>((char*)&valid, 1));
-                        }
-                        return true;
+                        printf("[+] Successfully patched Binary UUID at 0x%lx: %s -> %s\n", addr + i, real_uuid.c_str(), fake_uuid.c_str());
+                        found_any = true;
                     }
                 }
             }
-            return false;
+
+            // 2. Search for ASCII patterns (both with and without "GPU-" prefix)
+            std::string raw_uuid_str = target_uuid;
+            if (raw_uuid_str.find("GPU-") == 0) raw_uuid_str = raw_uuid_str.substr(4);
+
+            auto patch_ascii = [&](const std::string& target_str) {
+                for (size_t i = 0; i <= buf.size() - target_str.length(); i++) {
+                    if (memcmp(&buf[i], target_str.c_str(), target_str.length()) == 0) {
+                        // Generate fake ascii uuid
+                        std::string f_uuid = target_str;
+                        const char* hex_chars = "0123456789abcdef";
+                        std::random_device rd; std::mt19937 gen(rd()); std::uniform_int_distribution<> dis(0, 15);
+                        for (char &c : f_uuid) if (isxdigit((unsigned char)c)) c = hex_chars[dis(gen)];
+
+                        if (kernel->write_raw(addr + i, CSliceRef<uint8_t>((char*)f_uuid.c_str(), f_uuid.length())) == 0) {
+                            printf("[+] Successfully patched ASCII UUID at 0x%lx: %s -> %s\n", addr + i, target_str.c_str(), f_uuid.c_str());
+                            found_any = true;
+                        }
+                    }
+                }
+            };
+
+            patch_ascii(target_uuid); // With GPU-
+            patch_ascii(raw_uuid_str); // Without GPU-
+
+            if (found_any && uuid_valid_offset > 0 && addr == dev.address) {
+                uint8_t valid = 1;
+                kernel->write_raw(dev.address + uuid_valid_offset, CSliceRef<uint8_t>((char*)&valid, 1));
+            }
+            return found_any;
         };
 
         // 1. Scan GPU object itself
@@ -405,8 +431,8 @@ bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std:
             continue;
         }
 
-        // 2. Scan child structures (level 1 pointers)
-        printf("[*] UUID not in GPU object, scanning child structures...\n");
+        // 2. Scan child structures (level 1 & 2 pointers)
+        printf("[*] Scanning GPU object child structures...\n");
         for (size_t i = 0; i <= data.size() - 8; i += 8) {
             uint64_t child_ptr = *(uint64_t*)&data[i];
             if (!is_valid_kernel_ptr(child_ptr) || checked_ptrs.count(child_ptr)) continue;
@@ -416,7 +442,20 @@ bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std:
             if (kernel->read_raw_into(child_ptr, CSliceMut<uint8_t>((char*)child_data.data(), child_data.size())) == 0) {
                 if (scan_and_patch(child_ptr, child_data)) {
                     any_success = true;
-                    // Keep scanning other children in case of multiple instances, but usually one is enough per GPU
+                }
+
+                // Level 2
+                for (size_t j = 0; j <= child_data.size() - 8; j += 8) {
+                    uint64_t gchild_ptr = *(uint64_t*)&child_data[j];
+                    if (!is_valid_kernel_ptr(gchild_ptr) || checked_ptrs.count(gchild_ptr)) continue;
+                    checked_ptrs.insert(gchild_ptr);
+
+                    std::vector<uint8_t> gchild_data(0x1000);
+                    if (kernel->read_raw_into(gchild_ptr, CSliceMut<uint8_t>((char*)gchild_data.data(), gchild_data.size())) == 0) {
+                        if (scan_and_patch(gchild_ptr, gchild_data)) {
+                            any_success = true;
+                        }
+                    }
                 }
             }
         }
@@ -425,11 +464,28 @@ bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std:
     return any_success;
 }
 
-bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
+void print_progress(uint64_t current, uint64_t total, size_t found) {
+    const int width = 50;
+    float progress = (float)current / total;
+    int pos = width * progress;
+
+    printf("[");
+    for (int i = 0; i < width; ++i) {
+        if (i < pos) printf("=");
+        else if (i == pos) printf(">");
+        else printf(" ");
+    }
+    printf("] %.1f%% (%lu/%lu GB) Found: %zu \r", progress * 100.0, current / (1024*1024*1024), total / (1024*1024*1024), found);
+    fflush(stdout);
+}
+
+bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid, bool verbose) {
     if (!kernel) return false;
 
-    printf("Listing NVIDIA GPUs on the host...\n");
-    system("lspci -nn | grep -i nvidia");
+    if (verbose) {
+        printf("Listing NVIDIA GPUs on the host...\n");
+        system("lspci -nn | grep -i nvidia");
+    }
 
     if (target_uuid.empty() || target_uuid == "Unknown") {
         printf("Invalid target UUID for physical spoof\n");
@@ -472,10 +528,10 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
     PhysicalMemoryMetadata meta = kernel->physicalmemory_metadata();
     uint64_t max_addr = meta.max_address;
 
-    printf("Physical memory range: 0 - %lx\n", max_addr);
+    if (verbose) printf("Physical memory range: 0 - %lx\n", max_addr);
 
     size_t found_count = 0;
-    size_t chunk_size = 32 * 1024 * 1024; // Increased to 32MB chunks for speed
+    size_t chunk_size = 32 * 1024 * 1024; // 32MB chunks
     size_t overlap = 512;
     std::vector<uint8_t> buffer(chunk_size + overlap);
 
@@ -485,9 +541,15 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
     size_t uuid_len = target_uuid.length();
 
     for (uint64_t addr = 0; addr < max_addr; addr += chunk_size) {
-        if (addr % (512ULL * 1024 * 1024) == 0) {
-            printf("Scanning physical memory... %.1f GB / %.1f GB (Found: %zu)\r", (double)addr / (1024*1024*1024), (double)max_addr / (1024*1024*1024), found_count);
-            fflush(stdout);
+        if (verbose) {
+            if (addr % (512ULL * 1024 * 1024) == 0) {
+                printf("Scanning physical memory... %.1f GB / %.1f GB (Found: %zu)\r", (double)addr / (1024*1024*1024), (double)max_addr / (1024*1024*1024), found_count);
+                fflush(stdout);
+            }
+        } else {
+            if (addr % (128ULL * 1024 * 1024) == 0) {
+                print_progress(addr, max_addr, found_count);
+            }
         }
 
         size_t to_read = std::min((uint64_t)buffer.size(), max_addr - addr);
@@ -504,7 +566,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
             // Match ASCII
             if (b == ascii_start && (to_read - i) >= uuid_len) {
                 if (memcmp(buffer.data() + i, target_uuid.c_str(), uuid_len) == 0) {
-                    printf("\nFound ASCII UUID at physical address %lx. Patching...\n", addr + i);
+                    if (verbose) printf("\nFound ASCII UUID at physical address %lx. Patching...\n", addr + i);
                     if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_uuid.c_str(), uuid_len)) == 0) {
                         found_count++;
                         memcpy(buffer.data() + i, fake_uuid.c_str(), uuid_len);
@@ -517,7 +579,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
             // Match Binary (Straight)
             if (b == bin_start) {
                 if (memcmp(buffer.data() + i, target_bin.data(), 16) == 0) {
-                    printf("\nFound Binary UUID (Straight) at physical address %lx. Patching...\n", addr + i);
+                    if (verbose) printf("\nFound Binary UUID (Straight) at physical address %lx. Patching...\n", addr + i);
                     if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_bin.data(), 16)) == 0) {
                         found_count++;
                         memcpy(buffer.data() + i, fake_bin.data(), 16);
@@ -530,7 +592,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
             // Match Binary (LE)
             if (b == guid_start) {
                 if (memcmp(buffer.data() + i, target_guid.data(), 16) == 0) {
-                    printf("\nFound Binary UUID (LE) at physical address %lx. Patching...\n", addr + i);
+                    if (verbose) printf("\nFound Binary UUID (LE) at physical address %lx. Patching...\n", addr + i);
                     if (phys_view.write_raw(addr + i, CSliceRef<uint8_t>((char*)fake_guid.data(), 16)) == 0) {
                         found_count++;
                         memcpy(buffer.data() + i, fake_guid.data(), 16);
@@ -542,6 +604,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
         }
     }
 
+    if (!verbose) print_progress(max_addr, max_addr, found_count);
     printf("\nPhysical spoofing completed. Found and patched %zu occurrences.\n", found_count);
     return found_count > 0;
 }
