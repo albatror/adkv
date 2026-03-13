@@ -167,27 +167,89 @@ std::vector<GpuDevice> enumerate_legacy(uint64_t driver_base) {
 }
 
 
+uint32_t find_uuid_valid_offset(uint64_t driver_base, uint64_t driver_size) {
+    printf("[*] Scanning for UuidValidOffset...\n");
+    size_t scan_size = 0x1000000;
+    if (scan_size > driver_size) scan_size = driver_size;
+
+    std::vector<uint8_t> data(scan_size);
+    if (kernel->read_raw_into(driver_base, CSliceMut<uint8_t>((char*)data.data(), scan_size)) != 0) return 0;
+
+    for (size_t i = 0; i < data.size() - 7; i++) {
+        // Pattern 1: 80 BB ?? ?? 00 00 00 (cmp byte ptr [rbx+offset], 0)
+        if (data[i] == 0x80 && data[i+1] == 0xBB && data[i+4] == 0x00 && data[i+5] == 0x00 && data[i+6] == 0x00) {
+            uint32_t offset = *(uint16_t*)&data[i+2];
+            if (offset > 0x100 && offset < 0x10000) {
+                printf("[+] Found UuidValidOffset via primary pattern: 0x%x\n", offset);
+                return offset;
+            }
+        }
+        // Pattern 2: 0F B6 83 ?? ?? ?? ?? (movzx eax, byte ptr [rbx+offset])
+        if (data[i] == 0x0F && data[i+1] == 0xB6 && data[i+2] == 0x83) {
+            uint32_t offset = *(uint32_t*)&data[i+3];
+            if (offset > 0x100 && offset < 0x10000) {
+                printf("[+] Found UuidValidOffset via secondary pattern: 0x%x\n", offset);
+                return offset;
+            }
+        }
+    }
+    return 0;
+}
+
 uint64_t find_gpu_manager_array(uint64_t driver_base, uint64_t driver_size) {
-    const uint8_t pattern[] = {0x33, 0xC9, 0x4C, 0x8D, 0x05};
-    size_t scan_size = 0x800000;
+    // Method 1: Original pattern
+    const uint8_t pattern1[] = {0x33, 0xC9, 0x4C, 0x8D, 0x05};
+    size_t scan_size = 0x1000000; // Increased scan size
     if (scan_size > driver_size) scan_size = driver_size;
 
     std::vector<uint8_t> data(scan_size);
     if (kernel->read_raw_into(driver_base, CSliceMut<uint8_t>((char*)data.data(), scan_size)) != 0) return 0;
 
     for (size_t i = 0; i < data.size() - 16; i++) {
-        if (memcmp(&data[i], pattern, sizeof(pattern)) == 0) {
+        if (memcmp(&data[i], pattern1, sizeof(pattern1)) == 0) {
             if (data[i + 9] == 0x0F && data[i + 10] == 0x1F && data[i + 11] == 0x00) {
                 if (data[i + 12] == 0x49 && data[i + 13] == 0x8B && data[i + 14] == 0x1C && data[i + 15] == 0xC8) {
                     int32_t rip_offset = *(int32_t*)&data[i + 5];
                     uint64_t rip = driver_base + i + 9;
                     uint64_t array_addr = (uint64_t)((int64_t)rip + (int64_t)rip_offset);
-                    printf("[+] Found GPU manager array @ 0x%lx\n", array_addr);
+                    printf("[+] Found GPU manager array via Pattern 1 @ 0x%lx\n", array_addr);
                     return array_addr;
                 }
             }
         }
     }
+
+    // Method 2: User-provided patterns for GpuMgrGetGpuFromId and LEA RDX, [RIP + offset]
+    const std::vector<const char*> patterns = {
+        "E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 44 8B 80 ? ? ? ? 48 8D 15",
+        "E8 ? ? ? ? 48 8B D8 48 85 C0 74 ? 44 8B 80 ? ? ? ? 48 8D 15",
+        "E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 8B 88 ? ? ? ? 48 8D 15"
+    };
+
+    for (const char* p : patterns) {
+        size_t off = findPattern(data.data(), data.size(), p);
+        if (off != -1) {
+            // The LEA RDX, [RIP + offset] is at the end of the pattern
+            // Pattern 1 length is 27, LEA is at +24
+            // Pattern 2 length is 25, LEA is at +22
+            // Pattern 3 length is 26, LEA is at +23
+            size_t lea_off = 0;
+            if (strlen(p) > 60) lea_off = 24; // approx based on bytes
+            else lea_off = 22;
+
+            // Better: search for 48 8D 15 near the found pattern
+            for (size_t j = off + 15; j < off + 40 && j < data.size() - 7; j++) {
+                if (data[j] == 0x48 && data[j+1] == 0x8D && data[j+2] == 0x15) {
+                    int32_t rip_offset = *(int32_t*)&data[j + 3];
+                    uint64_t rip = driver_base + j + 7;
+                    uint64_t array_addr = (uint64_t)((int64_t)rip + (int64_t)rip_offset);
+                    printf("[+] Found GPU manager array via User Pattern @ 0x%lx\n", array_addr);
+                    return array_addr;
+                }
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -300,40 +362,63 @@ bool spoof_gpu_uuid(const std::string& target_uuid, std::string &real_uuid, std:
         return false;
     }
 
+    uint32_t uuid_valid_offset = find_uuid_valid_offset(module_info.base, module_info.size);
+
     bool any_success = false;
+    std::set<uint64_t> checked_ptrs;
+
     for (const auto& dev : devices) {
+        if (checked_ptrs.count(dev.address)) continue;
+        checked_ptrs.insert(dev.address);
+
         printf("[*] Scanning GPU object at 0x%lx for UUID matching %s...\n", dev.address, target_uuid.c_str());
 
         std::vector<uint8_t> data(offsets::GPU_UUID_SEARCH_SIZE);
         if (kernel->read_raw_into(dev.address, CSliceMut<uint8_t>((char*)data.data(), data.size())) != 0) continue;
 
-        size_t found_offset = (size_t)-1;
-        // Search for target binary patterns in this GPU object
-        for (size_t i = 0; i <= data.size() - 16; i++) {
-            if (memcmp(&data[i], target_bin.data(), 16) == 0 || memcmp(&data[i], target_guid.data(), 16) == 0) {
-                found_offset = i;
-                break;
-            }
-        }
+        auto scan_and_patch = [&](uint64_t addr, const std::vector<uint8_t>& buf) -> bool {
+            for (size_t i = 0; i <= buf.size() - 16; i++) {
+                if (memcmp(&buf[i], target_bin.data(), 16) == 0 || memcmp(&buf[i], target_guid.data(), 16) == 0) {
+                    real_uuid = guid_to_string(&buf[i]);
+                    uint8_t new_uuid[16];
+                    std::random_device rd; std::mt19937 gen(rd()); std::uniform_int_distribution<> dis(0, 255);
+                    for (int j = 0; j < 16; j++) new_uuid[j] = dis(gen);
+                    fake_uuid = guid_to_string(new_uuid);
 
-        if (found_offset == (size_t)-1) {
-            printf("[-] Target UUID not found in GPU object at 0x%lx\n", dev.address);
+                    if (kernel->write_raw(addr + i, CSliceRef<uint8_t>((char*)new_uuid, 16)) == 0) {
+                        printf("[+] Successfully patched UUID at 0x%lx: %s -> %s\n", addr + i, real_uuid.c_str(), fake_uuid.c_str());
+                        // If we have UuidValidOffset, try to set the valid flag to true as well
+                        if (uuid_valid_offset > 0 && addr == dev.address) {
+                            uint8_t valid = 1;
+                            kernel->write_raw(dev.address + uuid_valid_offset, CSliceRef<uint8_t>((char*)&valid, 1));
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        // 1. Scan GPU object itself
+        if (scan_and_patch(dev.address, data)) {
+            any_success = true;
             continue;
         }
 
-        real_uuid = guid_to_string(&data[found_offset]);
+        // 2. Scan child structures (level 1 pointers)
+        printf("[*] UUID not in GPU object, scanning child structures...\n");
+        for (size_t i = 0; i <= data.size() - 8; i += 8) {
+            uint64_t child_ptr = *(uint64_t*)&data[i];
+            if (!is_valid_kernel_ptr(child_ptr) || checked_ptrs.count(child_ptr)) continue;
+            checked_ptrs.insert(child_ptr);
 
-        uint8_t new_uuid[16];
-        std::random_device rd; std::mt19937 gen(rd()); std::uniform_int_distribution<> dis(0, 255);
-        for (int j = 0; j < 16; j++) new_uuid[j] = dis(gen);
-        fake_uuid = guid_to_string(new_uuid);
-
-        if (kernel->write_raw(dev.address + found_offset, CSliceRef<uint8_t>((char*)new_uuid, 16)) == 0) {
-            printf("[+] GPU successfully spoofed via driver structures: %s -> %s\n",
-                real_uuid.c_str(), fake_uuid.c_str());
-            any_success = true;
-        } else {
-            printf("[-] Failed to write new UUID to GPU object\n");
+            std::vector<uint8_t> child_data(0x1000);
+            if (kernel->read_raw_into(child_ptr, CSliceMut<uint8_t>((char*)child_data.data(), child_data.size())) == 0) {
+                if (scan_and_patch(child_ptr, child_data)) {
+                    any_success = true;
+                    // Keep scanning other children in case of multiple instances, but usually one is enough per GPU
+                }
+            }
         }
     }
 
@@ -390,7 +475,7 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid) {
     printf("Physical memory range: 0 - %lx\n", max_addr);
 
     size_t found_count = 0;
-    size_t chunk_size = 16 * 1024 * 1024; // Increased to 16MB chunks for speed
+    size_t chunk_size = 32 * 1024 * 1024; // Increased to 32MB chunks for speed
     size_t overlap = 512;
     std::vector<uint8_t> buffer(chunk_size + overlap);
 
