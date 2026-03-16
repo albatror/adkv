@@ -23,22 +23,22 @@ GameVersion v3.0.3.24
 - **Glow:** Highly customizable player glow (Green: Visible, Red: Hidden, Yellow: Knocked).
 - **Extra Info:** XP Level, Player Name, Distance, Platform User and Snap-lines.
 - **Spectator List:** Keep track of who is watching you (Count + Names).
-- **Target Indicator:** A visual DOT and FOV circle for Aimbot targets.
+- **Target Indicator:** A visual DOT with configurable FOV to show best near target.
 - **Glow Items:** Glow items (Loba Style)
 
 ### 🔫 Combat & Aimbot
 - **Aimbot:** Smooth and adjustable aiming with FOV locking.
 - **Lock On Target:** Prevents target switching during active combat.
-- **FlickBot:** Fast target acquisition with configurable FOV and smoothness.
-- **TriggerBot:** Automated firing when crosshairs are over an enemy.
-- **Dynamic Settings (DDS):** On-the-fly adjustment of FOV and Smoothing (Default: 40m).
+- **FlickBot:** Fast target acquisition with configurable FOV and distance [HOLD Left SHIFT Key to activate].
+- **TriggerBot:** Automated firing when crosshairs are over an enemy with configurable FOV [HOLD Left SHIFT Key to activate].
+- **Dynamic Settings (DDS):** On-the-fly adjustment of FOV and Smoothing from specific distance (Default: 40m).
 
 ### 🏃 Movement & Misc
 - **Auto SuperGlide:** Perfect glides every time.
 - **Auto WallJump:** Fluid wall jumps (Slide -> Jump -> Wall -> Auto-jump).
-- **BunnyHop (BHOP):** Effortless movement across the map.
+- **BunnyHop (BHOP):** Effortless movement across the map |HOLD SPACEBAR Key].
 - **DirectX 12 Support:** Fully compatible with DX12 game mode.
-- **Offset Dumper:** Built-in dumper to keep the hack updated with game patches.
+- **Offset Dumper:** Built-in dumper to keep the hack updated with game patches (dump will be on host side /build).
 
 ---
 
