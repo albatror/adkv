@@ -18,6 +18,7 @@ typedef struct player {
     int maxshield = 0;
     int armortype = 0;
     int xp_level = 0;
+    int platform = 0;
     char name[33] = { 0 };
 } player;
 
