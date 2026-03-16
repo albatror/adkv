@@ -47,7 +47,7 @@ bool flickbot = false;
 int flickbot_key = VK_LSHIFT;
 bool flickbot_aiming = false;
 float flickbot_fov = 10.0f;
-float flickbot_smooth = 20.0f;
+float flickbot_max_dist = 50.0f * 40.0f;
 bool flickbot_auto_shoot = false;
 int flickbot_auto_shoot_delay = 50;
 bool flickbot_flickback = false;
@@ -509,7 +509,7 @@ int main(int argc, char** argv)
 	add[42] = (uintptr_t)&walljump;
 	add[43] = (uintptr_t)&SuperKey;
 	add[44] = (uintptr_t)&flickbot_fov;
-	add[45] = (uintptr_t)&flickbot_smooth;
+	add[45] = (uintptr_t)&flickbot_max_dist;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&player_glow;

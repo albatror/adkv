@@ -12,7 +12,7 @@ extern float smooth;
 extern bool flickbot;
 extern bool flickbot_aiming;
 extern float flickbot_fov;
-extern float flickbot_smooth;
+extern float flickbot_max_dist;
 extern bool flickbot_auto_shoot;
 extern int flickbot_auto_shoot_delay;
 extern bool flickbot_flickback;
@@ -113,18 +113,24 @@ void StuffBotLoop()
             {
                 float distance = LPlayer.getPosition().DistTo(Target.getPosition());
 
-                // Dynamic scaling based on distance (DDS style)
-                float current_flick_fov = flickbot_fov;
-                float current_flick_smooth = flickbot_smooth;
-                int current_flick_delay = flickbot_delay;
-                int current_shoot_delay = flickbot_auto_shoot_delay;
-                int current_flickback_delay = flickbot_flickback_delay;
+                // Adaptive system based on user-chosen flickbot_fov and flickbot_max_dist
+                float base_smooth = 20.0f;
+                int base_delay = 500;
+                int base_shoot_delay = 50;
+                int base_flickback_delay = 10;
 
-                if (distance < 2000.0f) // Close range scaling (approx < 50m)
+                float current_flick_fov = flickbot_fov;
+                float current_flick_smooth = base_smooth;
+                int current_flick_delay = base_delay;
+                int current_shoot_delay = base_shoot_delay;
+                int current_flickback_delay = base_flickback_delay;
+
+                if (distance < flickbot_max_dist && flickbot_max_dist > 0.0f)
                 {
-                    float scale = 1.0f - (distance / 2000.0f);
-                    current_flick_fov *= (1.0f + scale * 2.0f); // Increase FOV up to 3x
-                    current_flick_smooth /= (1.0f + scale * 3.0f); // Decrease smooth up to 4x
+                    float scale = 1.0f - (distance / flickbot_max_dist);
+                    // Adaptive scaling
+                    current_flick_fov *= (1.0f + scale * 2.0f); // Increase FOV up to 3x for close targets
+                    current_flick_smooth /= (1.0f + scale * 3.0f); // Decrease smooth up to 4x for speed
                     current_flick_delay = (int)(current_flick_delay / (1.0f + scale * 2.0f));
                     current_shoot_delay = (int)(current_shoot_delay / (1.0f + scale * 1.5f));
                     current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
