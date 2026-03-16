@@ -471,6 +471,18 @@ bool Item::isGlowing()
 	return glowEnable != 0;
 }
 
+void Item::getModelName(char* name, int max_len)
+{
+	uint64_t model_name_ptr = 0;
+	apex_mem.Read<uint64_t>(ptr + OFFSET_MODELNAME, model_name_ptr);
+	if (model_name_ptr) {
+		apex_mem.ReadArray<char>(model_name_ptr, name, max_len);
+	}
+	else {
+		strncpy(name, "unknown", max_len);
+	}
+}
+
 Vector Item::getPosition()
 {
 	Vector pos;

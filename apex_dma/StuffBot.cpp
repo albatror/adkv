@@ -88,8 +88,14 @@ void StuffBotLoop()
                 }
 
                 if (now_crosshair_target_time > last_crosshair_times[centity]) {
-                    int weaponId = LPlayer.getCurrentWeaponId();
-                    printf("[TRIGGERBOT] Shooting at entity %d with weapon %s\n", i, get_weapon_name(weaponId).c_str());
+                    char weaponModel[256] = { 0 };
+                    LPlayer.getWeaponModelName(weaponModel, 256);
+                    std::string weaponName = get_weapon_name_by_model(weaponModel);
+                    if (weaponName == "Unknown") {
+                        int weaponId = LPlayer.getCurrentWeaponId();
+                        weaponName = get_weapon_name(weaponId);
+                    }
+                    printf("[TRIGGERBOT] Shooting at entity %d with weapon %s\n", i, weaponName.c_str());
                     TriggerBotRun();
                     last_crosshair_times[centity] = now_crosshair_target_time;
                     break;

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include "ItemManager.h"
 
 namespace WeaponIDs {
     inline constexpr int SHEYLA_MOUNTED = 11;
@@ -74,5 +75,14 @@ inline std::string get_weapon_name(int id) {
     };
     auto it = weapon_map.find(id);
     if (it != weapon_map.end()) return it->second;
+    return "Unknown";
+}
+
+inline std::string get_weapon_name_by_model(const std::string& modelName) {
+    std::string itemName;
+    ItemCategory category;
+    if (ItemManager::getInstance().GetItemInfo(modelName, itemName, category)) {
+        return itemName;
+    }
     return "Unknown";
 }
