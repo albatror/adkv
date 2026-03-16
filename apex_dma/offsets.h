@@ -124,3 +124,7 @@
 #define OFFSET_m_xp		    0x3824 //[RecvTable.DT_Player].m_xp updated 2026/03/05
 #define OFFSET_GRADE 0x344 //[RecvTable.DT_BaseEntity].m_grade updated 2026/03/05
 #define OFFSET_PLATFORM 0x2620 //[DT_Player].m_hardware updated 2026/03/16
+
+#define OFFSET_VIEW_MODEL 0x2e00 //[RecvTable.DT_Player].m_hViewModels
+#define OFFSET_MODEL_INDEX 0x0060 //[RecvTable.DT_BaseEntity].m_nModelIndex
+#define OFFSET_SEQUENCE_FINISHED 0xe1c //m_bSequenceFinished

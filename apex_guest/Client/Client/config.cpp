@@ -49,6 +49,7 @@ extern bool triggerbot;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern int heirloom;
 extern float flickbot_fov;
 extern float flickbot_max_dist;
 extern bool flickbot_auto_shoot;
@@ -136,6 +137,7 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
+    file << "heirloom " << heirloom << "\n";
 
     file.close();
 }
@@ -211,6 +213,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
+        else if (key == "heirloom") ss >> heirloom;
     }
 
     file.close();

@@ -1,8 +1,10 @@
 #include "ItemManager.h"
+#include "Game.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <cstring>
 
 ItemManager::ItemManager() {
     LoadItems("items.ini");
@@ -100,4 +102,37 @@ bool ItemManager::GetItemInfo(const std::string& modelName, std::string& name, I
         }
     }
     return false;
+}
+
+static std::unordered_map<std::string, int> modelIndexCache;
+
+int ItemManager::GetModelIndex(const char* partialModelName) {
+    extern Memory apex_mem;
+    extern uint64_t g_Base;
+
+    if (modelIndexCache.count(partialModelName)) return modelIndexCache[partialModelName];
+
+    for (int i = 0; i < 2000; i++) {
+        uint64_t entity = 0;
+        if (!apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (i << 5), entity)) continue;
+        if (entity == 0) continue;
+
+        char modelName[256] = { 0 };
+        uint64_t model_name_ptr = 0;
+        if (!apex_mem.Read<uint64_t>(entity + OFFSET_MODELNAME, model_name_ptr)) continue;
+        if (model_name_ptr) {
+            apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
+            if (strstr(modelName, partialModelName)) {
+                int modelIndex = 0;
+                apex_mem.Read<int>(entity + OFFSET_MODEL_INDEX, modelIndex);
+                modelIndexCache[partialModelName] = modelIndex;
+                return modelIndex;
+            }
+        }
+    }
+    return -1;
+}
+
+void ItemManager::ResetModelCache() {
+    modelIndexCache.clear();
 }

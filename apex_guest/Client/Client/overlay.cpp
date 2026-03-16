@@ -43,6 +43,7 @@ extern float triggerbot_fov;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern int heirloom;
 
 //extern float esp_distance;
 
@@ -225,6 +226,10 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Superglide"), &superglide);
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
+
+			const char* heirlooms[] = { "None", "Kunai", "Butterfly Knife", "Raven's Bite", "Shock Sticks", "Boxing Gloves", "War Club", "Death Hammer", "Cold Steel", "Biwon Blade", "Problem Solver", "Balisong", "Strongest Link", "Suzumebachi", "Showstoppers", "Garra de Alanza" };
+			ImGui::Combo(XorStr("Heirloom"), &heirloom, heirlooms, IM_ARRAYSIZE(heirlooms));
+
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);
 			ImGui::Checkbox(XorStr("1v1"), &onevone);
 			ImGui::EndTabItem();

@@ -85,6 +85,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+int heirloom = 0;
 
 ///////////
 //bool medbackpack = true;
@@ -356,6 +357,13 @@ void DoActions()
 			apex_mem.ReadArray<char>(MapName_ptr, MapName, 200);
 					
 			//printf("%s\n", MapName);
+			static char lastMapName[200] = { 0 };
+			if (strcmp(MapName, lastMapName) != 0)
+			{
+				ItemManager::getInstance().ResetModelCache();
+				strncpy(lastMapName, MapName, 200);
+			}
+
 			if (strcmp(MapName, "mp_rr_tropic_island_mu1_storm") == 0) 
 			{
 				map = 1;
@@ -474,6 +482,53 @@ if (walljump) {
     }
 }
 //walljump ++///////////////
+
+// heirloom changer
+if (heirloom > 0)
+{
+    uint64_t view_model_handle = 0;
+    apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_VIEW_MODEL, view_model_handle);
+    view_model_handle &= 0xFFFF;
+    if (view_model_handle != 0xFFFF)
+    {
+        uint64_t view_model_ptr = 0;
+        apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (view_model_handle << 5), view_model_ptr);
+        if (view_model_ptr != 0)
+        {
+            int targetModelIndex = -1;
+            switch (heirloom)
+            {
+            case 1: targetModelIndex = ItemManager::getInstance().GetModelIndex("wraith_kunai_primary"); break;
+            case 2: targetModelIndex = ItemManager::getInstance().GetModelIndex("octane_butterfly_knife_primary"); break;
+            case 3: targetModelIndex = ItemManager::getInstance().GetModelIndex("bloodhound_axe_primary"); break;
+            case 4: targetModelIndex = ItemManager::getInstance().GetModelIndex("lifeline_baton_primary"); break;
+            case 5: targetModelIndex = ItemManager::getInstance().GetModelIndex("pathfinder_gloves_primary"); break;
+            case 6: targetModelIndex = ItemManager::getInstance().GetModelIndex("gibraltar_club_primary"); break;
+            case 7: targetModelIndex = ItemManager::getInstance().GetModelIndex("caustic_hammer_primary"); break;
+            case 8: targetModelIndex = ItemManager::getInstance().GetModelIndex("bangalore_heirloom_primary"); break;
+            case 9: targetModelIndex = ItemManager::getInstance().GetModelIndex("crypto_heirloom_primary"); break;
+            case 10: targetModelIndex = ItemManager::getInstance().GetModelIndex("rampart_heirloom_primary"); break;
+            case 11: targetModelIndex = ItemManager::getInstance().GetModelIndex("wattson_heirloom_primary"); break;
+            case 12: targetModelIndex = ItemManager::getInstance().GetModelIndex("ash_heirloom_primary"); break;
+            case 13: targetModelIndex = ItemManager::getInstance().GetModelIndex("valkyrie_heirloom_primary"); break;
+            case 14: targetModelIndex = ItemManager::getInstance().GetModelIndex("seer_heirloom_primary"); break;
+            case 15: targetModelIndex = ItemManager::getInstance().GetModelIndex("loba_heirloom_primary"); break;
+            }
+
+            if (targetModelIndex != -1)
+            {
+                int currentModelIndex = 0;
+                apex_mem.Read<int>(view_model_ptr + OFFSET_MODEL_INDEX, currentModelIndex);
+                if (currentModelIndex != targetModelIndex)
+                {
+                    apex_mem.Write<int>(view_model_ptr + OFFSET_MODEL_INDEX, targetModelIndex);
+                    // Reset sequence to trigger animation transition
+                    apex_mem.Write<int>(view_model_ptr + OFFSET_SEQUENCE_FINISHED, 1);
+                }
+            }
+        }
+    }
+}
 
     // SUPERGLIDE
 
@@ -1387,6 +1442,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t heirloom_addr = 0;
+printf("Reading heirloom address: %lx\n", add_addr + sizeof(uint64_t) * 58);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, heirloom_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1557,6 +1618,8 @@ while (vars_t)
         if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+
+        if (heirloom_addr) client_mem.Read<int>(heirloom_addr, heirloom);
 
         if (esp && next)
         {
