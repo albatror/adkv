@@ -156,6 +156,7 @@ typedef struct player
 	int maxshield = 0;
 	int armortype = 0;
 	int player_xp_level = 0;
+	int platform = 0;
 	char name[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
@@ -799,6 +800,8 @@ Entity LPlayer = getEntity(LocalPlayer);
 							int shield = Target.getShield();
 							int maxshield = Target.getMaxShield();
 							int armortype = Target.getArmortype();
+							int platform = 0;
+							apex_mem.Read<int>(Target.ptr + OFFSET_PLATFORM, platform);
 							players[c] = 
 							{
 								dist,
@@ -815,7 +818,8 @@ Entity LPlayer = getEntity(LocalPlayer);
 								shield,
 								maxshield,
 								armortype,
-								//Target.read_xp_level()
+								0, // xp_level
+								platform
 							};
 
 							if (skeleton)
@@ -905,6 +909,8 @@ Entity LPlayer = getEntity(LocalPlayer);
 							int shield = Target.getShield();
 							int maxshield = Target.getMaxShield();
 							int armortype = Target.getArmortype();
+							int platform = 0;
+							apex_mem.Read<int>(Target.ptr + OFFSET_PLATFORM, platform);
 							players[i] = 
 							{
 								dist,
@@ -921,7 +927,8 @@ Entity LPlayer = getEntity(LocalPlayer);
 								shield,
 								maxshield,
 								armortype,
-								//Target.read_xp_level()
+								0, // xp_level
+								platform
 							};
 
 							if (skeleton)

@@ -311,6 +311,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Name"), &v.name);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Distance"), &v.distance);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Platform"), &v.platform);
 
 			ImGui::Checkbox(XorStr("Health bar"), &v.healthbar);
 			ImGui::SameLine();

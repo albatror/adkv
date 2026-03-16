@@ -123,3 +123,4 @@
 #define OFFSET_GRAPPLEATTACHED      0x48 //[RecvTable.DT_GrappleData].m_grappleAttached updated 2026/03/05
 #define OFFSET_m_xp		    0x3824 //[RecvTable.DT_Player].m_xp updated 2026/03/05
 #define OFFSET_GRADE 0x344 //[RecvTable.DT_BaseEntity].m_grade updated 2026/03/05
+#define OFFSET_PLATFORM 0x2620 //[DT_Player].m_hardware updated 2026/03/16

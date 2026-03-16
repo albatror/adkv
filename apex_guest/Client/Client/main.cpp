@@ -28,6 +28,7 @@ typedef struct player
 	int maxshield = 0;
 	int armortype = 0;
 	int xp_level = 0;
+	int platform = 0;
 	char name[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
@@ -133,6 +134,24 @@ ImU32 GetImU32Color(const ImVec4& color) {
 		static_cast<int>(color.z * 255.0f),
 		static_cast<int>(color.w * 255.0f)
 	);
+}
+
+std::string GetPlatformName(int platform)
+{
+	switch (platform)
+	{
+	case 514:
+	case 1794:
+		return "PC";
+	case 0:
+	case 2570:
+		return "X1";
+	case 257:
+	case 2056:
+		return "PS4";
+	default:
+		return "PC";
+	}
 }
 ///end test
 
@@ -335,6 +354,15 @@ void Overlay::RenderEsp()
 							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 15)), RED, players[i].name);  // NAME in RED if knocked
 						else
 							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 15)), GREEN, players[i].name);  // NAME in GREEN if not knocked
+					}
+
+					if (v.platform)
+					{
+						std::string platformName = GetPlatformName(players[i].platform);
+						if (players[i].knocked)
+							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 35)), RED, platformName.c_str());
+						else
+							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 35)), GREEN, platformName.c_str());
 					}
 
 					if (v.skeleton)
