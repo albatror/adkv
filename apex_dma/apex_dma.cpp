@@ -513,6 +513,14 @@ if (heirloom > 0)
             case 13: targetModelIndex = ItemManager::getInstance().GetModelIndex("valkyrie_heirloom_primary"); break;
             case 14: targetModelIndex = ItemManager::getInstance().GetModelIndex("seer_heirloom_primary"); break;
             case 15: targetModelIndex = ItemManager::getInstance().GetModelIndex("loba_heirloom_primary"); break;
+            case 16: targetModelIndex = ItemManager::getInstance().GetModelIndex("mirage_heirloom_primary"); break;
+            case 17: targetModelIndex = ItemManager::getInstance().GetModelIndex("revenant_heirloom_primary"); break;
+            case 18: targetModelIndex = ItemManager::getInstance().GetModelIndex("horizon_heirloom_primary"); break;
+            case 19: targetModelIndex = ItemManager::getInstance().GetModelIndex("fuse_heirloom_primary"); break;
+            case 20: targetModelIndex = ItemManager::getInstance().GetModelIndex("newcastle_heirloom_primary"); break;
+            case 21: targetModelIndex = ItemManager::getInstance().GetModelIndex("maggie_heirloom_primary"); break;
+            case 22: targetModelIndex = ItemManager::getInstance().GetModelIndex("karambit_artifact_primary"); break;
+            case 23: targetModelIndex = ItemManager::getInstance().GetModelIndex("katar_artifact_primary"); break;
             }
 
             if (targetModelIndex != -1)

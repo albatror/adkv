@@ -227,7 +227,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
 
-			const char* heirlooms[] = { "None", "Kunai", "Butterfly Knife", "Raven's Bite", "Shock Sticks", "Boxing Gloves", "War Club", "Death Hammer", "Cold Steel", "Biwon Blade", "Problem Solver", "Balisong", "Strongest Link", "Suzumebachi", "Showstoppers", "Garra de Alanza" };
+			const char* heirlooms[] = { "None", "Wraith: Kunai", "Octane: Butterfly Knife", "Bloodhound: Raven's Bite", "Lifeline: Shock Sticks", "Pathfinder: Boxing Gloves", "Gibraltar: War Club", "Caustic: Death Hammer", "Bangalore: Cold Steel", "Crypto: Biwon Blade", "Rampart: Problem Solver", "Wattson: Energy Reader", "Ash: Strongest Link", "Valkyrie: Suzumebachi", "Seer: Showstoppers", "Loba: Garra de Alanza", "Mirage: Too Much Witt", "Revenant: Dead Man's Curve", "Horizon: Gravity Maw", "Fuse: Razor's Edge", "Newcastle: Stronghold", "Mad Maggie: Curb Stomper", "Artifact Karambit", "Cobalt Katar" };
 			ImGui::Combo(XorStr("Heirloom"), &heirloom, heirlooms, IM_ARRAYSIZE(heirlooms));
 
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);

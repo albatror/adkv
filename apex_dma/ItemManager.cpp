@@ -105,12 +105,25 @@ bool ItemManager::GetItemInfo(const std::string& modelName, std::string& name, I
 }
 
 static std::unordered_map<std::string, int> modelIndexCache;
+static std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastScanTime;
 
 int ItemManager::GetModelIndex(const char* partialModelName) {
     extern Memory apex_mem;
     extern uint64_t g_Base;
 
-    if (modelIndexCache.count(partialModelName)) return modelIndexCache[partialModelName];
+    auto now = std::chrono::steady_clock::now();
+
+    if (modelIndexCache.count(partialModelName)) {
+        int idx = modelIndexCache[partialModelName];
+        if (idx != -1) return idx;
+
+        // If not found, only retry every 10 seconds to save performance
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - lastScanTime[partialModelName]).count() < 10) {
+            return -1;
+        }
+    }
+
+    lastScanTime[partialModelName] = now;
 
     for (int i = 0; i < 2000; i++) {
         uint64_t entity = 0;
@@ -130,6 +143,7 @@ int ItemManager::GetModelIndex(const char* partialModelName) {
             }
         }
     }
+    modelIndexCache[partialModelName] = -1;
     return -1;
 }
 
