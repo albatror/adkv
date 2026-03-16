@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "ItemManager.h"
 #include <thread>
 #include <array>
 #include <vector>
@@ -1592,8 +1593,12 @@ void item_glow_t()
 			apex_mem.Read<uint64_t>(g_Base + HIGHLIGHT_SETTINGS, highlightSettingsPtr);
 			if (highlightSettingsPtr == 0) continue;
 
-			// White, Blue, Purple, Yellow, Red
-			const std::vector<uint8_t> itemHighlightIDs = { 34, 35, 36, 37, 38 };
+			// Define all required highlight IDs
+			const std::vector<uint8_t> itemHighlightIDs = {
+				COMMON_GLOW_ID, RARE_GLOW_ID, EPIC_GLOW_ID,
+				MYTHIC_GLOW_ID, LEGENDARY_GLOW_ID, WEAPON_GLOW_ID, AMMO_GLOW_ID,
+				37, 32, 65, 51, 4, 53, 81, 80, 33, 34 // Also include IDs from items.ini just in case
+			};
 			const GlowMode itemGlowMode = { 137, 138, 64, 64 };
 
 			for (uint8_t id : itemHighlightIDs)
@@ -1615,23 +1620,39 @@ void item_glow_t()
 				{
 					if (!item.isGlowing())
 					{
-						uint32_t scriptInt = 0;
-						apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
 						uint8_t highlightID = 65; // Default
 
 						if (item.isBox())
 						{
-							highlightID = 38; // Red
+							highlightID = LEGENDARY_GLOW_ID; // Orange for boxes
 						}
 						else
 						{
-							// Rarity based IDs
-							if (scriptInt == 1) highlightID = 34; // White
-							else if (scriptInt == 2) highlightID = 35; // Blue
-							else if (scriptInt == 3) highlightID = 36; // Purple
-							else if (scriptInt == 4) highlightID = 37; // Yellow
-							else if (scriptInt >= 5) highlightID = 38; // Red
-							else highlightID = 65;
+							char modelName[256] = { 0 };
+							item.getModelName(modelName, 256);
+							std::string itemName;
+							ItemCategory category = ItemCategory::OTHER;
+							if (ItemManager::getInstance().GetItemInfo(modelName, itemName, category)) {
+								switch (category) {
+									case ItemCategory::COMMON: highlightID = COMMON_GLOW_ID; break;
+									case ItemCategory::RARE: highlightID = RARE_GLOW_ID; break;
+									case ItemCategory::EPIC: highlightID = EPIC_GLOW_ID; break;
+									case ItemCategory::LEGENDARY: highlightID = LEGENDARY_GLOW_ID; break;
+									case ItemCategory::MYTHIC: highlightID = MYTHIC_GLOW_ID; break;
+									case ItemCategory::WEAPON: highlightID = WEAPON_GLOW_ID; break;
+									case ItemCategory::AMMO: highlightID = AMMO_GLOW_ID; break;
+									default: highlightID = 65; break;
+								}
+							} else {
+								// Fallback to scriptInt if not found by model
+								uint32_t scriptInt = 0;
+								apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
+								if (scriptInt == 1) highlightID = COMMON_GLOW_ID;
+								else if (scriptInt == 2) highlightID = RARE_GLOW_ID;
+								else if (scriptInt == 3) highlightID = EPIC_GLOW_ID;
+								else if (scriptInt == 4) highlightID = LEGENDARY_GLOW_ID;
+								else if (scriptInt >= 5) highlightID = MYTHIC_GLOW_ID;
+							}
 						}
 						item.enableGlow(highlightID);
 					}

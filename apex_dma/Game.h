@@ -106,6 +106,7 @@ public:
 	bool isBox();
 	bool isTrap();
 	bool isGlowing();
+	void getModelName(char* name, int max_len);
 	void enableGlow(uint8_t id = 65);
 	void disableGlow();
 };
