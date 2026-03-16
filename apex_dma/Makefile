@@ -12,6 +12,8 @@ $(shell mkdir -p $(OBJDIR))
 
 apex_dma: apex_dma.o Game.o Math.o memory.o offsets_dynamic.o StuffBot.o ItemManager.o
 	$(CXX) -o $(OUTDIR)/$@ $(OBJDIR)/apex_dma.o $(OBJDIR)/Game.o $(OBJDIR)/Math.o $(OBJDIR)/memory.o $(OBJDIR)/offsets_dynamic.o $(OBJDIR)/StuffBot.o $(OBJDIR)/ItemManager.o $(CXXFLAGS) $(LIBS)
+	cp items.ini $(OUTDIR)/
+	cp weapons.ini $(OUTDIR)/
 
 .PHONY: all
 all: apex_dma

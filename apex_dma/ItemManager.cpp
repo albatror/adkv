@@ -6,7 +6,10 @@
 
 ItemManager::ItemManager() {
     LoadItems("items.ini");
+    if (itemDefs.empty()) LoadItems("apex_dma/items.ini");
+
     LoadWeapons("weapons.ini");
+    if (itemDefs.size() < 100) LoadWeapons("apex_dma/weapons.ini"); // items.ini has ~117 lines, weapons.ini ~50
 }
 
 ItemCategory ItemManager::DetermineCategory(const std::string& name, int glowId) {
