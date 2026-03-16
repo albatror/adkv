@@ -1458,11 +1458,8 @@ int main(int argc, char *argv[])
 
 		if (client_mem.get_proc_status() == process_status::FOUND_READY && !client_spoofed)
 		{
-			// Now that client is found, get its real UUID and spoof
 			char guest_uuid_buf[128] = {0};
 			uint64_t guest_uuid_ptr = 0;
-			// We need to read the address of guest_real_uuid from the add array
-			// Wait a bit for the guest to initialize its add array
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			client_mem.Read<uint64_t>(c_Base + add_off + sizeof(uint64_t) * 48, guest_uuid_ptr);
 			if (guest_uuid_ptr) {
@@ -1470,35 +1467,77 @@ int main(int argc, char *argv[])
 				std::string target_uuid = guest_uuid_buf;
 				printf("Guest reported real GPU UUID: %s\n", target_uuid.c_str());
 
-				// Perform spoofing
-				gpu_spoofed = spoof_gpu_uuid(real_gpu_uuid, fake_gpu_uuid);
-				if (!gpu_spoofed) {
-					printf("Driver-based spoofing failed, trying physical memory scan...\n");
-					gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid);
-					real_gpu_uuid = target_uuid;
-				} else {
-					// Also do physical spoof for good measure
-					printf("Driver spoofing succeeded, performing physical scan for good measure...\n");
-					std::string dummy;
-					physical_spoof(target_uuid, dummy);
+				bool done = false;
+				while (!done) {
+					printf("\n--- GPU Spoofing Menu ---\n");
+					printf("1. Try spoofing by Driver (NVIDIA internal structures) (deactivated)\n");
+					printf("2. Try spoofing by Physical Memory Patching (Full RAM scan)\n");
+					printf("3. Continue without spoofing\n");
+					printf("4. Quit\n");
+					printf("Choice: ");
+
+					int choice = 0;
+					if (scanf("%d", &choice) != 1) {
+						while (getchar() != '\n'); // clear buffer
+						continue;
+					}
+
+					if (choice == 1) {
+						printf("[*] Choice 1 is currently deactivated.\n");
+						/*
+						gpu_spoofed = spoof_gpu_uuid(target_uuid, real_gpu_uuid, fake_gpu_uuid);
+						if (gpu_spoofed) {
+							printf("[+] Driver spoofing successful!\n");
+							done = true;
+						} else {
+							printf("[-] Driver spoofing failed.\n");
+						}
+						*/
+					} else if (choice == 2) {
+						bool sub_done = false;
+						bool verbose = false;
+						while (!sub_done) {
+							printf("\n--- Physical Memory Spoofing Options ---\n");
+							printf("1. With logs (show every match found)\n");
+							printf("2. Without logs (progress bar only)\n");
+							printf("Choice: ");
+							int subchoice = 0;
+							if (scanf("%d", &subchoice) != 1) {
+								while (getchar() != '\n');
+								continue;
+							}
+							if (subchoice == 1 || subchoice == 2) {
+								verbose = (subchoice == 1);
+								sub_done = true;
+							}
+						}
+
+						gpu_spoofed = physical_spoof(target_uuid, fake_gpu_uuid, verbose);
+						if (gpu_spoofed) {
+							real_gpu_uuid = target_uuid;
+							printf("[+] Physical memory spoofing successful!\n");
+							done = true;
+						} else {
+							printf("[-] Physical memory spoofing failed.\n");
+						}
+					} else if (choice == 3) {
+						printf("[*] Continuing without spoofing.\n");
+						done = true;
+					} else if (choice == 4) {
+						printf("[*] Quitting...\n");
+						exit(0);
+					}
 				}
 
 				if (gpu_spoofed) {
 					printf("REAL GPU UUID: %s\n", real_gpu_uuid.c_str());
 					printf("FAKE GPU UUID: %s\n", fake_gpu_uuid.c_str());
 					printf("GPU UUID Spoofed successfully!\n");
-				} else {
-					printf("Failed to spoof GPU UUID.\n");
 				}
-				client_spoofed = true;
 
+				client_spoofed = true;
 				printf("\nYou can start the game now.\n");
-				for (int i = 15; i > 0; i--) {
-					printf("Waiting for user to start the game... %d seconds remaining\r", i);
-					fflush(stdout);
-					std::this_thread::sleep_for(std::chrono::seconds(1));
-				}
-				printf("\nStarting Apex process search...\n");
+				printf("Starting Apex process search...\n");
 			} else {
 				printf("Waiting for guest to provide real UUID...\n");
 				std::this_thread::sleep_for(std::chrono::seconds(1));
