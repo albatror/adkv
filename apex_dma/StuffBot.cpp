@@ -123,24 +123,35 @@ void StuffBotLoop()
                 {
                     float distance = LPlayer.getPosition().DistTo(Target.getPosition());
 
-                    // Calculate adaptive smoothing based on distance
+                    // Adaptive system based on distance
                     float current_flick_smooth = smooth;
+                    float current_flick_fov = flickbot_fov;
+                    int current_flick_delay = flickbot_delay;
+                    int current_shoot_delay = flickbot_auto_shoot_delay;
+                    int current_flickback_delay = flickbot_flickback_delay;
+
                     if (distance < flickbot_max_dist && flickbot_max_dist > 0.0f)
                     {
                         float scale = 1.0f - (distance / flickbot_max_dist);
                         // Increase speed (decrease smooth) for close targets
                         current_flick_smooth /= (1.0f + scale * 3.0f);
+                        // Increase FOV for close targets to make acquisition easier
+                        current_flick_fov *= (1.0f + scale * 2.0f);
+                        // Decrease delays for faster reaction at close range
+                        current_flick_delay = (int)(current_flick_delay / (1.0f + scale * 2.0f));
+                        current_shoot_delay = (int)(current_shoot_delay / (1.0f + scale * 1.5f));
+                        current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
                     }
 
                     auto now = std::chrono::steady_clock::now();
-                    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= flickbot_delay)
+                    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
                     {
                         float fov = CalculateFov(LPlayer, Target);
-                        if (fov <= flickbot_fov)
+                        if (fov <= current_flick_fov)
                         {
                             QAngle old_angles = LPlayer.GetViewAngles();
                             // Use CalculateBestBoneAim which already includes prediction
-                            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, flickbot_fov, current_flick_smooth);
+                            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
 
                             if (aim_angles.x != 0 || aim_angles.y != 0)
                             {
@@ -148,7 +159,7 @@ void StuffBotLoop()
 
                                 if (flickbot_auto_shoot)
                                 {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(flickbot_auto_shoot_delay));
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
                                     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
                                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
                                     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
@@ -156,7 +167,7 @@ void StuffBotLoop()
 
                                 if (flickbot_flickback)
                                 {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(flickbot_flickback_delay));
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));
                                     LPlayer.SetViewAngles(old_angles);
                                 }
 

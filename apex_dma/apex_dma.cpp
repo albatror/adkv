@@ -249,7 +249,11 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector EntityPosition = target.getPosition();
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
-		if (dist > max_dist)
+
+	float active_max_dist = max_dist;
+	if (flickbot && flickbot_max_dist > active_max_dist) active_max_dist = flickbot_max_dist;
+
+	if (dist > active_max_dist)
 		return;
 
 	if(!firing_range && !onevone)
@@ -257,11 +261,22 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			return;
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
-	float fov = CalculateFov(LPlayer, target);
+
+	// Use head position for FOV calculation to be more accurate at close range
+	Vector HeadPos = target.getBonePositionByHitbox(0);
+	float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
 
 	if (target.ptr == aimentity)
 	{
 		is_aimentity_visible = visible;
+	}
+
+	float active_fov = max_fov;
+	float active_dist = aim_dist;
+
+	if (flickbot) {
+		if (flickbot_fov > active_fov) active_fov = flickbot_fov;
+		if (flickbot_max_dist > active_dist) active_dist = flickbot_max_dist;
 	}
 
 	if (aimentity != 0 && lock)
@@ -270,7 +285,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else if (aim == 2)
 	{
-		if (visible && fov <= max_fov && dist <= aim_dist)
+		if (visible && fov <= active_fov && dist <= active_dist)
 		{
 			if (fov < max)
 			{
@@ -288,7 +303,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov && dist <= aim_dist)
+		if (fov <= active_fov && dist <= active_dist)
 		{
 			if (fov < max)
 			{
