@@ -578,7 +578,7 @@ if (bhop && SuperKey) {
     apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_FLAGS, flags);
     if (flags & 0x1) {
         apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(05));
         apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
     }
 }
