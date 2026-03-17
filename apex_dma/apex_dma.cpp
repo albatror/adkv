@@ -85,6 +85,8 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool rapidfire = false;
+int rapidfire_delay = 0;
 
 ///////////
 //bool medbackpack = true;
@@ -1557,6 +1559,14 @@ while (vars_t)
         if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+
+        uint64_t rapidfire_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, rapidfire_addr);
+        if (rapidfire_addr) client_mem.Read<bool>(rapidfire_addr, rapidfire);
+
+        uint64_t rapidfire_delay_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, rapidfire_delay_addr);
+        if (rapidfire_delay_addr) client_mem.Read<int>(rapidfire_delay_addr, rapidfire_delay);
 
         if (esp && next)
         {

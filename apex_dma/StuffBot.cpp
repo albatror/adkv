@@ -2,6 +2,8 @@
 #include <thread>
 #include <chrono>
 #include <unordered_map>
+#include <string>
+#include <vector>
 #include "offsets.h"
 #include "Weapon.h"
 
@@ -21,6 +23,8 @@ extern int flickbot_delay;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
+extern bool rapidfire;
+extern int rapidfire_delay;
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
@@ -104,13 +108,58 @@ void StuffBotLoop()
             }
         }
 
+        // Rapidfire logic
+        static auto lastRapidFireTime = std::chrono::steady_clock::now();
+        if (rapidfire)
+        {
+            char weaponModel[256] = { 0 };
+            LPlayer.getWeaponModelName(weaponModel, 256);
+            std::string weaponName = get_weapon_name_by_model(weaponModel);
+            if (weaponName == "Unknown") {
+                int weaponId = LPlayer.getCurrentWeaponId();
+                weaponName = get_weapon_name(weaponId);
+            }
+
+            if (isRapidFireWeapon(weaponName))
+            {
+                kbutton_t in_attack;
+                apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack);
+                if (in_attack.state & 1)
+                {
+                    auto now_rf = std::chrono::steady_clock::now();
+                    if (std::chrono::duration_cast<std::chrono::milliseconds>(now_rf - lastRapidFireTime).count() >= rapidfire_delay)
+                    {
+                        static bool rf_state = false;
+                        if (!rf_state) {
+                            apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                            rf_state = true;
+                        }
+                        else {
+                            apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                            rf_state = false;
+                        }
+                        lastRapidFireTime = now_rf;
+                    }
+                }
+            }
+        }
+
         // Flickbot logic
         static auto lastFlickTime = std::chrono::steady_clock::now();
         if (flickbot && flickbot_aiming && aimentity != 0)
         {
-            Entity Target = getEntity(aimentity);
-            if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
-            {
+            char weaponModel[256] = { 0 };
+            LPlayer.getWeaponModelName(weaponModel, 256);
+            std::string weaponName = get_weapon_name_by_model(weaponModel);
+            if (weaponName == "Unknown") {
+                int weaponId = LPlayer.getCurrentWeaponId();
+                weaponName = get_weapon_name(weaponId);
+            }
+
+            if (isFlickbotWeapon(weaponName)) {
+                Entity Target = getEntity(aimentity);
+                if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
+                {
                 float distance = LPlayer.getPosition().DistTo(Target.getPosition());
 
                 // Adaptive system based on user-chosen flickbot_fov and flickbot_max_dist

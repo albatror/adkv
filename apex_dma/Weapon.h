@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "ItemManager.h"
 
 namespace WeaponIDs {
@@ -76,6 +77,26 @@ inline std::string get_weapon_name(int id) {
     auto it = weapon_map.find(id);
     if (it != weapon_map.end()) return it->second;
     return "Unknown";
+}
+
+inline bool isRapidFireWeapon(const std::string& name) {
+    static const std::vector<std::string> rapid_fire_weapons = {
+        "P2020", "R-301", "G7 Scout", "Flatline", "Hemlok", "Prowler", "Nemesis", "Mozambique", "Wingman", "EVA-8"
+    };
+    for (const auto& w : rapid_fire_weapons) {
+        if (name.find(w) != std::string::npos) return true;
+    }
+    return false;
+}
+
+inline bool isFlickbotWeapon(const std::string& name) {
+    static const std::vector<std::string> flickbot_weapons = {
+        "P2020", "RE-45", "Alternator", "R-99", "R-301", "Spitfire", "G7 Scout", "Flatline", "Hemlok", "30-30", "Rampage", "C.A.R", "Havoc", "Devotion", "L-STAR", "TripleTake", "Volt SMG", "Nemesis", "Mozambique", "EVA-8", "Peacekeeper", "Mastiff", "Longbow", "Charge Rifle", "Sentinel", "Wingman", "Prowler", "BOCEK", "Kraber", "Throwing Knife"
+    };
+    for (const auto& w : flickbot_weapons) {
+        if (name.find(w) != std::string::npos) return true;
+    }
+    return false;
 }
 
 inline std::string get_weapon_name_by_model(const std::string& modelName) {

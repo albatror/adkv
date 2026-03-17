@@ -43,6 +43,8 @@ extern float triggerbot_fov;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool rapidfire;
+extern int rapidfire_delay;
 
 //extern float esp_distance;
 
@@ -217,6 +219,10 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("RapidFire"), &rapidfire);
+			ImGui::SliderInt(XorStr("RapidFire Delay"), &rapidfire_delay, 10, 500);
 
 			ImGui::EndTabItem();
 		}
