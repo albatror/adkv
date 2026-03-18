@@ -160,12 +160,8 @@ void StuffBotLoop()
                         {
                             LPlayer.SetViewAngles(aim_angles);
 
-                            // Check if reticle is on target before shooting (small threshold)
-                            float current_fov = CalculateFov(LPlayer, Target);
-                            float shoot_threshold = 1.0f; // degrees
-
                             auto now = std::chrono::steady_clock::now();
-                            if (flickbot_auto_shoot && current_fov <= shoot_threshold &&
+                            if (flickbot_auto_shoot &&
                                 std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
                             {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
