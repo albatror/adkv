@@ -107,7 +107,17 @@ void StuffBotLoop()
 
         // Flickbot logic
         static auto lastFlickTime = std::chrono::steady_clock::now();
-        if (flickbot && flickbot_aiming && aimentity != 0)
+        static QAngle manual_angles = { 0, 0, 0 };
+        static bool is_flicking = false;
+
+        // Retrieve aiming/shooting state from LPlayer
+        kbutton_t in_attack_button, in_zoom_button;
+        apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
+        apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ZOOM, in_zoom_button);
+        bool user_shooting = (in_attack_button.state & 1) != 0;
+        bool user_aiming = (in_zoom_button.state & 1) != 0;
+
+        if (flickbot && (flickbot_aiming || triggerbot_aiming || user_shooting || user_aiming) && aimentity != 0)
         {
             char weaponModel[256] = { 0 };
             LPlayer.getWeaponModelName(weaponModel, 256);
@@ -143,43 +153,52 @@ void StuffBotLoop()
                         current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
                     }
 
-                    auto now = std::chrono::steady_clock::now();
-                    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
+                    float fov = CalculateFov(LPlayer, Target);
+                    if (fov <= current_flick_fov)
                     {
-                        float fov = CalculateFov(LPlayer, Target);
-                        if (fov <= current_flick_fov)
+                        if (!is_flicking) {
+                            manual_angles = LPlayer.GetViewAngles();
+                            is_flicking = true;
+                        }
+
+                        // Continuous tracking
+                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
+                        if (aim_angles.x != 0 || aim_angles.y != 0)
                         {
-                            QAngle old_angles = LPlayer.GetViewAngles();
-                            // Use CalculateBestBoneAim which already includes prediction
-                            QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
+                            LPlayer.SetViewAngles(aim_angles);
 
-                            if (aim_angles.x != 0 || aim_angles.y != 0)
+                            auto now = std::chrono::steady_clock::now();
+                            if (flickbot_auto_shoot && std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
                             {
-                                LPlayer.SetViewAngles(aim_angles);
-
-                                if (flickbot_auto_shoot)
-                                {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
-                                }
+                                std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
+                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 
                                 if (flickbot_flickback)
                                 {
                                     std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));
-                                    LPlayer.SetViewAngles(old_angles);
+                                    LPlayer.SetViewAngles(manual_angles);
+                                    is_flicking = false; // Reset to allow fresh manual angle capture
                                 }
 
-                                // Add a small random jitter to the delay like zap-client
+                                // Add random jitter
                                 static std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
                                 std::uniform_int_distribution<int> dist(0, 10);
                                 lastFlickTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(dist(engine));
                             }
                         }
+                    } else {
+                        is_flicking = false;
                     }
+                } else {
+                    is_flicking = false;
                 }
+            } else {
+                is_flicking = false;
             }
+        } else {
+            is_flicking = false;
         }
     }
 }
