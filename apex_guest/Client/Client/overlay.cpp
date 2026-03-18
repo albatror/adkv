@@ -4,7 +4,9 @@
 #include <iomanip>
 #include <filesystem>
 #include <algorithm>
+#include <cctype>
 
+#define STBI_WINDOWS_UTF8
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -40,6 +42,8 @@ extern int items_count;
 extern item_esp items[200];
 
 extern bool flickbot;
+static fs::path lastIconsPath;
+static int iconsLoadedCount = 0;
 extern float flickbot_fov;
 extern float flickbot_max_dist;
 extern bool flickbot_auto_shoot;
@@ -394,6 +398,18 @@ void Overlay::RenderMenu()
 			ImGui::Text(XorStr("Glow Thickness:"));
 			ImGui::SliderScalar("##GlowThickness", ImGuiDataType_U8, &outlinesize, &min_val, &max_val_thick);
 
+			ImGui::Separator();
+			ImGui::Text(XorStr("Item Icons Debug:"));
+			ImGui::Text(XorStr("Loaded %d icons"), iconsLoadedCount);
+			if (iconsLoadedCount > 0)
+			{
+				ImGui::Text(XorStr("Path: %s"), lastIconsPath.string().c_str());
+			}
+			if (ImGui::Button(XorStr("Reload Icons")))
+			{
+				LoadIcons();
+			}
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -640,12 +656,40 @@ DWORD Overlay::CreateOverlay()
 				auto it = iconMap.find(name);
 				if (it == iconMap.end())
 				{
-					// Try normalized version
-					string normalized = name;
-					transform(normalized.begin(), normalized.end(), normalized.begin(), ::toupper);
-					replace(normalized.begin(), normalized.end(), ' ', '_');
-					replace(normalized.begin(), normalized.end(), '-', '_');
-					it = iconMap.find(normalized);
+					// Try super-normalized version
+					string superNormalized = SuperNormalize(name);
+					it = iconMap.find(superNormalized);
+				}
+
+				if (it == iconMap.end())
+				{
+					// Check cache for substring match
+					auto cacheIt = iconMatchCache.find(name);
+					if (cacheIt != iconMatchCache.end())
+					{
+						if (!cacheIt->second.empty())
+							it = iconMap.find(cacheIt->second);
+					}
+					else
+					{
+						// Fallback to substring match on super-normalized names
+						string superName = SuperNormalize(name);
+						for (auto const& [iconName, texture] : iconMap)
+						{
+							string superIconName = SuperNormalize(iconName);
+							if (!superIconName.empty() && !superName.empty())
+							{
+								if (superIconName.find(superName) != string::npos || superName.find(superIconName) != string::npos)
+								{
+									it = iconMap.find(iconName);
+									iconMatchCache[name] = iconName;
+									break;
+								}
+							}
+						}
+						if (it == iconMap.end())
+							iconMatchCache[name] = ""; // Mark as not found to avoid re-searching
+					}
 				}
 
 				if (it != iconMap.end())
@@ -887,33 +931,109 @@ bool Overlay::LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView
 	return true;
 }
 
+static string SuperNormalize(const string& input)
+{
+	string output = "";
+	for (char c : input)
+	{
+		if (isalnum(c))
+		{
+			output += (char)toupper(c);
+		}
+	}
+	return output;
+}
+
 void Overlay::LoadIcons()
 {
-	string iconsPath = "icons";
-	if (!fs::exists(iconsPath)) return;
+	// Clean up existing textures
+	std::set<ID3D11ShaderResourceView*> uniqueTextures;
+	for (auto& pair : iconMap) {
+		if (pair.second.texture) {
+			uniqueTextures.insert(pair.second.texture);
+		}
+	}
+	for (auto* texture : uniqueTextures) {
+		texture->Release();
+	}
+	iconMap.clear();
+	iconMatchCache.clear();
 
+	char buffer[MAX_PATH];
+	GetModuleFileNameA(NULL, buffer, MAX_PATH);
+	fs::path exePath(buffer);
+	fs::path searchPath = exePath.parent_path();
+	fs::path iconsPath;
+
+	bool found = false;
+	// Search patterns: icons, Client/icons, Client/Client/icons
+	for (int i = 0; i < 4; i++) // search exe dir and 3 parents
+	{
+		if (fs::exists(searchPath / "icons"))
+		{
+			iconsPath = searchPath / "icons";
+			found = true;
+		}
+		else if (fs::exists(searchPath / "Client" / "icons"))
+		{
+			iconsPath = searchPath / "Client" / "icons";
+			found = true;
+		}
+		else if (fs::exists(searchPath / "Client" / "Client" / "icons"))
+		{
+			iconsPath = searchPath / "Client" / "Client" / "icons";
+			found = true;
+		}
+
+		if (found) break;
+		if (searchPath.has_parent_path()) searchPath = searchPath.parent_path();
+		else break;
+	}
+
+	if (!found)
+	{
+		if (fs::exists("icons"))
+		{
+			iconsPath = "icons";
+			found = true;
+		}
+	}
+
+	if (!found)
+	{
+		printf(XorStr("Could not find icons folder. Please ensure 'icons' folder is next to the executable.\n"));
+		printf(XorStr("Current directory: %s\n"), fs::current_path().string().c_str());
+		iconsLoadedCount = 0;
+		return;
+	}
+
+	lastIconsPath = iconsPath;
+	printf(XorStr("Loading icons from: %s\n"), iconsPath.string().c_str());
+
+	int count = 0;
 	for (const auto& entry : fs::directory_iterator(iconsPath))
 	{
 		if (entry.path().extension() == ".png")
 		{
-			string filename = entry.path().filename().string();
 			string nameWithoutExt = entry.path().stem().string();
 
 			IconTexture icon;
-			if (LoadTextureFromFile(entry.path().string().c_str(), &icon.texture, &icon.width, &icon.height))
+			// Use u8string for better cross-platform/encoding support
+			string pathStr = entry.path().u8string();
+			if (LoadTextureFromFile(pathStr.c_str(), &icon.texture, &icon.width, &icon.height))
 			{
 				// Original name
 				iconMap[nameWithoutExt] = icon;
 
-				// Normalized name: uppercase, spaces/dashes to underscores
-				string normalized = nameWithoutExt;
-				transform(normalized.begin(), normalized.end(), normalized.begin(), ::toupper);
-				replace(normalized.begin(), normalized.end(), ' ', '_');
-				replace(normalized.begin(), normalized.end(), '-', '_');
-				iconMap[normalized] = icon;
+				// Super-normalized name: alphanumeric only, uppercase
+				string superNormalized = SuperNormalize(nameWithoutExt);
+				iconMap[superNormalized] = icon;
+				count++;
 			}
 		}
 	}
+	iconsLoadedCount = count;
+	printf(XorStr("Loaded %d icons\n"), count);
 }
 
 void Overlay::DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health) {

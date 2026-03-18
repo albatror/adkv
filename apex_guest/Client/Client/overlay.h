@@ -11,6 +11,7 @@
 #include <thread>
 #include <string>
 #include <unordered_map>
+#include <set>
 #include "XorString.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -82,4 +83,5 @@ private:
 	bool running;
 	HWND overlayHWND;
 	std::unordered_map<std::string, IconTexture> iconMap;
+	std::unordered_map<std::string, std::string> iconMatchCache;
 };
