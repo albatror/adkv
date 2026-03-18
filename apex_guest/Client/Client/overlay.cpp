@@ -2,9 +2,14 @@
 #include "config.h"
 #include <fstream>
 #include <iomanip>
+#include <filesystem>
+#include <algorithm>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 using namespace std;
+namespace fs = std::filesystem;
 extern int aim;
 extern bool esp;
 extern bool item_glow;
@@ -629,14 +634,36 @@ DWORD Overlay::CreateOverlay()
 				}
 
 				char dist_str[64];
-				sprintf(dist_str, "%s [%.0fm]", items[i].name, items[i].dist / 40.0f);
+				bool iconFound = false;
 
-				if (items[i].category >= 0 && items[i].category < 8 && itemIcons[items[i].category].texture != nullptr)
+				string name = items[i].name;
+				auto it = iconMap.find(name);
+				if (it == iconMap.end())
+				{
+					// Try normalized version
+					string normalized = name;
+					transform(normalized.begin(), normalized.end(), normalized.begin(), ::toupper);
+					replace(normalized.begin(), normalized.end(), ' ', '_');
+					replace(normalized.begin(), normalized.end(), '-', '_');
+					it = iconMap.find(normalized);
+				}
+
+				if (it != iconMap.end())
 				{
 					float icon_size = 24.0f;
-					ImGui::GetWindowDrawList()->AddImage(itemIcons[items[i].category].texture,
-						ImVec2(items[i].x - icon_size/2, items[i].y - icon_size - 5),
-						ImVec2(items[i].x + icon_size/2, items[i].y - 5));
+					ImGui::GetWindowDrawList()->AddImage(it->second.texture,
+						ImVec2(items[i].x - icon_size / 2, items[i].y - icon_size - 5),
+						ImVec2(items[i].x + icon_size / 2, items[i].y - 5));
+					iconFound = true;
+				}
+
+				if (iconFound)
+				{
+					sprintf(dist_str, "[%.0fm]", items[i].dist / 40.0f);
+				}
+				else
+				{
+					sprintf(dist_str, "%s [%.0fm]", items[i].name, items[i].dist / 40.0f);
 				}
 				String(ImVec2(items[i].x, items[i].y), color, dist_str);
 			}
@@ -803,15 +830,89 @@ void DrawHexagonFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, con
 	ImGui::GetWindowDrawList()->AddConvexPolyFilled(points, 6, col);
 }
 
+bool Overlay::LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height)
+{
+	// Load from disk into a raw RGBA buffer
+	int image_width = 0;
+	int image_height = 0;
+	unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
+	if (image_data == NULL)
+		return false;
+
+	// Create texture
+	D3D11_TEXTURE2D_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.Width = image_width;
+	desc.Height = image_height;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = 0;
+
+	ID3D11Texture2D* pTexture = NULL;
+	D3D11_SUBRESOURCE_DATA subResource;
+	subResource.pSysMem = image_data;
+	subResource.SysMemPitch = desc.Width * 4;
+	subResource.SysMemSlicePitch = 0;
+	HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+	if (FAILED(hr))
+	{
+		stbi_image_free(image_data);
+		return false;
+	}
+
+	// Create texture view
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(srvDesc));
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv);
+	pTexture->Release();
+
+	if (FAILED(hr))
+	{
+		stbi_image_free(image_data);
+		return false;
+	}
+
+	*out_width = image_width;
+	*out_height = image_height;
+	stbi_image_free(image_data);
+
+	return true;
+}
+
 void Overlay::LoadIcons()
 {
-	// This is a placeholder for actual icon loading logic using D3DX11CreateShaderResourceViewFromFile or similar
-	// Since we don't have the assets or the specific library for PNG/SVG decoding in this environment,
-	// we set up the structure for it.
-	for (int i = 0; i < 8; i++) {
-		itemIcons[i].texture = nullptr;
-		itemIcons[i].width = 0;
-		itemIcons[i].height = 0;
+	string iconsPath = "icons";
+	if (!fs::exists(iconsPath)) return;
+
+	for (const auto& entry : fs::directory_iterator(iconsPath))
+	{
+		if (entry.path().extension() == ".png")
+		{
+			string filename = entry.path().filename().string();
+			string nameWithoutExt = entry.path().stem().string();
+
+			IconTexture icon;
+			if (LoadTextureFromFile(entry.path().string().c_str(), &icon.texture, &icon.width, &icon.height))
+			{
+				// Original name
+				iconMap[nameWithoutExt] = icon;
+
+				// Normalized name: uppercase, spaces/dashes to underscores
+				string normalized = nameWithoutExt;
+				transform(normalized.begin(), normalized.end(), normalized.begin(), ::toupper);
+				replace(normalized.begin(), normalized.end(), ' ', '_');
+				replace(normalized.begin(), normalized.end(), '-', '_');
+				iconMap[normalized] = icon;
+			}
+		}
 	}
 }
 

@@ -10,6 +10,7 @@
 #include <cwchar>
 #include <thread>
 #include <string>
+#include <unordered_map>
 #include "XorString.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -67,6 +68,7 @@ public:
 	void RenderEsp();
 	void RenderSpectator();
 	void LoadIcons();
+	bool LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
 	void ClickThrough(bool v);
 	void DrawLine(ImVec2 a, ImVec2 b, ImColor color, float width);
 	void DrawBox(ImColor color, float x, float y, float w, float h);
@@ -79,5 +81,5 @@ public:
 private:
 	bool running;
 	HWND overlayHWND;
-	IconTexture itemIcons[8]; // One for each ItemCategory
+	std::unordered_map<std::string, IconTexture> iconMap;
 };
