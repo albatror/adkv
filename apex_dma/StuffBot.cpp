@@ -110,14 +110,7 @@ void StuffBotLoop()
         static QAngle manual_angles = { 0, 0, 0 };
         static bool is_flicking = false;
 
-        // Retrieve aiming/shooting state from LPlayer
-        kbutton_t in_attack_button, in_zoom_button;
-        apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
-        apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ZOOM, in_zoom_button);
-        bool user_shooting = (in_attack_button.state & 1) != 0;
-        bool user_aiming = (in_zoom_button.state & 1) != 0;
-
-        if (flickbot && (flickbot_aiming || triggerbot_aiming || user_shooting || user_aiming) && aimentity != 0)
+        if (flickbot && flickbot_aiming && aimentity != 0)
         {
             char weaponModel[256] = { 0 };
             LPlayer.getWeaponModelName(weaponModel, 256);
@@ -167,8 +160,13 @@ void StuffBotLoop()
                         {
                             LPlayer.SetViewAngles(aim_angles);
 
+                            // Check if reticle is on target before shooting (small threshold)
+                            float current_fov = CalculateFov(LPlayer, Target);
+                            float shoot_threshold = 1.0f; // degrees
+
                             auto now = std::chrono::steady_clock::now();
-                            if (flickbot_auto_shoot && std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
+                            if (flickbot_auto_shoot && current_fov <= shoot_threshold &&
+                                std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
                             {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
                                 apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
