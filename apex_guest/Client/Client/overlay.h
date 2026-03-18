@@ -16,6 +16,7 @@
 #include "imgui/imgui_impl_win32.h"
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
+#include "types.h"
 
 #define GREEN ImColor(0, 255, 0)
 #define RED ImColor(255, 0, 0)
@@ -40,10 +41,17 @@ typedef struct visuals
 	float target_indicator_fov = 10.0f;
 	bool flickbot_fov_circle = false;
 	bool triggerbot_fov_circle = false;
+	bool item_esp = false;
 }visuals;
 
 struct GColor {
 	float r, g, b;
+};
+
+struct IconTexture {
+	ID3D11ShaderResourceView* texture = nullptr;
+	int width = 0;
+	int height = 0;
 };
 
 class Overlay
@@ -58,6 +66,7 @@ public:
 	void RenderMenu();
 	void RenderEsp();
 	void RenderSpectator();
+	void LoadIcons();
 	void ClickThrough(bool v);
 	void DrawLine(ImVec2 a, ImVec2 b, ImColor color, float width);
 	void DrawBox(ImColor color, float x, float y, float w, float h);
@@ -70,4 +79,5 @@ public:
 private:
 	bool running;
 	HWND overlayHWND;
+	IconTexture itemIcons[8]; // One for each ItemCategory
 };

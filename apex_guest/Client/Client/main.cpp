@@ -11,32 +11,6 @@
 //test contraste texte
 #include ".\imgui\imgui.h"
 
-typedef struct player
-{
-	float dist = 0;
-	int entity_team = 0;
-	float boxMiddle = 0;
-	float h_y = 0;
-	float width = 0;
-	float height = 0;
-	float b_x = 0;
-	float b_y = 0;
-	bool knocked = false;
-	bool visible = false;
-	int health = 0;
-	int shield = 0;
-	int maxshield = 0;
-	int armortype = 0;
-	int xp_level = 0;
-	int platform = 0;
-	char name[33] = { 0 };
-	float bones[15][2] = { 0 };
-}player;
-
-typedef struct spectator {
-	bool is_spec = false;
-	char name[33] = { 0 };
-}spectator;
 
 uint32_t check = 0xABCD;
 
@@ -162,6 +136,12 @@ float cfsize = max_fov;
 
 int spectators = 0; //write
 int allied_spectators = 0; //write
+
+bool item_esp_enable = false;
+float item_max_dist = 50.0f * 40.0f;
+uint32_t item_filters = 0xFFFFFFFF; // all on by default
+int items_count = 0;
+item_esp items[200];
 
 int screen_width = 2560;
 int screen_height = 1440;
@@ -521,6 +501,11 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&item_esp_enable;
+	add[59] = (uintptr_t)&item_max_dist;
+	add[60] = (uintptr_t)&item_filters;
+	add[61] = (uintptr_t)&items_count;
+	add[62] = (uintptr_t)&items[0];
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

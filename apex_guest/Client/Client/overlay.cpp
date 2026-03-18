@@ -28,6 +28,12 @@ extern int allied_spectators;
 extern bool onevone;
 extern bool firing_range;
 
+extern bool item_esp_enable;
+extern float item_max_dist;
+extern uint32_t item_filters;
+extern int items_count;
+extern item_esp items[200];
+
 extern bool flickbot;
 extern float flickbot_fov;
 extern float flickbot_max_dist;
@@ -206,6 +212,28 @@ void Overlay::RenderMenu()
 
 			ImGui::Checkbox(XorStr("Glow items"), &item_glow);
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("Item ESP"), &item_esp_enable);
+			if (item_esp_enable)
+			{
+				ImGui::SliderFloat(XorStr("Item Max Distance"), &item_max_dist, 10.0f * 40, 200.0f * 40, "%.2f");
+
+				static const char* categories[] = { "Other", "Common", "Rare", "Epic", "Legendary", "Mythic", "Weapon", "Ammo" };
+				if (ImGui::TreeNode(XorStr("Item Filters")))
+				{
+					for (int i = 0; i < 8; i++)
+					{
+						bool enabled = (item_filters & (1 << i));
+						if (ImGui::Checkbox(categories[i], &enabled))
+						{
+							if (enabled) item_filters |= (1 << i);
+							else item_filters &= ~(1 << i);
+						}
+					}
+					ImGui::TreePop();
+				}
+			}
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Flickbot (LSHIFT)"), &flickbot);
@@ -475,6 +503,8 @@ DWORD Overlay::CreateOverlay()
 	ImGui_ImplWin32_Init(overlayHWND);
 	ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
+	LoadIcons();
+
 	ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.00f);
 
 	// Main loop
@@ -578,6 +608,41 @@ DWORD Overlay::CreateOverlay()
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
 			ImGui::End();
 		}
+
+		if (item_esp_enable)
+		{
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::SetNextWindowSize(ImVec2((float)getWidth(), (float)getHeight()));
+			ImGui::Begin(XorStr("##item_esp"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs);
+			for (int i = 0; i < items_count; i++)
+			{
+				ImColor color = WHITE;
+				switch (items[i].category)
+				{
+				case 1: color = WHITE; break; // Common
+				case 2: color = BLUE; break; // Rare
+				case 3: color = ImColor(163, 53, 238); break; // Epic (Purple)
+				case 4: color = ORANGE; break; // Legendary
+				case 5: color = RED; break; // Mythic
+				case 6: color = GREEN; break; // Weapon
+				case 7: color = ImColor(255, 255, 0); break; // Ammo (Yellow)
+				}
+
+				char dist_str[64];
+				sprintf(dist_str, "%s [%.0fm]", items[i].name, items[i].dist / 40.0f);
+
+				if (items[i].category >= 0 && items[i].category < 8 && itemIcons[items[i].category].texture != nullptr)
+				{
+					float icon_size = 24.0f;
+					ImGui::GetWindowDrawList()->AddImage(itemIcons[items[i].category].texture,
+						ImVec2(items[i].x - icon_size/2, items[i].y - icon_size - 5),
+						ImVec2(items[i].x + icon_size/2, items[i].y - 5));
+				}
+				String(ImVec2(items[i].x, items[i].y), color, dist_str);
+			}
+			ImGui::End();
+		}
+
 		RenderEsp();
 
 		// Rendering
@@ -736,6 +801,18 @@ void DrawHexagonFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, con
 {
 	ImVec2 points[6] = { p1, p2, p3, p4, p5, p6 };
 	ImGui::GetWindowDrawList()->AddConvexPolyFilled(points, 6, col);
+}
+
+void Overlay::LoadIcons()
+{
+	// This is a placeholder for actual icon loading logic using D3DX11CreateShaderResourceViewFromFile or similar
+	// Since we don't have the assets or the specific library for PNG/SVG decoding in this environment,
+	// we set up the structure for it.
+	for (int i = 0; i < 8; i++) {
+		itemIcons[i].texture = nullptr;
+		itemIcons[i].width = 0;
+		itemIcons[i].height = 0;
+	}
 }
 
 void Overlay::DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health) {

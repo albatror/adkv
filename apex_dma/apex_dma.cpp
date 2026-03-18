@@ -11,6 +11,7 @@
 #include "StuffBot.h"
 #include "ItemManager.h"
 #include <thread>
+#include <atomic>
 #include <array>
 #include <vector>
 #include <fstream>
@@ -115,13 +116,14 @@ float glowbknocked = 1; //Blue 0-255, higher is brighter color.
 //unsigned char lootoutline = 0;
 ///////////////////////////
 
-bool actions_t = false;
-bool esp_t = false;
-bool aim_t = false;
-bool vars_t = false;
-bool item_t = false;
+std::atomic<bool> actions_t(false);
+std::atomic<bool> esp_t(false);
+std::atomic<bool> aim_t(false);
+std::atomic<bool> vars_t(false);
+std::atomic<bool> item_t(false);
 uint64_t g_Base;
 uint64_t c_Base;
+std::atomic<bool> item_esp_t_active(false);
 bool next = false;
 bool valid = false;
 bool lock = false;
@@ -165,6 +167,20 @@ typedef struct spectator{
 	bool is_spec = false;
 	char name[33] = { 0 };
 }spectator;
+
+typedef struct item_esp {
+    float x = 0;
+    float y = 0;
+    float dist = 0;
+    int category = 0;
+    char name[33] = { 0 };
+} item_esp;
+
+bool item_esp_enable = false;
+float item_max_dist = 50.0f * 40.0f;
+uint32_t item_filters = 0xFFFFFFFF;
+int items_count = 0;
+item_esp items[200];
 
 struct Matrix
 {
@@ -1558,6 +1574,26 @@ while (vars_t)
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
 
+        uint64_t item_esp_enable_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, item_esp_enable_addr);
+        if (item_esp_enable_addr) client_mem.Read<bool>(item_esp_enable_addr, item_esp_enable);
+
+        uint64_t item_max_dist_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, item_max_dist_addr);
+        if (item_max_dist_addr) client_mem.Read<float>(item_max_dist_addr, item_max_dist);
+
+        uint64_t item_filters_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, item_filters_addr);
+        if (item_filters_addr) client_mem.Read<uint32_t>(item_filters_addr, item_filters);
+
+        uint64_t items_count_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, items_count_addr);
+        if (items_count_addr) client_mem.Write<int>(items_count_addr, items_count);
+
+        uint64_t items_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 62, items_addr);
+        if (items_addr && items_count > 0) client_mem.WriteArray<item_esp>(items_addr, items, items_count);
+
         if (esp && next)
         {
             if (valid)
@@ -1577,6 +1613,102 @@ while (vars_t)
     }
 }
 vars_t = false;
+}
+
+struct CachedItem {
+    Vector pos;
+    ItemCategory category;
+    char name[33];
+};
+
+void item_esp_t() {
+    item_esp_t_active = true;
+    std::vector<CachedItem> cached_items;
+    auto last_discovery = std::chrono::steady_clock::now();
+
+    while (item_esp_t_active) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (g_Base == 0 || c_Base == 0 || !item_esp_enable) {
+            items_count = 0;
+            continue;
+        }
+
+        uint64_t LocalPlayer = 0;
+        apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+        if (LocalPlayer == 0) continue;
+        Entity LPlayer = getEntity(LocalPlayer);
+        Vector LocalPlayerPosition = LPlayer.getPosition();
+
+        // Discovery phase: every 1 second
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - last_discovery).count() >= 1) {
+            cached_items.clear();
+            uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+            for (int i = 0; i < 10000; i++) {
+                uint64_t centity = 0;
+                apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+                if (centity == 0 || centity == LocalPlayer) continue;
+
+                Item item = getItem(centity);
+                if (item.isItem() || item.isBox()) {
+                    Vector pos = item.getPosition();
+                    float dist = LocalPlayerPosition.DistTo(pos);
+                    if (dist > item_max_dist) continue;
+
+                    CachedItem ci;
+                    ci.pos = pos;
+                    if (item.isBox()) {
+                        ci.category = ItemCategory::LEGENDARY;
+                        strcpy(ci.name, "Death Box");
+                    } else {
+                        char modelName[256] = { 0 };
+                        item.getModelName(modelName, 256);
+                        std::string itemName;
+                        ItemCategory category = ItemCategory::OTHER;
+                        if (ItemManager::getInstance().GetItemInfo(modelName, itemName, category)) {
+                            ci.category = category;
+                            strncpy(ci.name, itemName.c_str(), 32);
+                        } else {
+                            continue; // Skip items not in our list for ESP
+                        }
+                    }
+                    cached_items.push_back(ci);
+                    if (cached_items.size() >= 200) break;
+                }
+            }
+            last_discovery = now;
+        }
+
+        // Projection phase: every frame
+        uint64_t viewRenderer = 0;
+        apex_mem.Read<uint64_t>(g_Base + OFFSET_RENDER, viewRenderer);
+        uint64_t viewMatrixPtr = 0;
+        apex_mem.Read<uint64_t>(viewRenderer + OFFSET_MATRIX, viewMatrixPtr);
+        Matrix m = {};
+        apex_mem.Read<Matrix>(viewMatrixPtr, m);
+
+        int count = 0;
+        for (const auto& ci : cached_items) {
+            if (!(item_filters & (1 << (int)ci.category))) continue;
+
+            float dist = LocalPlayerPosition.DistTo(ci.pos);
+            if (dist > item_max_dist) continue;
+
+            Vector screenPos;
+            if (WorldToScreen(ci.pos, m.matrix, screen_width, screen_height, screenPos)) {
+                items[count].x = screenPos.x;
+                items[count].y = screenPos.y;
+                items[count].dist = dist;
+                items[count].category = (int)ci.category;
+                strcpy(items[count].name, ci.name);
+                count++;
+                if (count >= 200) break;
+            }
+        }
+        items_count = count;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    item_esp_t_active = false;
 }
 
 // Item Glow Stuff
@@ -1709,6 +1841,7 @@ int main(int argc, char *argv[])
 	std::thread esp_thr;
 	std::thread actions_thr;
 	std::thread itemglow_thr;
+	std::thread itemesp_thr;
 	std::thread stuffbot_thr;
 
 	std::thread vars_thr;
@@ -1717,21 +1850,23 @@ int main(int argc, char *argv[])
 	{
 		if (apex_mem.get_proc_status() != process_status::FOUND_READY)
 		{
-			if (aim_t)
+			if (aimbot_thr.joinable() || esp_thr.joinable() || actions_thr.joinable() || itemglow_thr.joinable() || itemesp_thr.joinable() || stuffbot_thr.joinable())
 			{
 				aim_t = false;
 				esp_t = false;
 				actions_t = false;
 				item_t = false;
+				item_esp_t_active = false;
 				extern bool stuff_t;
 				stuff_t = false;
 				g_Base = 0;
 
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				itemglow_thr.~thread();
-				stuffbot_thr.~thread();
+				if (aimbot_thr.joinable()) aimbot_thr.join();
+				if (esp_thr.joinable()) esp_thr.join();
+				if (actions_thr.joinable()) actions_thr.join();
+				if (itemglow_thr.joinable()) itemglow_thr.join();
+				if (itemesp_thr.joinable()) itemesp_thr.join();
+				if (stuffbot_thr.joinable()) stuffbot_thr.join();
 
 			}
 
@@ -1760,11 +1895,13 @@ int main(int argc, char *argv[])
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
 				itemglow_thr = std::thread(item_glow_t);
+				itemesp_thr = std::thread(item_esp_t);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
+				itemesp_thr.detach();
 			}
 		}
 		else
