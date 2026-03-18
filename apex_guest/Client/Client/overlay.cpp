@@ -206,6 +206,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("AssistMe (LSHIFT)"), &AssistMe);
 			ImGui::SliderFloat(XorStr("Assist FOV"), &AssistMe_fov, 1.0f, 1000.0f, "%.2f");
 			ImGui::SliderFloat(XorStr("Assist Max Distance"), &AssistMe_max_dist, 10.0f * 40, 500.0f * 40, "%.2f");
+			ImGui::SliderFloat(XorStr("Assist Scaling Distance (DDS)"), &DDS, 10.0f * 40, 500.0f * 40, "%.2f");
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);

@@ -30,6 +30,7 @@ uintptr_t lastaimentity = 0;
 float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
 float aim_dist = 200.0f * 40.0f;
+float DDS = 70.0f * 40.0f;
 int team_player = 0;
 float max_fov = 5;
 const int toRead = 100;
@@ -256,6 +257,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			return;
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	if (firing_range) visible = true;
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -271,8 +273,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 
 	if (AssistMe) {
 		// Use DDS FOV if within DDS distance, otherwise AssistMe_fov
-		float dds_dist = 70.0f * 40.0f; // Default DDS distance, should be synced
-		if (dist < dds_dist) {
+		if (dist < DDS) {
 			active_fov = max_fov;
 		} else {
 			active_fov = AssistMe_fov;
@@ -652,6 +653,7 @@ if (bhop && SuperKey) {
 
 					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
 					c++;
+					if (c >= toRead) break;
 				}
 			}
 			else
@@ -677,9 +679,9 @@ if (bhop && SuperKey) {
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
 
-			if (!lock){
+			if (!lock || AssistMe) {
 				aimentity = tmp_aimentity;
-			}else{
+			} else {
 				aimentity = lastaimentity;
 			}
 		}
@@ -1374,6 +1376,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr
   printf("Read failed!\n");
 }
 
+uint64_t DDS_addr = 0;
+printf("Reading DDS address: %lx\n", add_addr + sizeof(uint64_t) * 59);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, DDS_addr)) {
+  printf("Read failed!\n");
+}
+
 
 ////////
 
@@ -1535,6 +1543,8 @@ while (vars_t)
         if (insidevalue_addr) client_mem.Read<unsigned char>(insidevalue_addr, insidevalue);
 
         if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
+
+        if (DDS_addr) client_mem.Read<float>(DDS_addr, DDS);
 
         if (esp && next)
         {

@@ -422,29 +422,7 @@ void Overlay::RenderEsp()
 						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, color, 12, 2.0f);
 					}
 				}
-				float distRatio = players[active_idx].dist / max_dist;
-				float distanceFactor = 1.0f - distRatio;
-				float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
-				float fovDiff = max_max_fov - min_max_fov;
-				float smoothDiff = max_smooth - min_smooth;
-
-				if (players[active_idx].dist < DDS) {
-					max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
-					smooth = max_smooth - (smoothDiff * easedDistanceFactor);
-					dds_active = true;
-				}
-				else {
-					max_fov = default_fov;
-					smooth = default_smooth;
-					dds_active = false;
-				}
 			}
-			else {
-				max_fov = default_fov;
-				smooth = default_smooth;
-				dds_active = false;
-			}
-			cfsize = max_fov;
 
 			ImGui::End();
 		}
@@ -511,6 +489,7 @@ int main(int argc, char** argv)
 	add[49] = (uintptr_t)&aim_dist;
 	add[50] = (uintptr_t)&insidevalue;
 	add[51] = (uintptr_t)&outlinesize;
+	add[59] = (uintptr_t)&DDS;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -536,12 +515,50 @@ int main(int argc, char** argv)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-		if (!esp) {
-			smooth = default_smooth;
+		// Update dynamic FOV and smoothing regardless of ESP state
+		bool target_found = false;
+		int best_player_idx = -1;
+		float best_score = 999999.0f;
+		float cx = (float)screen_width / 2.0f;
+		float cy = (float)screen_height / 2.0f;
+
+		for (int i = 0; i < 100; i++) {
+			if (players[i].health > 0) {
+				float dx = players[i].b_x - cx;
+				float dy = (players[i].b_y + players[i].h_y) / 2.0f - cy;
+				float d = sqrt(dx * dx + dy * dy);
+				float score = d + (players[i].dist / 20.0f);
+				if (score < best_score) {
+					best_score = score;
+					best_player_idx = i;
+				}
+			}
+		}
+
+		if (best_player_idx != -1) {
+			float distRatio = players[best_player_idx].dist / max_dist;
+			float distanceFactor = 1.0f - distRatio;
+			float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
+			float fovDiff = max_max_fov - min_max_fov;
+			float smoothDiff = max_smooth - min_smooth;
+
+			if (players[best_player_idx].dist < DDS) {
+				max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
+				smooth = max_smooth - (smoothDiff * easedDistanceFactor);
+				dds_active = true;
+			}
+			else {
+				max_fov = default_fov;
+				smooth = default_smooth;
+				dds_active = false;
+			}
+		}
+		else {
 			max_fov = default_fov;
-			cfsize = max_fov;
+			smooth = default_smooth;
 			dds_active = false;
 		}
+		cfsize = max_fov;
 
 		screen_width = ov1.getWidth();
 		screen_height = ov1.getHeight();

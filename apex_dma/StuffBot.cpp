@@ -10,6 +10,8 @@ extern Memory apex_mem;
 extern uint64_t g_Base;
 extern uintptr_t aimentity;
 extern float smooth;
+extern float max_fov;
+extern float DDS;
 extern bool AssistMe;
 extern bool AssistMe_aiming;
 extern float AssistMe_fov;
@@ -47,9 +49,16 @@ void StuffBotLoop()
         if (triggerbot && triggerbot_aiming)
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-            for (int i = 0; i < 256; i++) {
+
+            // Prioritize tracking target (aimentity) if using AssistMe
+            for (int i = -1; i < 256; i++) {
                 uint64_t centity = 0;
-                if (!apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity) || centity == 0 || centity == LocalPlayer) continue;
+                if (i == -1) {
+                    if (aimentity != 0) centity = aimentity;
+                    else continue;
+                } else {
+                    if (!apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity) || centity == 0 || centity == LocalPlayer || centity == aimentity) continue;
+                }
 
                 // Targeted reads to avoid getEntity overhead
                 int health = 0;
@@ -84,6 +93,7 @@ void StuffBotLoop()
                 }
 
                 if (now_crosshair_target_time > last_crosshair_times[centity]) {
+                    if (i == -1) printf("[TRIGGERBOT] Firing on Assist Target!\n");
                     char weaponModel[256] = { 0 };
                     LPlayer.getWeaponModelName(weaponModel, 256);
                     std::string weaponName = get_weapon_name_by_model(weaponModel);
@@ -115,11 +125,17 @@ void StuffBotLoop()
                 Entity Target = getEntity(aimentity);
                 if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
                 {
+                    float distance = LPlayer.getPosition().DistTo(Target.getPosition());
+                    float current_fov_threshold = AssistMe_fov;
+                    if (distance < DDS) {
+                        current_fov_threshold = max_fov;
+                    }
+
                     float fov = CalculateFov(LPlayer, Target);
-                    if (fov <= AssistMe_fov)
+                    if (fov <= current_fov_threshold)
                     {
                         // Continuous tracking using global smooth value
-                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, AssistMe_fov, smooth);
+                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_fov_threshold, smooth);
                         if (aim_angles.x != 0 || aim_angles.y != 0)
                         {
                             LPlayer.SetViewAngles(aim_angles);
