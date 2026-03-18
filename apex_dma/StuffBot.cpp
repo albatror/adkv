@@ -2,6 +2,7 @@
 #include <thread>
 #include <chrono>
 #include <unordered_map>
+#include <random>
 #include "offsets.h"
 #include "Weapon.h"
 
@@ -106,64 +107,92 @@ void StuffBotLoop()
 
         // Flickbot logic
         static auto lastFlickTime = std::chrono::steady_clock::now();
+        static QAngle manual_angles = { 0, 0, 0 };
+        static bool is_flicking = false;
+
         if (flickbot && flickbot_aiming && aimentity != 0)
         {
-            Entity Target = getEntity(aimentity);
-            if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
+            char weaponModel[256] = { 0 };
+            LPlayer.getWeaponModelName(weaponModel, 256);
+            std::string weaponName = get_weapon_name_by_model(weaponModel);
+
+            // Filter weapons (don't flick with melee or unknown items)
+            bool isMelee = (weaponName == "Fists" || weaponName == "Throwing Knife" || weaponName == "Unknown");
+
+            if (!isMelee)
             {
-                float distance = LPlayer.getPosition().DistTo(Target.getPosition());
-
-                // Adaptive system based on user-chosen flickbot_fov and flickbot_max_dist
-                float base_smooth = 20.0f;
-                int base_delay = 500;
-                int base_shoot_delay = 50;
-                int base_flickback_delay = 10;
-
-                float current_flick_fov = flickbot_fov;
-                float current_flick_smooth = base_smooth;
-                int current_flick_delay = base_delay;
-                int current_shoot_delay = base_shoot_delay;
-                int current_flickback_delay = base_flickback_delay;
-
-                if (distance < flickbot_max_dist && flickbot_max_dist > 0.0f)
+                Entity Target = getEntity(aimentity);
+                if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
                 {
-                    float scale = 1.0f - (distance / flickbot_max_dist);
-                    // Adaptive scaling
-                    current_flick_fov *= (1.0f + scale * 2.0f); // Increase FOV up to 3x for close targets
-                    current_flick_smooth /= (1.0f + scale * 3.0f); // Decrease smooth up to 4x for speed
-                    current_flick_delay = (int)(current_flick_delay / (1.0f + scale * 2.0f));
-                    current_shoot_delay = (int)(current_shoot_delay / (1.0f + scale * 1.5f));
-                    current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
-                }
+                    float distance = LPlayer.getPosition().DistTo(Target.getPosition());
 
-                auto now_flick = std::chrono::steady_clock::now();
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now_flick - lastFlickTime).count() >= current_flick_delay)
-                {
+                    // Adaptive system based on distance
+                    float current_flick_smooth = smooth;
+                    float current_flick_fov = flickbot_fov;
+                    int current_flick_delay = flickbot_delay;
+                    int current_shoot_delay = flickbot_auto_shoot_delay;
+                    int current_flickback_delay = flickbot_flickback_delay;
+
+                    if (distance < flickbot_max_dist && flickbot_max_dist > 0.0f)
+                    {
+                        float scale = 1.0f - (distance / flickbot_max_dist);
+                        // Increase speed (decrease smooth) for close targets
+                        current_flick_smooth /= (1.0f + scale * 3.0f);
+                        // Increase FOV for close targets to make acquisition easier
+                        current_flick_fov *= (1.0f + scale * 2.0f);
+                        // Decrease delays for faster reaction at close range
+                        current_flick_delay = (int)(current_flick_delay / (1.0f + scale * 2.0f));
+                        current_shoot_delay = (int)(current_shoot_delay / (1.0f + scale * 1.5f));
+                        current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
+                    }
+
                     float fov = CalculateFov(LPlayer, Target);
                     if (fov <= current_flick_fov)
                     {
-                        QAngle old_angles = LPlayer.GetViewAngles();
+                        if (!is_flicking) {
+                            manual_angles = LPlayer.GetViewAngles();
+                            is_flicking = true;
+                        }
+
+                        // Continuous tracking
                         QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
                         if (aim_angles.x != 0 || aim_angles.y != 0)
                         {
                             LPlayer.SetViewAngles(aim_angles);
-                            if (flickbot_auto_shoot)
+
+                            auto now = std::chrono::steady_clock::now();
+                            if (flickbot_auto_shoot &&
+                                std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
                             {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
                                 apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
                                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                                 apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+
+                                if (flickbot_flickback)
+                                {
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));
+                                    LPlayer.SetViewAngles(manual_angles);
+                                    is_flicking = false; // Reset to allow fresh manual angle capture
+                                }
+
+                                // Add random jitter
+                                static std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
+                                std::uniform_int_distribution<int> dist(0, 10);
+                                lastFlickTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(dist(engine));
                             }
-                            if (flickbot_flickback)
-                            {
-                                std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));
-                                LPlayer.SetViewAngles(old_angles);
-                            }
-                            lastFlickTime = std::chrono::steady_clock::now();
                         }
+                    } else {
+                        is_flicking = false;
                     }
+                } else {
+                    is_flicking = false;
                 }
+            } else {
+                is_flicking = false;
             }
+        } else {
+            is_flicking = false;
         }
     }
 }
