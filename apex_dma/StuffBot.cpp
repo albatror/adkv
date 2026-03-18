@@ -9,15 +9,10 @@ extern Memory apex_mem;
 extern uint64_t g_Base;
 extern uintptr_t aimentity;
 extern float smooth;
-extern bool flickbot;
-extern bool flickbot_aiming;
-extern float flickbot_fov;
-extern float flickbot_max_dist;
-extern bool flickbot_auto_shoot;
-extern int flickbot_auto_shoot_delay;
-extern bool flickbot_flickback;
-extern int flickbot_flickback_delay;
-extern int flickbot_delay;
+extern bool AssistMe;
+extern bool AssistMe_aiming;
+extern float AssistMe_fov;
+extern float AssistMe_max_dist;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
@@ -104,62 +99,38 @@ void StuffBotLoop()
             }
         }
 
-        // Flickbot logic
-        static auto lastFlickTime = std::chrono::steady_clock::now();
-        if (flickbot && flickbot_aiming && aimentity != 0)
+        // AssistMe logic
+        if (AssistMe && AssistMe_aiming && aimentity != 0)
         {
             Entity Target = getEntity(aimentity);
             if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
             {
                 float distance = LPlayer.getPosition().DistTo(Target.getPosition());
 
-                // Adaptive system based on user-chosen flickbot_fov and flickbot_max_dist
-                float base_smooth = 20.0f;
-                int base_delay = 500;
-                int base_shoot_delay = 50;
-                int base_flickback_delay = 10;
-
-                float current_flick_fov = flickbot_fov;
-                float current_flick_smooth = base_smooth;
-                int current_flick_delay = base_delay;
-                int current_shoot_delay = base_shoot_delay;
-                int current_flickback_delay = base_flickback_delay;
-
-                if (distance < flickbot_max_dist && flickbot_max_dist > 0.0f)
-                {
-                    float scale = 1.0f - (distance / flickbot_max_dist);
-                    // Adaptive scaling
-                    current_flick_fov *= (1.0f + scale * 2.0f); // Increase FOV up to 3x for close targets
-                    current_flick_smooth /= (1.0f + scale * 3.0f); // Decrease smooth up to 4x for speed
-                    current_flick_delay = (int)(current_flick_delay / (1.0f + scale * 2.0f));
-                    current_shoot_delay = (int)(current_shoot_delay / (1.0f + scale * 1.5f));
-                    current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
-                }
-
-                auto now_flick = std::chrono::steady_clock::now();
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now_flick - lastFlickTime).count() >= current_flick_delay)
+                if (distance <= AssistMe_max_dist)
                 {
                     float fov = CalculateFov(LPlayer, Target);
-                    if (fov <= current_flick_fov)
+                    if (fov <= AssistMe_fov)
                     {
-                        QAngle old_angles = LPlayer.GetViewAngles();
-                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
+                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, AssistMe_fov, smooth);
                         if (aim_angles.x != 0 || aim_angles.y != 0)
                         {
                             LPlayer.SetViewAngles(aim_angles);
-                            if (flickbot_auto_shoot)
-                            {
-                                std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
-                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+
+                            // Triggerbot integration: if both are on, fire when on target
+                            if (triggerbot) {
+                                float now_crosshair_target_time = 0;
+                                if (apex_mem.Read<float>(aimentity + OFFSET_CROSSHAIR_LAST, now_crosshair_target_time)) {
+                                    static std::unordered_map<uint64_t, float> assist_trigger_times;
+                                    if (assist_trigger_times.find(aimentity) == assist_trigger_times.end()) {
+                                        assist_trigger_times[aimentity] = now_crosshair_target_time;
+                                    }
+                                    else if (now_crosshair_target_time > assist_trigger_times[aimentity]) {
+                                        TriggerBotRun();
+                                        assist_trigger_times[aimentity] = now_crosshair_target_time;
+                                    }
+                                }
                             }
-                            if (flickbot_flickback)
-                            {
-                                std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));
-                                LPlayer.SetViewAngles(old_angles);
-                            }
-                            lastFlickTime = std::chrono::steady_clock::now();
                         }
                     }
                 }

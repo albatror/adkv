@@ -5068,7 +5068,7 @@ static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 pos, ImVec2
 
 // Note: ColorPicker4() only accesses 3 floats if ImGuiColorEditFlags_NoAlpha flag is set.
 // (In C++ the 'float col[4]' notation for a function argument is equivalent to 'float* col', we only specify a size to facilitate understanding of the code.)
-// FIXME: we adjust the big color square height based on item width, which may cause a flickering feedback loop (if automatic height makes a vertical scrollbar appears, affecting automatic width..)
+// FIXME: we adjust the big color square height based on item width, which may cause a assistering feedback loop (if automatic height makes a vertical scrollbar appears, affecting automatic width..)
 // FIXME: this is trying to be aware of style.Alpha but not fully correct. Also, the color wheel will have overlapping glitches with (style.Alpha < 1.0)
 bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags flags, const float* ref_col)
 {
@@ -7257,7 +7257,7 @@ void    ImGui::EndTabBar()
     if (tab_bar->WantLayout)
         TabBarLayout(tab_bar);
 
-    // Restore the last visible height if no tab is visible, this reduce vertical flicker/movement when a tabs gets removed without calling SetTabItemClosed().
+    // Restore the last visible height if no tab is visible, this reduce vertical assister/movement when a tabs gets removed without calling SetTabItemClosed().
     const bool tab_bar_appearing = (tab_bar->PrevFrameVisible + 1 < g.FrameCount);
     if (tab_bar->VisibleTabWasSubmitted || tab_bar->VisibleTabId == 0 || tab_bar_appearing)
     {

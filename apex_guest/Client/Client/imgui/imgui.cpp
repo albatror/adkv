@@ -10176,7 +10176,7 @@ bool ImGui::BeginDragDropSource(ImGuiDragDropFlags flags)
                 SetActiveID(source_id, window);
                 FocusWindow(window);
             }
-            if (g.ActiveId == source_id) // Allow the underlying widget to display/return hovered during the mouse release frame, else we would get a flicker.
+            if (g.ActiveId == source_id) // Allow the underlying widget to display/return hovered during the mouse release frame, else we would get a assister.
                 g.ActiveIdAllowOverlap = is_hovered;
         }
         if (g.ActiveId != source_id)
@@ -12200,7 +12200,7 @@ void ImGui::ShowStackToolWindow(bool* p_open)
                 Text("\"%s\" [window]", window->Name);
             else if (info->QuerySuccess)                        // Source: GetID() hooks (prioritize over ItemInfo() because we frequently use patterns like: PushID(str), Button("") where they both have same id)
                 TextUnformatted(info->Desc);
-            else if (tool->StackLevel >= tool->Results.Size)    // Only start using fallback below when all queries are done, so during queries we don't flickering ??? markers.
+            else if (tool->StackLevel >= tool->Results.Size)    // Only start using fallback below when all queries are done, so during queries we don't assistering ??? markers.
             {
 #ifdef IMGUI_ENABLE_TEST_ENGINE
                 if (const char* label = ImGuiTestEngine_FindItemDebugLabel(&g, info->ID))    // Source: ImGuiTestEngine's ItemInfo()

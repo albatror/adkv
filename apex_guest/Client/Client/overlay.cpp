@@ -34,14 +34,9 @@ extern uint32_t item_filters;
 extern int items_count;
 extern item_esp items[200];
 
-extern bool flickbot;
-extern float flickbot_fov;
-extern float flickbot_max_dist;
-extern bool flickbot_auto_shoot;
-extern int flickbot_auto_shoot_delay;
-extern bool flickbot_flickback;
-extern int flickbot_flickback_delay;
-extern int flickbot_delay;
+extern bool AssistMe;
+extern float AssistMe_fov;
+extern float AssistMe_max_dist;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
@@ -236,11 +231,9 @@ void Overlay::RenderMenu()
 			}
 
 			ImGui::Separator();
-			ImGui::Checkbox(XorStr("Flickbot (LSHIFT)"), &flickbot);
-			ImGui::SliderFloat(XorStr("Flick FOV"), &flickbot_fov, 1.0f, 1000.0f, "%.2f");
-			ImGui::SliderFloat(XorStr("Flick Max Distance"), &flickbot_max_dist, 10.0f * 40, 500.0f * 40, "%.2f");
-			ImGui::Checkbox(XorStr("Flick Auto Shoot"), &flickbot_auto_shoot);
-			ImGui::Checkbox(XorStr("Flickback"), &flickbot_flickback);
+			ImGui::Checkbox(XorStr("AssistMe (LSHIFT)"), &AssistMe);
+			ImGui::SliderFloat(XorStr("Assist FOV"), &AssistMe_fov, 1.0f, 1000.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("Assist Max Distance"), &AssistMe_max_dist, 10.0f * 40, 500.0f * 40, "%.2f");
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
@@ -352,7 +345,7 @@ void Overlay::RenderMenu()
 				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 1000.0f, "%.2f");
 			}
 
-			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
+			ImGui::Checkbox(XorStr("AssistMe Circle fov"), &v.AssistMe_fov_circle);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
 			//test glow
@@ -594,11 +587,11 @@ DWORD Overlay::CreateOverlay()
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), cfsize, IM_COL32(255, 0, 0, 255), 100, 1.0f);
 			ImGui::End();
 		}
-		if (v.flickbot_fov_circle)
+		if (v.AssistMe_fov_circle)
 		{
-			ImGui::Begin("##flickcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			ImGui::Begin("##assistcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
-			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), flickbot_fov, IM_COL32(0, 0, 255, 255), 100, 1.0f);
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), AssistMe_fov, IM_COL32(0, 0, 255, 255), 100, 1.0f);
 			ImGui::End();
 		}
 		if (v.triggerbot_fov_circle)

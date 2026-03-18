@@ -516,7 +516,7 @@ bool    ImGui::BeginTableEx(const char* name, ImGuiID id, int columns_count, ImG
                 float width_auto = column->WidthAuto;
                 *column = ImGuiTableColumn();
                 column->WidthAuto = width_auto;
-                column->IsPreserveWidthAuto = true; // Preserve WidthAuto when reinitializing a live table: not technically necessary but remove a visible flicker
+                column->IsPreserveWidthAuto = true; // Preserve WidthAuto when reinitializing a live table: not technically necessary but remove a visible assister
                 column->IsEnabled = column->IsUserEnabled = column->IsUserEnabledNextFrame = true;
             }
             column->DisplayOrder = table->DisplayOrderToIndex[n] = (ImGuiTableColumnIdx)n;
@@ -859,7 +859,7 @@ void ImGui::TableUpdateLayout(ImGuiTable* table)
             // large height (= first frame scrollbar display very off + clipper would skip lots of items).
             // This is merely making the side-effect less extreme, but doesn't properly fixes it.
             // FIXME: Move this to ->WidthGiven to avoid temporary lossyless?
-            // FIXME: This break IsPreserveWidthAuto from not flickering if the stored WidthAuto was smaller.
+            // FIXME: This break IsPreserveWidthAuto from not assistering if the stored WidthAuto was smaller.
             if (column->AutoFitQueue > 0x01 && table->IsInitializing && !column->IsPreserveWidthAuto)
                 column->WidthRequest = ImMax(column->WidthRequest, table->MinColumnWidth * 4.0f); // FIXME-TABLE: Another constant/scale?
             sum_width_requests += column->WidthRequest;

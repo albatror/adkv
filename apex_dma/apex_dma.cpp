@@ -67,16 +67,11 @@ int grappleAttached;
 //Firing Range 1v1 toggle
 bool onevone = false;
 
-bool flickbot = false;
-int flickbot_key = 0xA0; // VK_LSHIFT
-bool flickbot_aiming = false;
-float flickbot_fov = 10.0f;
-float flickbot_max_dist = 50.0f * 40.0f;
-bool flickbot_auto_shoot = false;
-int flickbot_auto_shoot_delay = 0;
-bool flickbot_flickback = false;
-int flickbot_flickback_delay = 0;
-int flickbot_delay = 0;
+bool AssistMe = false;
+int AssistMe_key = 0xA0; // VK_LSHIFT
+bool AssistMe_aiming = false;
+float AssistMe_fov = 10.0f;
+float AssistMe_max_dist = 50.0f * 40.0f;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
@@ -283,6 +278,17 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
+	}
+	else if (AssistMe)
+	{
+		if (visible && fov <= AssistMe_fov && dist <= AssistMe_max_dist)
+		{
+			if (fov < max)
+			{
+				max = fov;
+				tmp_aimentity = target.ptr;
+			}
+		}
 	}
 	else if (aim == 2)
 	{
@@ -1283,15 +1289,15 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_ad
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_addr = 0;
-printf("Reading flickbot address: %lx\n", add_addr + sizeof(uint64_t) * 34);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, flickbot_addr)) {
+uint64_t AssistMe_addr = 0;
+printf("Reading AssistMe address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, AssistMe_addr)) {
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_aiming_addr = 0;
-printf("Reading flickbot_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 36);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, flickbot_aiming_addr)) {
+uint64_t AssistMe_aiming_addr = 0;
+printf("Reading AssistMe_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 36);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, AssistMe_aiming_addr)) {
   printf("Read failed!\n");
 }
 
@@ -1331,15 +1337,15 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr)) 
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_fov_addr = 0;
-printf("Reading flickbot_fov address: %lx\n", add_addr + sizeof(uint64_t) * 44);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, flickbot_fov_addr)) {
+uint64_t AssistMe_fov_addr = 0;
+printf("Reading AssistMe_fov address: %lx\n", add_addr + sizeof(uint64_t) * 44);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, AssistMe_fov_addr)) {
   printf("Read failed!\n");
 }
 
-        uint64_t flickbot_max_dist_addr = 0;
-        printf("Reading flickbot_max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 45);
-        if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, flickbot_max_dist_addr)) {
+        uint64_t AssistMe_max_dist_addr = 0;
+        printf("Reading AssistMe_max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 45);
+        if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, AssistMe_max_dist_addr)) {
   printf("Read failed!\n");
 }
 
@@ -1373,35 +1379,6 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_auto_shoot_addr = 0;
-printf("Reading flickbot_auto_shoot address: %lx\n", add_addr + sizeof(uint64_t) * 52);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, flickbot_auto_shoot_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_auto_shoot_delay_addr = 0;
-printf("Reading flickbot_auto_shoot_delay address: %lx\n", add_addr + sizeof(uint64_t) * 53);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, flickbot_auto_shoot_delay_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_flickback_addr = 0;
-printf("Reading flickbot_flickback address: %lx\n", add_addr + sizeof(uint64_t) * 54);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, flickbot_flickback_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_flickback_delay_addr = 0;
-printf("Reading flickbot_flickback_delay address: %lx\n", add_addr + sizeof(uint64_t) * 55);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, flickbot_flickback_delay_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_delay_addr = 0;
-printf("Reading flickbot_delay address: %lx\n", add_addr + sizeof(uint64_t) * 57);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_addr)) {
-  printf("Read failed!\n");
-}
 
 ////////
 
@@ -1534,9 +1511,9 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
-        if (flickbot_addr) client_mem.Read<bool>(flickbot_addr, flickbot);
+        if (AssistMe_addr) client_mem.Read<bool>(AssistMe_addr, AssistMe);
 
-        if (flickbot_aiming_addr) client_mem.Read<bool>(flickbot_aiming_addr, flickbot_aiming);
+        if (AssistMe_aiming_addr) client_mem.Read<bool>(AssistMe_aiming_addr, AssistMe_aiming);
 
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
 
@@ -1552,9 +1529,9 @@ while (vars_t)
 
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
 
-        if (flickbot_fov_addr) client_mem.Read<float>(flickbot_fov_addr, flickbot_fov);
+        if (AssistMe_fov_addr) client_mem.Read<float>(AssistMe_fov_addr, AssistMe_fov);
 
-        if (flickbot_max_dist_addr) client_mem.Read<float>(flickbot_max_dist_addr, flickbot_max_dist);
+        if (AssistMe_max_dist_addr) client_mem.Read<float>(AssistMe_max_dist_addr, AssistMe_max_dist);
 
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
@@ -1564,15 +1541,6 @@ while (vars_t)
 
         if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
 
-        if (flickbot_auto_shoot_addr) client_mem.Read<bool>(flickbot_auto_shoot_addr, flickbot_auto_shoot);
-
-        if (flickbot_auto_shoot_delay_addr) client_mem.Read<int>(flickbot_auto_shoot_delay_addr, flickbot_auto_shoot_delay);
-
-        if (flickbot_flickback_addr) client_mem.Read<bool>(flickbot_flickback_addr, flickbot_flickback);
-
-        if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
-
-        if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
 
         uint64_t item_esp_enable_addr = 0;
         client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, item_esp_enable_addr);

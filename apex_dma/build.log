@@ -1,0 +1,69 @@
+g++ -c -o ./build/obj/apex_dma.o apex_dma.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+In file included from memory.h:2,
+                 from Game.h:4,
+                 from apex_dma.cpp:10:
+./memflow_lib/memflow-ffi/memflow.hpp:604:27: warning: ‘template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator’ is deprecated [-Wdeprecated-declarations]
+  604 |     class iterator : std::iterator<std::input_iterator_tag, T> {
+      |                           ^~~~~~~~
+In file included from /usr/include/c++/13/bits/stl_algobase.h:65,
+                 from /usr/include/c++/13/bits/specfun.h:43,
+                 from /usr/include/c++/13/cmath:3699,
+                 from /usr/include/c++/13/random:40,
+                 from apex_dma.cpp:5:
+/usr/include/c++/13/bits/stl_iterator_base_types.h:127:34: note: declared here
+  127 |     struct _GLIBCXX17_DEPRECATED iterator
+      |                                  ^~~~~~~~
+g++ -c -o ./build/obj/Game.o Game.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+In file included from memory.h:2,
+                 from Game.h:4,
+                 from prediction.h:3,
+                 from Game.cpp:2:
+./memflow_lib/memflow-ffi/memflow.hpp:604:27: warning: ‘template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator’ is deprecated [-Wdeprecated-declarations]
+  604 |     class iterator : std::iterator<std::input_iterator_tag, T> {
+      |                           ^~~~~~~~
+In file included from /usr/include/c++/13/bits/stl_algobase.h:65,
+                 from /usr/include/c++/13/array:43,
+                 from Game.cpp:1:
+/usr/include/c++/13/bits/stl_iterator_base_types.h:127:34: note: declared here
+  127 |     struct _GLIBCXX17_DEPRECATED iterator
+      |                                  ^~~~~~~~
+g++ -c -o ./build/obj/Math.o Math.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+g++ -c -o ./build/obj/memory.o memory.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+In file included from memory.h:2,
+                 from memory.cpp:1:
+./memflow_lib/memflow-ffi/memflow.hpp:604:27: warning: ‘template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator’ is deprecated [-Wdeprecated-declarations]
+  604 |     class iterator : std::iterator<std::input_iterator_tag, T> {
+      |                           ^~~~~~~~
+In file included from /usr/include/c++/13/bits/stl_iterator_base_funcs.h:66,
+                 from /usr/include/c++/13/string:47,
+                 from /usr/include/c++/13/bits/locale_classes.h:40,
+                 from /usr/include/c++/13/bits/ios_base.h:41,
+                 from /usr/include/c++/13/ios:44,
+                 from /usr/include/c++/13/ostream:40,
+                 from ./memflow_lib/memflow-ffi/memflow.hpp:8:
+/usr/include/c++/13/bits/stl_iterator_base_types.h:127:34: note: declared here
+  127 |     struct _GLIBCXX17_DEPRECATED iterator
+      |                                  ^~~~~~~~
+g++ -c -o ./build/obj/offsets_dynamic.o offsets_dynamic.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+g++ -c -o ./build/obj/StuffBot.o StuffBot.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+In file included from memory.h:2,
+                 from Game.h:4,
+                 from StuffBot.h:3,
+                 from StuffBot.cpp:1:
+./memflow_lib/memflow-ffi/memflow.hpp:604:27: warning: ‘template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator’ is deprecated [-Wdeprecated-declarations]
+  604 |     class iterator : std::iterator<std::input_iterator_tag, T> {
+      |                           ^~~~~~~~
+In file included from /usr/include/c++/13/bits/stl_algobase.h:65,
+                 from /usr/include/c++/13/bits/specfun.h:43,
+                 from /usr/include/c++/13/cmath:3699,
+                 from /usr/include/c++/13/math.h:36,
+                 from Math.h:2,
+                 from Game.h:2:
+/usr/include/c++/13/bits/stl_iterator_base_types.h:127:34: note: declared here
+  127 |     struct _GLIBCXX17_DEPRECATED iterator
+      |                                  ^~~~~~~~
+g++ -c -o ./build/obj/ItemManager.o ItemManager.cpp -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
+g++ -o ./build/apex_dma ./build/obj/apex_dma.o ./build/obj/Game.o ./build/obj/Math.o ./build/obj/memory.o ./build/obj/offsets_dynamic.o ./build/obj/StuffBot.o ./build/obj/ItemManager.o -I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar -lm -ldl -lpthread -l:libmemflow_ffi.a
+/usr/bin/ld: cannot find -l:libmemflow_ffi.a: No such file or directory
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:14: apex_dma] Error 1
