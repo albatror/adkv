@@ -106,7 +106,7 @@ void StuffBotLoop()
         }
 
         // Flickbot logic
-        static auto lastFlickTime = std::chrono::steady_clock::now();
+        static auto lastFlickTime = std::chrono::steady_clock::now() - std::chrono::seconds(10);
         static QAngle manual_angles = { 0, 0, 0 };
         static bool is_flicking = false;
 
@@ -154,21 +154,30 @@ void StuffBotLoop()
                             is_flicking = true;
                         }
 
-                        // Continuous tracking
+                        // 1. Read current angle (already done in manual_angles capture or in LPlayer.GetViewAngles())
+                        // 2. Calculate target angle
+                        // 3. delta = difference
+                        // 4. Calculate FOV (already done above)
+                        // 5. If FOV OK:
                         QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
                         if (aim_angles.x != 0 || aim_angles.y != 0)
                         {
+                            // -> apply flick (smooth)
                             LPlayer.SetViewAngles(aim_angles);
 
                             auto now = std::chrono::steady_clock::now();
-                            if (flickbot_auto_shoot &&
-                                std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
+                            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
                             {
-                                std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
-                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                                // -> optionally shoot if autoshoot is selected by the user
+                                if (flickbot_auto_shoot)
+                                {
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
+                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                                }
 
+                                // -> Optional: return to the initial angle if flickback is selected by the user
                                 if (flickbot_flickback)
                                 {
                                     std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));

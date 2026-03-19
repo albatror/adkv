@@ -506,8 +506,8 @@ float CalculateFov(Entity& from, Entity& target)
 {
 	QAngle ViewAngles = from.GetViewAngles();
 	Vector LocalCamera = from.GetCamPos();
-	Vector EntityPosition = target.getPosition();
-	QAngle Angle = Math::CalcAngle(LocalCamera, EntityPosition);
+	Vector HeadPos = target.getBonePositionByHitbox(0);
+	QAngle Angle = Math::CalcAngle(LocalCamera, HeadPos);
 	return Math::GetFov(ViewAngles, Angle);
 }
 
