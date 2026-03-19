@@ -43,6 +43,17 @@ uint32_t check = 0xABCD;
 int aim_key = VK_LBUTTON;
 int aim_key2 = VK_RBUTTON;
 
+bool flickbot = false;
+int flickbot_key = VK_LSHIFT;
+bool flickbot_aiming = false;
+float flickbot_fov = 10.0f;
+float flickbot_max_dist = 50.0f * 40.0f;
+bool flickbot_auto_shoot = false;
+int flickbot_auto_shoot_delay = 50;
+bool flickbot_flickback = false;
+int flickbot_flickback_delay = 10;
+int flickbot_delay = 500;
+
 bool triggerbot = false;
 int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
@@ -487,9 +498,9 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
-	add[34] = 0;
-	add[35] = 0;
-	add[36] = 0;
+	add[34] = (uintptr_t)&flickbot;
+	add[35] = (uintptr_t)&flickbot_key;
+	add[36] = (uintptr_t)&flickbot_aiming;
 	add[37] = (uintptr_t)&triggerbot;
 	add[38] = (uintptr_t)&triggerbot_key;
 	add[39] = (uintptr_t)&triggerbot_aiming;
@@ -497,19 +508,19 @@ int main(int argc, char** argv)
 	add[41] = (uintptr_t)&bhop;
 	add[42] = (uintptr_t)&walljump;
 	add[43] = (uintptr_t)&SuperKey;
-	add[44] = 0;
-	add[45] = 0;
+	add[44] = (uintptr_t)&flickbot_fov;
+	add[45] = (uintptr_t)&flickbot_max_dist;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&player_glow;
 	add[49] = (uintptr_t)&aim_dist;
 	add[50] = (uintptr_t)&insidevalue;
 	add[51] = (uintptr_t)&outlinesize;
-	add[52] = 0;
-	add[53] = 0;
-	add[54] = 0;
-	add[55] = 0;
-	add[57] = 0;
+	add[52] = (uintptr_t)&flickbot_auto_shoot;
+	add[53] = (uintptr_t)&flickbot_auto_shoot_delay;
+	add[54] = (uintptr_t)&flickbot_flickback;
+	add[55] = (uintptr_t)&flickbot_flickback_delay;
+	add[57] = (uintptr_t)&flickbot_delay;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -687,6 +698,14 @@ int main(int argc, char** argv)
 			aiming = false;
 		}
 
+		if (flickbot && IsKeyDown(flickbot_key))
+		{
+			flickbot_aiming = true;
+		}
+		else
+		{
+			flickbot_aiming = false;
+		}
 
 		if (triggerbot && IsKeyDown(VK_LSHIFT))
 		{
