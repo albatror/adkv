@@ -71,6 +71,10 @@ int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool aim_assist = false;
+float aim_assist_dist = 120.0f * 40.0f;
+bool aim_assist_active = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -239,7 +243,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
 
-	if (dist > max_dist)
+	float current_max_dist = max_dist;
+	if (aim_assist_active) current_max_dist = aim_assist_dist;
+
+	if (dist > current_max_dist)
 		return;
 
 	if(!firing_range && !onevone)
@@ -261,9 +268,12 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || aim_assist_active)
 	{
-		if (visible && fov <= max_fov && dist <= aim_dist)
+		float current_aim_dist = aim_dist;
+		if (aim_assist_active) current_aim_dist = aim_assist_dist;
+
+		if (visible && fov <= max_fov && dist <= current_aim_dist)
 		{
 			if (fov < max)
 			{
@@ -281,7 +291,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= max_fov && dist <= aim_dist)
+		float current_aim_dist = aim_dist;
+		if (aim_assist_active) current_aim_dist = aim_assist_dist;
+
+		if (fov <= max_fov && dist <= current_aim_dist)
 		{
 			if (fov < max)
 			{
@@ -990,7 +1003,7 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || aim_assist)
 			{
 				if (aimentity == 0 || !aiming)
 				{
@@ -1041,7 +1054,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				if (aim == 2 && !is_aimentity_visible)
+				if ((aim == 2 || aim_assist_active) && !is_aimentity_visible)
 				{
 					continue;
 				}
@@ -1296,6 +1309,24 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr)) 
   printf("Read failed!\n");
 }
 
+uint64_t aim_assist_addr = 0;
+printf("Reading aim_assist address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, aim_assist_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t aim_assist_dist_addr = 0;
+printf("Reading aim_assist_dist address: %lx\n", add_addr + sizeof(uint64_t) * 35);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, aim_assist_dist_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t aim_assist_active_addr = 0;
+printf("Reading aim_assist_active address: %lx\n", add_addr + sizeof(uint64_t) * 36);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, aim_assist_active_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t triggerbot_fov_addr = 0;
 printf("Reading triggerbot_fov address: %lx\n", add_addr + sizeof(uint64_t) * 46);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr)) {
@@ -1472,6 +1503,10 @@ while (vars_t)
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
 
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        if (aim_assist_addr) client_mem.Read<bool>(aim_assist_addr, aim_assist);
+        if (aim_assist_dist_addr) client_mem.Read<float>(aim_assist_dist_addr, aim_assist_dist);
+        if (aim_assist_active_addr) client_mem.Read<bool>(aim_assist_active_addr, aim_assist_active);
 
         if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
 

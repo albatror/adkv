@@ -48,6 +48,10 @@ int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool aim_assist = false;
+float aim_assist_dist = 120.0f * 40.0f;
+bool aim_assist_active = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -487,9 +491,9 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
-	add[34] = 0;
-	add[35] = 0;
-	add[36] = 0;
+	add[34] = (uintptr_t)&aim_assist;
+	add[35] = (uintptr_t)&aim_assist_dist;
+	add[36] = (uintptr_t)&aim_assist_active;
 	add[37] = (uintptr_t)&triggerbot;
 	add[38] = (uintptr_t)&triggerbot_key;
 	add[39] = (uintptr_t)&triggerbot_aiming;
@@ -676,8 +680,17 @@ int main(int argc, char** argv)
 			SuperKey = false;
 		}
 
+		if (aim_assist && IsKeyDown(VK_LSHIFT))
+		{
+			aim_assist_active = true;
+		}
+		else
+		{
+			aim_assist_active = false;
+		}
+
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)))
+		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)) || aim_assist_active)
 		{
 			aiming = true;
 			//randomBone();//RANDOMIZE BONE WHEN SHOOT

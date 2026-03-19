@@ -31,6 +31,9 @@ extern bool firing_range;
 extern bool triggerbot;
 extern float triggerbot_fov;
 
+extern bool aim_assist;
+extern float aim_assist_dist;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -197,6 +200,12 @@ void Overlay::RenderMenu()
 
 			ImGui::Checkbox(XorStr("Glow items"), &item_glow);
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("Aim-Assist (LSHIFT)"), &aim_assist);
+			ImGui::SliderFloat(XorStr("Aim-Assist Distance"), &aim_assist_dist, 10.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(aim_assist_dist / 40));
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
