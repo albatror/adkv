@@ -50,6 +50,7 @@ float triggerbot_fov = 10.0f;
 
 bool aim_assist = false;
 float aim_assist_dist = 120.0f * 40.0f;
+float aim_assist_fov = 10.0f;
 bool aim_assist_active = false;
 
 bool superglide = false;
@@ -501,7 +502,7 @@ int main(int argc, char** argv)
 	add[41] = (uintptr_t)&bhop;
 	add[42] = (uintptr_t)&walljump;
 	add[43] = (uintptr_t)&SuperKey;
-	add[44] = 0;
+	add[44] = (uintptr_t)&aim_assist_fov;
 	add[45] = 0;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;

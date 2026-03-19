@@ -73,6 +73,7 @@ float triggerbot_fov = 10.0f;
 
 bool aim_assist = false;
 float aim_assist_dist = 120.0f * 40.0f;
+float aim_assist_fov = 10.0f;
 bool aim_assist_active = false;
 
 bool superglide = false;
@@ -271,9 +272,13 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	else if (aim == 2 || aim_assist_active)
 	{
 		float current_aim_dist = aim_dist;
-		if (aim_assist_active) current_aim_dist = aim_assist_dist;
+		float current_max_fov = max_fov;
+		if (aim_assist_active) {
+			current_aim_dist = aim_assist_dist;
+			current_max_fov = aim_assist_fov;
+		}
 
-		if (visible && fov <= max_fov && dist <= current_aim_dist)
+		if (visible && fov <= current_max_fov && dist <= current_aim_dist)
 		{
 			if (fov < max)
 			{
@@ -292,9 +297,13 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	else
 	{
 		float current_aim_dist = aim_dist;
-		if (aim_assist_active) current_aim_dist = aim_assist_dist;
+		float current_max_fov = max_fov;
+		if (aim_assist_active) {
+			current_aim_dist = aim_assist_dist;
+			current_max_fov = aim_assist_fov;
+		}
 
-		if (fov <= max_fov && dist <= current_aim_dist)
+		if (fov <= current_max_fov && dist <= current_aim_dist)
 		{
 			if (fov < max)
 			{
@@ -1043,7 +1052,10 @@ static void AimbotLoop()
 
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				float current_max_fov = max_fov;
+				if (aim_assist_active) current_max_fov = aim_assist_fov;
+
+				if (fov > current_max_fov)
 				{
 					if (!shooting) {
 						lock = false;
@@ -1059,7 +1071,10 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				float aim_fov = max_fov;
+				if (aim_assist_active) aim_fov = aim_assist_fov;
+
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, aim_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
@@ -1327,6 +1342,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, aim_assist_activ
   printf("Read failed!\n");
 }
 
+uint64_t aim_assist_fov_addr = 0;
+printf("Reading aim_assist_fov address: %lx\n", add_addr + sizeof(uint64_t) * 44);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, aim_assist_fov_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t triggerbot_fov_addr = 0;
 printf("Reading triggerbot_fov address: %lx\n", add_addr + sizeof(uint64_t) * 46);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr)) {
@@ -1506,6 +1527,7 @@ while (vars_t)
 
         if (aim_assist_addr) client_mem.Read<bool>(aim_assist_addr, aim_assist);
         if (aim_assist_dist_addr) client_mem.Read<float>(aim_assist_dist_addr, aim_assist_dist);
+        if (aim_assist_fov_addr) client_mem.Read<float>(aim_assist_fov_addr, aim_assist_fov);
         if (aim_assist_active_addr) client_mem.Read<bool>(aim_assist_active_addr, aim_assist_active);
 
         if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
