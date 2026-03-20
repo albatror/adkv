@@ -41,24 +41,36 @@ void AssistMeLoop()
                 float fov = CalculateFov(LPlayer, Target);
                 if (fov <= assist_aim_fov)
                 {
-                    float auto_smooth = 100.0f;
+                    float auto_smooth = 12.0f; // Lower base smooth for more responsiveness
 
-                    // Increase smooth (slower) for further targets
-                    auto_smooth += (distance / 40.0f) * 0.5f;
+                    // Adaptive scaling
+                    if (distance < 100.0f * 40.0f) {
+                        auto_smooth += (distance / 40.0f) * 0.1f;
+                    } else {
+                        auto_smooth += (distance / 40.0f) * 0.5f;
+                    }
 
-                    // Increase smooth for larger FOV diff
-                    auto_smooth += fov * 5.0f;
+                    auto_smooth += fov * 2.0f;
 
-                    QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, assist_aim_fov, auto_smooth);
+                    QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, assist_aim_fov, 1.0f); // Use smooth 1.0 here to get the raw target angle
                     if (aim_angles.x != 0 || aim_angles.y != 0)
                     {
                         static auto last_log_time = std::chrono::steady_clock::now();
                         auto now = std::chrono::steady_clock::now();
                         if (std::chrono::duration_cast<std::chrono::seconds>(now - last_log_time).count() >= 5) {
-                            printf("[ASSIST_AIM] Tracking target %lx, fov: %.2f, dist: %.2f, smooth: %.2f\n", aimentity, fov, distance/40.0f, auto_smooth);
+                            printf("[ASSIST_AIM] Tracking target %lx, fov: %.2f, dist: %.2f, smooth: %.2f, angles: %.2f %.2f\n", aimentity, fov, distance/40.0f, auto_smooth, aim_angles.x, aim_angles.y);
                             last_log_time = now;
                         }
-                        LPlayer.SetViewAngles(aim_angles);
+
+                        QAngle current_angles = LPlayer.GetViewAngles();
+                        QAngle delta = aim_angles - current_angles;
+                        Math::NormalizeAngles(delta);
+
+                        QAngle smoothed = current_angles + delta / auto_smooth;
+                        Math::NormalizeAngles(smoothed);
+
+                        // Use direct write to ensure it hits the local entity properly
+                        apex_mem.Write<SVector>(LPlayer.ptr + OFFSET_VIEWANGLES, SVector(smoothed));
                     }
                 }
             }
