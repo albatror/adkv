@@ -22,6 +22,7 @@
 #define BLUE ImColor(0, 0, 255)
 #define ORANGE ImColor(255, 165, 0)
 #define WHITE ImColor(255, 255, 255)
+#define YELLOW ImColor(255, 255, 0)
 
 typedef struct visuals
 {
@@ -40,6 +41,7 @@ typedef struct visuals
 	float target_indicator_fov = 10.0f;
 	bool flickbot_fov_circle = false;
 	bool triggerbot_fov_circle = false;
+	bool assist_aim_fov_circle = false;
 }visuals;
 
 struct GColor {

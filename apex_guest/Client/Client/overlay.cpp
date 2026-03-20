@@ -336,6 +336,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Flickbot Circle fov"), &v.flickbot_fov_circle);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Assist Circle fov"), &v.assist_aim_fov_circle);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -585,6 +587,13 @@ DWORD Overlay::CreateOverlay()
 			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (v.assist_aim_fov_circle)
+		{
+			ImGui::Begin("##assistcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), assist_aim_fov, IM_COL32(255, 255, 0, 255), 100, 1.0f);
 			ImGui::End();
 		}
 		RenderEsp();

@@ -140,6 +140,7 @@ void SaveConfig(const std::string& filename) {
     file << "assist_aim_dist " << assist_aim_dist << "\n";
     file << "flickbot_fov_circle " << std::boolalpha << v.flickbot_fov_circle << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
+    file << "assist_aim_fov_circle " << std::boolalpha << v.assist_aim_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
 
@@ -218,6 +219,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "assist_aim_dist") ss >> assist_aim_dist;
         else if (key == "flickbot_fov_circle") ss >> std::boolalpha >> v.flickbot_fov_circle;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
+        else if (key == "assist_aim_fov_circle") ss >> std::boolalpha >> v.assist_aim_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
     }
