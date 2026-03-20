@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "AssistMe.h"
 #include "ItemManager.h"
 #include <thread>
 #include <array>
@@ -85,6 +86,11 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+
+bool assist_aim = false;
+bool assist_aim_active = false;
+float assist_aim_fov = 10.0f;
+float assist_aim_dist = 50.0f * 40.0f;
 
 ///////////
 //bool medbackpack = true;
@@ -277,6 +283,11 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	if (flickbot) {
 		if (flickbot_fov > active_fov) active_fov = flickbot_fov;
 		if (flickbot_max_dist > active_dist) active_dist = flickbot_max_dist;
+	}
+
+	if (assist_aim) {
+		if (assist_aim_fov > active_fov) active_fov = assist_aim_fov;
+		if (assist_aim_dist > active_dist) active_dist = assist_aim_dist;
 	}
 
 	if (aimentity != 0 && lock)
@@ -1012,7 +1023,7 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 && !assist_aim_active)
 			{
 				if (aimentity == 0 || !aiming)
 				{
@@ -1402,6 +1413,30 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t assist_aim_addr = 0;
+printf("Reading assist_aim address: %lx\n", add_addr + sizeof(uint64_t) * 58);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, assist_aim_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t assist_aim_fov_addr = 0;
+printf("Reading assist_aim_fov address: %lx\n", add_addr + sizeof(uint64_t) * 59);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, assist_aim_fov_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t assist_aim_dist_addr = 0;
+printf("Reading assist_aim_dist address: %lx\n", add_addr + sizeof(uint64_t) * 60);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, assist_aim_dist_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t assist_aim_active_addr = 0;
+printf("Reading assist_aim_active address: %lx\n", add_addr + sizeof(uint64_t) * 61);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, assist_aim_active_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1573,6 +1608,11 @@ while (vars_t)
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
 
+        if (assist_aim_addr) client_mem.Read<bool>(assist_aim_addr, assist_aim);
+        if (assist_aim_fov_addr) client_mem.Read<float>(assist_aim_fov_addr, assist_aim_fov);
+        if (assist_aim_dist_addr) client_mem.Read<float>(assist_aim_dist_addr, assist_aim_dist);
+        if (assist_aim_active_addr) client_mem.Read<bool>(assist_aim_active_addr, assist_aim_active);
+
         if (esp && next)
         {
             if (valid)
@@ -1725,6 +1765,7 @@ int main(int argc, char *argv[])
 	std::thread actions_thr;
 	std::thread itemglow_thr;
 	std::thread stuffbot_thr;
+	std::thread assistme_thr;
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
@@ -1740,6 +1781,8 @@ int main(int argc, char *argv[])
 				item_t = false;
 				extern bool stuff_t;
 				stuff_t = false;
+				extern bool assist_t;
+				assist_t = false;
 				g_Base = 0;
 
 				aimbot_thr.~thread();
@@ -1747,6 +1790,7 @@ int main(int argc, char *argv[])
 				actions_thr.~thread();
 				itemglow_thr.~thread();
 				stuffbot_thr.~thread();
+				assistme_thr.~thread();
 
 			}
 
@@ -1775,11 +1819,13 @@ int main(int argc, char *argv[])
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
 				itemglow_thr = std::thread(item_glow_t);
+				assistme_thr = std::thread(AssistMeLoop);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
+				assistme_thr.detach();
 			}
 		}
 		else

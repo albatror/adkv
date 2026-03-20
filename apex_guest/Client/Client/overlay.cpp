@@ -40,6 +40,10 @@ extern int flickbot_delay;
 extern bool triggerbot;
 extern float triggerbot_fov;
 
+extern bool assist_aim;
+extern float assist_aim_fov;
+extern float assist_aim_dist;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -217,6 +221,11 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("AssistAim (LSHIFT)"), &assist_aim);
+			ImGui::SliderFloat(XorStr("Assist FOV"), &assist_aim_fov, 1.0f, 1000.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("Assist Max Distance"), &assist_aim_dist, 10.0f * 40, 500.0f * 40, "%.2f");
 
 			ImGui::EndTabItem();
 		}

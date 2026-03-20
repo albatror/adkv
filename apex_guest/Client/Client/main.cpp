@@ -63,6 +63,11 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 
+bool assist_aim = false;
+bool assist_aim_active = false;
+float assist_aim_fov = 10.0f;
+float assist_aim_dist = 50.0f * 40.0f;
+
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
@@ -521,6 +526,10 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&assist_aim;
+	add[59] = (uintptr_t)&assist_aim_fov;
+	add[60] = (uintptr_t)&assist_aim_dist;
+	add[61] = (uintptr_t)&assist_aim_active;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -707,13 +716,15 @@ int main(int argc, char** argv)
 			flickbot_aiming = false;
 		}
 
-		if (triggerbot && IsKeyDown(VK_LSHIFT))
+		if ((triggerbot || assist_aim) && IsKeyDown(VK_LSHIFT))
 		{
-			triggerbot_aiming = true;
+			if (triggerbot) triggerbot_aiming = true;
+			if (assist_aim) assist_aim_active = true;
 		}
 		else
 		{
 			triggerbot_aiming = false;
+			assist_aim_active = false;
 		}
 
 		shooting = IsKeyDown(VK_LBUTTON);
