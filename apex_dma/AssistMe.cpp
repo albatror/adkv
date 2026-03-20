@@ -29,11 +29,11 @@ void AssistMeLoop()
             uint64_t LocalPlayerPtr = 0;
             apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayerPtr);
             if (LocalPlayerPtr == 0) continue;
-            Entity LPlayer = getEntity(LocalPlayerPtr);
 
             Entity Target = getEntity(aimentity);
             if (Target.isAlive() && is_aimentity_visible)
             {
+                Entity LPlayer = getEntity(LocalPlayerPtr);
                 float distance = LPlayer.getPosition().DistTo(Target.getPosition());
 
                 // Automatic smooth calculation
@@ -52,6 +52,12 @@ void AssistMeLoop()
                     QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, assist_aim_fov, auto_smooth);
                     if (aim_angles.x != 0 || aim_angles.y != 0)
                     {
+                        static auto last_log_time = std::chrono::steady_clock::now();
+                        auto now = std::chrono::steady_clock::now();
+                        if (std::chrono::duration_cast<std::chrono::seconds>(now - last_log_time).count() >= 5) {
+                            printf("[ASSIST_AIM] Tracking target %lx, fov: %.2f, dist: %.2f, smooth: %.2f\n", aimentity, fov, distance/40.0f, auto_smooth);
+                            last_log_time = now;
+                        }
                         LPlayer.SetViewAngles(aim_angles);
                     }
                 }

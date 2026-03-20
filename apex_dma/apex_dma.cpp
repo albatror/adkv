@@ -267,6 +267,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			return;
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	if (firing_range) visible = true; // Force visible in firing range
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -294,7 +295,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || assist_aim)
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
@@ -635,7 +636,7 @@ if (bhop && SuperKey) {
 			if (firing_range)
 			{
 				int c = 0;
-				for (int i = 0; i < 10000; i++)
+				for (int i = 0; i < 10000 && c < toRead; i++)
 				{
 					uint64_t centity = 0;
 					apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
@@ -762,7 +763,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 				if (firing_range)
 				{
 					int c = 0;
-					for (int i = 0; i < 10000; i++)
+					for (int i = 0; i < 10000 && c < toRead; i++)
 					{
 						uint64_t centity = 0;
 						apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
