@@ -85,6 +85,10 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool neostrafe = false;
+bool key_a = false;
+bool key_d = false;
+bool neostrafe_t = false;
 
 ///////////
 //bool medbackpack = true;
@@ -350,6 +354,35 @@ void updateInsideValue()
 	//bool autoWallJumpEnabled = true; // Initialize auto wall jump as enabled
 //walljump *//////////////////////////////////////
 
+void NeoStrafeLoop()
+{
+	neostrafe_t = true;
+	while (neostrafe_t)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		if (g_Base == 0) continue;
+
+		if (neostrafe && SuperKey)
+		{
+			// Jump
+			apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+
+			// Tap strafe — only A/D, don't touch W
+			if (key_a) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVELEFT + 0x8, 5);
+			if (key_d) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVERIGHT + 0x8, 5);
+
+			// Brief hold then release
+			std::this_thread::sleep_for(std::chrono::milliseconds(5)); // 5ms hold
+
+			apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+			if (key_a) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVELEFT + 0x8, 4);
+			if (key_d) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVERIGHT + 0x8, 4);
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+	}
+}
+
 void DoActions()
 {
 	actions_t = true;
@@ -598,6 +631,24 @@ if (bhop && SuperKey) {
     }
 }
 //bhop END/////////////////////////////
+
+//neostrafe
+if (neostrafe && SuperKey) {
+    // Jump
+    apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+
+    // Tap strafe — only A/D, don't touch W
+    if (key_a) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVELEFT + 0x8, 5);
+    if (key_d) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVERIGHT + 0x8, 5);
+
+    // Brief hold then release
+    std::this_thread::sleep_for(std::chrono::milliseconds(5)); // 5ms hold
+
+    apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+    if (key_a) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVELEFT + 0x8, 4);
+    if (key_d) apex_mem.Write<int>(g_Base + OFFSET_IN_MOVERIGHT + 0x8, 4);
+}
+//neostrafe END/////////////////////////////
 
 			uint64_t baseent = 0;
 			apex_mem.Read<uint64_t>(entitylist, baseent);
@@ -1402,6 +1453,24 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t neostrafe_addr = 0;
+printf("Reading neostrafe address: %lx\n", add_addr + sizeof(uint64_t) * 58);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, neostrafe_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t key_a_addr = 0;
+printf("Reading key_a address: %lx\n", add_addr + sizeof(uint64_t) * 59);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, key_a_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t key_d_addr = 0;
+printf("Reading key_d address: %lx\n", add_addr + sizeof(uint64_t) * 60);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, key_d_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1573,6 +1642,10 @@ while (vars_t)
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
 
+        if (neostrafe_addr) client_mem.Read<bool>(neostrafe_addr, neostrafe);
+        if (key_a_addr) client_mem.Read<bool>(key_a_addr, key_a);
+        if (key_d_addr) client_mem.Read<bool>(key_d_addr, key_d);
+
         if (esp && next)
         {
             if (valid)
@@ -1725,6 +1798,7 @@ int main(int argc, char *argv[])
 	std::thread actions_thr;
 	std::thread itemglow_thr;
 	std::thread stuffbot_thr;
+	std::thread neostrafe_thr;
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
@@ -1740,6 +1814,7 @@ int main(int argc, char *argv[])
 				item_t = false;
 				extern bool stuff_t;
 				stuff_t = false;
+				neostrafe_t = false;
 				g_Base = 0;
 
 				aimbot_thr.~thread();
@@ -1747,6 +1822,7 @@ int main(int argc, char *argv[])
 				actions_thr.~thread();
 				itemglow_thr.~thread();
 				stuffbot_thr.~thread();
+				neostrafe_thr.~thread();
 
 			}
 
@@ -1775,11 +1851,13 @@ int main(int argc, char *argv[])
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
 				itemglow_thr = std::thread(item_glow_t);
+				neostrafe_thr = std::thread(NeoStrafeLoop);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
+				neostrafe_thr.detach();
 			}
 		}
 		else

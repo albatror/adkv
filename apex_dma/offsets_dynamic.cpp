@@ -81,6 +81,8 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
     if (but_data.count("[Buttons]in_zoom")) offsets.InZoom = but_data["[Buttons]in_zoom"];
     if (but_data.count("[Buttons]in_forward")) offsets.InForward = but_data["[Buttons]in_forward"];
     if (but_data.count("[Buttons]in_backward")) offsets.InBackward = but_data["[Buttons]in_backward"];
+    if (but_data.count("[Buttons]in_moveleft")) offsets.InMoveLeft = but_data["[Buttons]in_moveleft"];
+    if (but_data.count("[Buttons]in_moveright")) offsets.InMoveRight = but_data["[Buttons]in_moveright"];
     if (but_data.count("[Buttons]in_use")) offsets.InUse = but_data["[Buttons]in_use"];
     if (but_data.count("[Buttons]in_toggle_duck")) offsets.InToggleDuck = but_data["[Buttons]in_toggle_duck"];
 

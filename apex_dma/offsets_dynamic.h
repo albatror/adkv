@@ -44,6 +44,8 @@ struct DynamicOffsets {
     uint64_t InZoom;
     uint64_t InForward;
     uint64_t InBackward;
+    uint64_t InMoveLeft;
+    uint64_t InMoveRight;
     uint64_t LifeState;
     uint64_t BleedOutState;
     uint64_t Origin;

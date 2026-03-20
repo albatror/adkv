@@ -49,6 +49,7 @@ extern bool triggerbot;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool neostrafe;
 extern float flickbot_fov;
 extern float flickbot_max_dist;
 extern bool flickbot_auto_shoot;
@@ -127,6 +128,7 @@ void SaveConfig(const std::string& filename) {
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
+    file << "neostrafe " << std::boolalpha << neostrafe << "\n";
     file << "flickbot_fov " << flickbot_fov << "\n";
     file << "flickbot_max_dist " << flickbot_max_dist << "\n";
     file << "flickbot_auto_shoot " << std::boolalpha << flickbot_auto_shoot << "\n";
@@ -202,6 +204,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;
+        else if (key == "neostrafe") ss >> std::boolalpha >> neostrafe;
         else if (key == "flickbot_fov") ss >> flickbot_fov;
         else if (key == "flickbot_max_dist") ss >> flickbot_max_dist;
         else if (key == "flickbot_auto_shoot") ss >> std::boolalpha >> flickbot_auto_shoot;

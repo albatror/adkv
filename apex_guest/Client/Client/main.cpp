@@ -62,6 +62,9 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool neostrafe = false;
+bool key_a = false;
+bool key_d = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -508,6 +511,9 @@ int main(int argc, char** argv)
 	add[41] = (uintptr_t)&bhop;
 	add[42] = (uintptr_t)&walljump;
 	add[43] = (uintptr_t)&SuperKey;
+	add[58] = (uintptr_t)&neostrafe;
+	add[59] = (uintptr_t)&key_a;
+	add[60] = (uintptr_t)&key_d;
 	add[44] = (uintptr_t)&flickbot_fov;
 	add[45] = (uintptr_t)&flickbot_max_dist;
 	add[46] = (uintptr_t)&triggerbot_fov;
@@ -685,6 +691,24 @@ int main(int argc, char** argv)
 		else
 		{
 			SuperKey = false;
+		}
+
+		if (IsKeyDown('A'))
+		{
+			key_a = true;
+		}
+		else
+		{
+			key_a = false;
+		}
+
+		if (IsKeyDown('D'))
+		{
+			key_d = true;
+		}
+		else
+		{
+			key_d = false;
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
