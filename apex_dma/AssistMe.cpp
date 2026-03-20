@@ -12,6 +12,7 @@ extern bool assist_aim_active;
 extern float assist_aim_fov;
 extern float assist_aim_dist;
 extern bool is_aimentity_visible;
+extern float smooth;
 
 bool assist_t = false;
 
@@ -30,48 +31,60 @@ void AssistMeLoop()
             apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayerPtr);
             if (LocalPlayerPtr == 0) continue;
 
-            Entity Target = getEntity(aimentity);
-            if (Target.isAlive() && is_aimentity_visible)
+            // Target existence and status check
+            int health = 0;
+            apex_mem.Read<int>(aimentity + OFFSET_HEALTH, health);
+            if (health <= 0) continue;
+
+            int lifeState = 0;
+            apex_mem.Read<int>(aimentity + OFFSET_LIFE_STATE, lifeState);
+            if (lifeState != 0) continue;
+
+            if (!is_aimentity_visible) continue;
+
+            // Retrieve only necessary data for LPlayer
+            Vector LocalCamera;
+            apex_mem.Read<Vector>(LocalPlayerPtr + OFFSET_CAMERAPOS, LocalCamera);
+
+            QAngle currentAngles;
+            apex_mem.Read<QAngle>(LocalPlayerPtr + OFFSET_VIEWANGLES, currentAngles);
+
+            // Calculate Target Position
+            Entity Target = getEntity(aimentity); // Still need bone logic, so using getEntity for now but may optimize later
+            Vector TargetPos = Target.getBonePositionByHitbox(2); // Mid-chest for stability
+
+            float distance = LocalCamera.DistTo(TargetPos);
+            QAngle targetAngles = Math::CalcAngle(LocalCamera, TargetPos);
+
+            // Recoil/Sway compensation
+            QAngle SwayAngles;
+            apex_mem.Read<QAngle>(LocalPlayerPtr + OFFSET_BREATH_ANGLES, SwayAngles);
+
+            targetAngles -= (SwayAngles - currentAngles);
+            Math::NormalizeAngles(targetAngles);
+
+            float fov = Math::GetFov(currentAngles, targetAngles);
+            if (fov <= assist_aim_fov)
             {
-                Entity LPlayer = getEntity(LocalPlayerPtr);
-                float distance = LPlayer.getPosition().DistTo(Target.getPosition());
+                float base_smooth = (smooth > 1.0f) ? smooth : 200.0f;
+                float auto_smooth = base_smooth * 0.5f; // Faster than normal aimbot
 
-                // Automatic smooth calculation
-                // Base smooth 100, increases with distance and FOV
-                float fov = CalculateFov(LPlayer, Target);
-                if (fov <= assist_aim_fov)
-                {
-                    float auto_smooth = 12.0f; // Lower base smooth for more responsiveness
+                auto_smooth += fov * 2.0f;
+                if (auto_smooth < 1.0f) auto_smooth = 1.0f;
 
-                    // Adaptive scaling
-                    if (distance < 100.0f * 40.0f) {
-                        auto_smooth += (distance / 40.0f) * 0.1f;
-                    } else {
-                        auto_smooth += (distance / 40.0f) * 0.5f;
-                    }
+                QAngle delta = targetAngles - currentAngles;
+                Math::NormalizeAngles(delta);
 
-                    auto_smooth += fov * 2.0f;
+                QAngle smoothed = currentAngles + delta / auto_smooth;
+                Math::NormalizeAngles(smoothed);
 
-                    QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, assist_aim_fov, 1.0f); // Use smooth 1.0 here to get the raw target angle
-                    if (aim_angles.x != 0 || aim_angles.y != 0)
-                    {
-                        static auto last_log_time = std::chrono::steady_clock::now();
-                        auto now = std::chrono::steady_clock::now();
-                        if (std::chrono::duration_cast<std::chrono::seconds>(now - last_log_time).count() >= 5) {
-                            printf("[ASSIST_AIM] Tracking target %lx, fov: %.2f, dist: %.2f, smooth: %.2f, angles: %.2f %.2f\n", aimentity, fov, distance/40.0f, auto_smooth, aim_angles.x, aim_angles.y);
-                            last_log_time = now;
-                        }
+                apex_mem.Write<SVector>(LocalPlayerPtr + OFFSET_VIEWANGLES, SVector(smoothed));
 
-                        QAngle current_angles = LPlayer.GetViewAngles();
-                        QAngle delta = aim_angles - current_angles;
-                        Math::NormalizeAngles(delta);
-
-                        QAngle smoothed = current_angles + delta / auto_smooth;
-                        Math::NormalizeAngles(smoothed);
-
-                        // Use direct write to ensure it hits the local entity properly
-                        apex_mem.Write<SVector>(LPlayer.ptr + OFFSET_VIEWANGLES, SVector(smoothed));
-                    }
+                static auto last_log_time = std::chrono::steady_clock::now();
+                auto now = std::chrono::steady_clock::now();
+                if (std::chrono::duration_cast<std::chrono::seconds>(now - last_log_time).count() >= 5) {
+                    printf("[ASSIST_AIM] Tracking %lx, fov: %.2f, dist: %.2f, smooth: %.2f\n", aimentity, fov, distance/40.0f, auto_smooth);
+                    last_log_time = now;
                 }
             }
         }

@@ -18,14 +18,13 @@ void Math::NormalizeAngles(QAngle& angle)
 QAngle Math::CalcAngle(const Vector& src, const Vector& dst)
 {
 	QAngle angle = QAngle();
-	SVector delta = SVector((src.x - dst.x), (src.y - dst.y), (src.z - dst.z));
+	Vector delta = src - dst;
 
-	double hyp = sqrt(delta.x*delta.x + delta.y * delta.y);
+	double hyp = delta.Length2D();
 
-	angle.x = atan(delta.z / hyp) * (180.0f / M_PI);
-	angle.y = atan(delta.y / delta.x) * (180.0f / M_PI);
+	angle.x = RAD2DEG(atan2(delta.z, hyp));
+	angle.y = RAD2DEG(atan2(-delta.y, -delta.x));
 	angle.z = 0;
-	if (delta.x >= 0.0) angle.y += 180.0f;
 
 	return angle;
 }

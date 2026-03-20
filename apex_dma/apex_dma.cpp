@@ -281,12 +281,12 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	float active_fov = max_fov;
 	float active_dist = aim_dist;
 
-	if (flickbot) {
+	if (flickbot && assist_aim_active) {
 		if (flickbot_fov > active_fov) active_fov = flickbot_fov;
 		if (flickbot_max_dist > active_dist) active_dist = flickbot_max_dist;
 	}
 
-	if (assist_aim) {
+	if (assist_aim && assist_aim_active) {
 		if (assist_aim_fov > active_fov) active_fov = assist_aim_fov;
 		if (assist_aim_dist > active_dist) active_dist = assist_aim_dist;
 	}
@@ -295,13 +295,16 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2 || assist_aim)
+	else if (aim == 2 || (assist_aim && assist_aim_active))
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			float score = fov;
+			if (target.ptr == aimentity) score *= 0.8f; // Hysteresis to stay on current target
+
+			if (score < max)
 			{
-				max = fov;
+				max = score;
 				tmp_aimentity = target.ptr;
 			}
 		}
