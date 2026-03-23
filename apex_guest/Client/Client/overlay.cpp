@@ -2,6 +2,7 @@
 #include "config.h"
 #include <fstream>
 #include <iomanip>
+#include "../../../apex_dma/Weapon.h"
 
 
 using namespace std;
@@ -36,9 +37,13 @@ extern int flickbot_auto_shoot_delay;
 extern bool flickbot_flickback;
 extern int flickbot_flickback_delay;
 extern int flickbot_delay;
+extern bool flickbot_use_list;
+extern uint64_t flickbot_weapons[4];
 
 extern bool triggerbot;
 extern float triggerbot_fov;
+extern bool triggerbot_use_list;
+extern uint64_t triggerbot_weapons[4];
 
 extern bool superglide;
 extern bool bhop;
@@ -217,6 +222,57 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Weapons")))
+		{
+			static const std::vector<int> preselectedWeapons = {
+				WeaponIDs::KRABER, WeaponIDs::WINGMAN, WeaponIDs::LONGBOW, WeaponIDs::SENTINEL,
+				WeaponIDs::G7_SCOUT, WeaponIDs::HEMLOCK, WeaponIDs::REPEATER_3030, WeaponIDs::TRIPLE_TAKE,
+				WeaponIDs::BOCEK, WeaponIDs::KNIFE, WeaponIDs::P2020, WeaponIDs::MOZAMBIQUE,
+				WeaponIDs::EVA8, WeaponIDs::PEACEKEEPER, WeaponIDs::MASTIFF, WeaponIDs::NEMESIS
+			};
+
+			auto setPreselected = [&](uint64_t* mask) {
+				mask[0] = mask[1] = mask[2] = mask[3] = 0;
+				for (int id : preselectedWeapons) {
+					if (id >= 0 && id < 256) mask[id / 64] |= (1ULL << (id % 64));
+				}
+			};
+
+			ImGui::Text(XorStr("Triggerbot Weapon List:"));
+			ImGui::Checkbox(XorStr("Use List for Triggerbot"), &triggerbot_use_list);
+			if (ImGui::Button(XorStr("Pre-selected (Triggerbot)"))) {
+				setPreselected(triggerbot_weapons);
+			}
+
+			ImGui::Text(XorStr("Flickbot Weapon List:"));
+			ImGui::Checkbox(XorStr("Use List for Flickbot"), &flickbot_use_list);
+			if (ImGui::Button(XorStr("Pre-selected (Flickbot)"))) {
+				setPreselected(flickbot_weapons);
+			}
+
+			ImGui::Separator();
+			if (ImGui::BeginChild(XorStr("WeaponCheckboxes"), ImVec2(0, 0), true)) {
+				for (int i = 0; i < 256; i++) {
+					std::string name = get_weapon_name(i);
+					if (name != "Unknown") {
+						bool t_enabled = (triggerbot_weapons[i / 64] & (1ULL << (i % 64))) != 0;
+						if (ImGui::Checkbox((name + XorStr(" (T)##") + std::to_string(i)).c_str(), &t_enabled)) {
+							if (t_enabled) triggerbot_weapons[i / 64] |= (1ULL << (i % 64));
+							else triggerbot_weapons[i / 64] &= ~(1ULL << (i % 64));
+						}
+						ImGui::SameLine(200);
+						bool f_enabled = (flickbot_weapons[i / 64] & (1ULL << (i % 64))) != 0;
+						if (ImGui::Checkbox((name + XorStr(" (F)##") + std::to_string(i)).c_str(), &f_enabled)) {
+							if (f_enabled) flickbot_weapons[i / 64] |= (1ULL << (i % 64));
+							else flickbot_weapons[i / 64] &= ~(1ULL << (i % 64));
+						}
+					}
+				}
+				ImGui::EndChild();
+			}
 
 			ImGui::EndTabItem();
 		}

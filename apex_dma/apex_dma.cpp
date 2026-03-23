@@ -76,11 +76,15 @@ int flickbot_auto_shoot_delay = 0;
 bool flickbot_flickback = false;
 int flickbot_flickback_delay = 0;
 int flickbot_delay = 0;
+bool flickbot_use_list = false;
+uint64_t flickbot_weapons[4] = { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF };
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+bool triggerbot_use_list = false;
+uint64_t triggerbot_weapons[4] = { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF };
 
 bool superglide = false;
 bool bhop = false;
@@ -1402,6 +1406,30 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t triggerbot_use_list_addr = 0;
+printf("Reading triggerbot_use_list address: %lx\n", add_addr + sizeof(uint64_t) * 58);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, triggerbot_use_list_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t triggerbot_weapons_addr = 0;
+printf("Reading triggerbot_weapons address: %lx\n", add_addr + sizeof(uint64_t) * 59);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, triggerbot_weapons_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t flickbot_use_list_addr = 0;
+printf("Reading flickbot_use_list address: %lx\n", add_addr + sizeof(uint64_t) * 60);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, flickbot_use_list_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t flickbot_weapons_addr = 0;
+printf("Reading flickbot_weapons address: %lx\n", add_addr + sizeof(uint64_t) * 62);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 62, flickbot_weapons_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1572,6 +1600,14 @@ while (vars_t)
         if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+
+        if (triggerbot_use_list_addr) client_mem.Read<bool>(triggerbot_use_list_addr, triggerbot_use_list);
+
+        if (triggerbot_weapons_addr) client_mem.ReadArray<uint64_t>(triggerbot_weapons_addr, triggerbot_weapons, 4);
+
+        if (flickbot_use_list_addr) client_mem.Read<bool>(flickbot_use_list_addr, flickbot_use_list);
+
+        if (flickbot_weapons_addr) client_mem.ReadArray<uint64_t>(flickbot_weapons_addr, flickbot_weapons, 4);
 
         if (esp && next)
         {

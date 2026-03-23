@@ -19,9 +19,13 @@ extern int flickbot_auto_shoot_delay;
 extern bool flickbot_flickback;
 extern int flickbot_flickback_delay;
 extern int flickbot_delay;
+extern bool flickbot_use_list;
+extern uint64_t flickbot_weapons[4];
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
+extern bool triggerbot_use_list;
+extern uint64_t triggerbot_weapons[4];
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
@@ -34,9 +38,18 @@ void TriggerBotRun()
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 }
 
+bool isWeaponAllowed(int weaponId, uint64_t* allowedMask) {
+    if (weaponId < 0 || weaponId >= 256) return true; // Default allow if unknown or too high ID
+    int q = weaponId / 64;
+    int r = weaponId % 64;
+    return (allowedMask[q] & (1ULL << r)) != 0;
+}
+
 void StuffBotLoop()
 {
     stuff_t = true;
+    auto zoomStartTime = std::chrono::steady_clock::now();
+    bool wasZooming = false;
 
     while (stuff_t)
     {
@@ -47,6 +60,15 @@ void StuffBotLoop()
         apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
         if (LocalPlayer == 0) continue;
         Entity LPlayer = getEntity(LocalPlayer);
+
+        // Update zoom timing
+        bool isZooming = LPlayer.isZooming();
+        auto now = std::chrono::steady_clock::now();
+        if (isZooming && !wasZooming) {
+            zoomStartTime = now;
+        }
+        int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
+        wasZooming = isZooming;
 
         // Triggerbot logic
         if (triggerbot && triggerbot_aiming)
@@ -89,14 +111,41 @@ void StuffBotLoop()
                 }
 
                 if (now_crosshair_target_time > last_crosshair_times[centity]) {
+                    int weaponId = LPlayer.getCurrentWeaponId();
+
+                    if (triggerbot_use_list) {
+                        if (!isWeaponAllowed(weaponId, triggerbot_weapons)) {
+                            last_crosshair_times[centity] = now_crosshair_target_time;
+                            continue;
+                        }
+
+                        // Zoom delay logic
+                        if (weaponId == WeaponIDs::KRABER || weaponId == WeaponIDs::SENTINEL) {
+                            if (zoomElapsedMs < 950) {
+                                last_crosshair_times[centity] = now_crosshair_target_time;
+                                continue;
+                            }
+                        } else {
+                            if (zoomElapsedMs < 500) {
+                                last_crosshair_times[centity] = now_crosshair_target_time;
+                                continue;
+                            }
+                        }
+
+                        // Force zoom for triggerbot if list is used
+                        if (!isZooming) {
+                            last_crosshair_times[centity] = now_crosshair_target_time;
+                            continue;
+                        }
+                    }
+
                     char weaponModel[256] = { 0 };
                     LPlayer.getWeaponModelName(weaponModel, 256);
                     std::string weaponName = get_weapon_name_by_model(weaponModel);
                     if (weaponName == "Unknown") {
-                        int weaponId = LPlayer.getCurrentWeaponId();
                         weaponName = get_weapon_name(weaponId);
                     }
-                    printf("[TRIGGERBOT] Shooting at entity %d with weapon %s\n", i, weaponName.c_str());
+                    printf("[TRIGGERBOT] Shooting at entity %d with weapon %s (ID: %d)\n", i, weaponName.c_str(), weaponId);
                     TriggerBotRun();
                     last_crosshair_times[centity] = now_crosshair_target_time;
                     break;
@@ -112,14 +161,18 @@ void StuffBotLoop()
 
         if (flickbot && flickbot_aiming && aimentity != 0)
         {
-            char weaponModel[256] = { 0 };
-            LPlayer.getWeaponModelName(weaponModel, 256);
-            std::string weaponName = get_weapon_name_by_model(weaponModel);
+            int weaponId = LPlayer.getCurrentWeaponId();
+            if (flickbot_use_list && !isWeaponAllowed(weaponId, flickbot_weapons)) {
+                is_flicking = false;
+            } else {
+                char weaponModel[256] = { 0 };
+                LPlayer.getWeaponModelName(weaponModel, 256);
+                std::string weaponName = get_weapon_name_by_model(weaponModel);
 
-            // Filter weapons (don't flick with melee or unknown items)
-            bool isMelee = (weaponName == "Fists" || weaponName == "Throwing Knife" || weaponName == "Unknown");
+                // Filter weapons (don't flick with melee or unknown items)
+                bool isMelee = (weaponName == "Fists" || weaponName == "Throwing Knife" || weaponName == "Unknown");
 
-            if (!isMelee)
+                if (!isMelee)
             {
                 Entity Target = getEntity(aimentity);
                 if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
@@ -171,10 +224,23 @@ void StuffBotLoop()
                                 // -> optionally shoot if autoshoot is selected by the user
                                 if (flickbot_auto_shoot)
                                 {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                                    // Zoom delay for flickbot autoshoot if list is used
+                                    bool canShoot = true;
+                                    if (flickbot_use_list) {
+                                        if (weaponId == WeaponIDs::KRABER || weaponId == WeaponIDs::SENTINEL) {
+                                            if (zoomElapsedMs < 950) canShoot = false;
+                                        } else {
+                                            if (zoomElapsedMs < 500) canShoot = false;
+                                        }
+                                        if (!isZooming) canShoot = false;
+                                    }
+
+                                    if (canShoot) {
+                                        std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
+                                        apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                                        apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                                    }
                                 }
 
                                 // -> Optional: return to the initial angle if flickback is selected by the user
@@ -197,8 +263,6 @@ void StuffBotLoop()
                 } else {
                     is_flicking = false;
                 }
-            } else {
-                is_flicking = false;
             }
         } else {
             is_flicking = false;
