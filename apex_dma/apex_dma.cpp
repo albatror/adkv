@@ -37,6 +37,7 @@ const int toRead = 100;
 int aim = false;
 bool esp = false;
 bool skeleton = false;
+float skeleton_thickness = 1.0f;
 bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
@@ -1402,6 +1403,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t skeleton_thickness_addr = 0;
+printf("Reading skeleton_thickness address: %lx\n", add_addr + sizeof(uint64_t) * 63);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, skeleton_thickness_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1572,6 +1579,8 @@ while (vars_t)
         if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+
+        if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 
         if (esp && next)
         {
