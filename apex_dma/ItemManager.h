@@ -39,6 +39,7 @@ public:
     void LoadItems(const std::string& path);
     void LoadWeapons(const std::string& path);
     bool GetItemInfo(const std::string& modelName, std::string& name, ItemCategory& category);
+    bool GetItemInfoByID(int id, std::string& name, ItemCategory& category);
 
 private:
     ItemManager();

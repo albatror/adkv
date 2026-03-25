@@ -1,4 +1,5 @@
 #include "ItemManager.h"
+#include "ItemID.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -100,4 +101,26 @@ bool ItemManager::GetItemInfo(const std::string& modelName, std::string& name, I
         }
     }
     return false;
+}
+
+bool ItemManager::GetItemInfoByID(int id, std::string& name, ItemCategory& category) {
+    name = ItemID::getItemName(id);
+    if (name == "Unknown") return false;
+
+    // Default categories based on name or ID ranges
+    if (id >= ItemID::mp_weapon_sniper && id <= ItemID::mp_weapon_nemesis) category = ItemCategory::WEAPON;
+    else if (id >= ItemID::mp_weapon_dragon_lmg && id <= ItemID::mp_weapon_car_gold) category = ItemCategory::WEAPON;
+    else if (id >= ItemID::bullet && id <= ItemID::arrowsBundle) category = ItemCategory::AMMO;
+    else if (id >= ItemID::health_pickup_ultimate && id <= ItemID::health_pickup_combo_small) category = ItemCategory::EPIC; // Syringe/Cells are small but often lumped in EPIC esp
+    else if (id >= ItemID::helmet_pickup_lv1 && id <= ItemID::helmet_pickup_lv3) category = ItemCategory::RARE;
+    else if (id >= ItemID::helmet_pickup_lv4_abilities && id <= ItemID::helmet_pickup_lv5_sunglasses) category = ItemCategory::LEGENDARY;
+    else if (id >= ItemID::armor_pickup_lv1 && id <= ItemID::armor_pickup_lv2) category = ItemCategory::RARE;
+    else if (id >= ItemID::armor_pickup_lv3 && id <= ItemID::armor_pickup_lv4_all_fast) category = ItemCategory::EPIC;
+    else if (id >= ItemID::armor_pickup_lv5_evolving) category = ItemCategory::MYTHIC;
+    else if (id >= ItemID::armor_core_pickup_lv1 && id <= ItemID::armor_core_pickup_lv2) category = ItemCategory::RARE;
+    else if (id == ItemID::armor_core_pickup_lv3) category = ItemCategory::EPIC;
+    else if (id == ItemID::armor_core_pickup_lv5) category = ItemCategory::MYTHIC;
+    else category = ItemCategory::OTHER;
+
+    return true;
 }
