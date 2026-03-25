@@ -95,6 +95,7 @@ void SaveConfig(const std::string& filename) {
     file << "platform " << std::boolalpha << v.platform << "\n";
     file << "line " << std::boolalpha << v.line << "\n";
     file << "skeleton " << std::boolalpha << v.skeleton << "\n";
+    file << "skeleton_thickness " << v.skeleton_thickness << "\n";
     file << "spectator_notifier " << std::boolalpha << v.spectator_notifier << "\n";
     file << "info_window " << std::boolalpha << v.info_window << "\n";
     file << "target_indicator " << std::boolalpha << v.target_indicator << "\n";
@@ -170,6 +171,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "platform") ss >> std::boolalpha >> v.platform;
         else if (key == "line") ss >> std::boolalpha >> v.line;
         else if (key == "skeleton") ss >> std::boolalpha >> v.skeleton;
+        else if (key == "skeleton_thickness") ss >> v.skeleton_thickness;
         else if (key == "spectator_notifier") ss >> std::boolalpha >> v.spectator_notifier;
         else if (key == "info_window") ss >> std::boolalpha >> v.info_window;
         else if (key == "target_indicator") ss >> std::boolalpha >> v.target_indicator;

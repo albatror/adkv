@@ -396,7 +396,7 @@ void Overlay::RenderEsp()
 							{
 								DrawLine(ImVec2(players[i].bones[line[0]][0], players[i].bones[line[0]][1]),
 									ImVec2(players[i].bones[line[1]][0], players[i].bones[line[1]][1]),
-									skelColor, 1.0f);
+									skelColor, v.skeleton_thickness);
 							}
 						}
 					}
@@ -521,6 +521,7 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[63] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

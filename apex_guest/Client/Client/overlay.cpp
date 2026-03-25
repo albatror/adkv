@@ -308,6 +308,10 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Shield bar"), &v.shieldbar);
 
 			ImGui::Checkbox(XorStr("Skeleton"), &v.skeleton);
+			if (v.skeleton) {
+				ImGui::SameLine();
+				ImGui::SliderFloat(XorStr("Skeleton Thickness"), &v.skeleton_thickness, 1.0f, 10.0f, "%.1f");
+			}
 			ImGui::Checkbox(XorStr("Line"), &v.line);
 
 			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
