@@ -1,0 +1,2 @@
+Please download item icons from https://apexlegends.fandom.com/wiki/Category:Inventory_icons and place them in this folder as .png files.
+The names should match the item names in items.ini (e.g., r-301.png, light_ammo.png).

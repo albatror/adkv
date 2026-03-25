@@ -2,7 +2,11 @@
 #include "config.h"
 #include <fstream>
 #include <iomanip>
+#include <filesystem>
+#include <unordered_map>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "imgui/stb_image.h"
 
 using namespace std;
 extern int aim;
@@ -24,6 +28,9 @@ extern float default_fov;
 extern int bone;
 extern int spectators;
 extern int allied_spectators;
+
+extern bool item_esp_enabled;
+extern int item_esp_filter;
 
 extern bool onevone;
 extern bool firing_range;
@@ -145,6 +152,126 @@ void DrawHexagon(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImV
 void CreateRenderTarget();
 void CleanupRenderTarget();
 
+struct IconTexture {
+	ID3D11ShaderResourceView* texture = nullptr;
+	int width = 0;
+	int height = 0;
+};
+
+std::unordered_map<std::string, IconTexture> iconMap;
+
+void Overlay::LoadIcons()
+{
+	if (!iconMap.empty()) return;
+
+	std::string path = "icons";
+	if (!std::filesystem::exists(path)) {
+		std::filesystem::create_directory(path);
+		return;
+	}
+
+	for (const auto& entry : std::filesystem::directory_iterator(path)) {
+		if (entry.path().extension() == ".png" || entry.path().extension() == ".jpg") {
+			int width, height, channels;
+			unsigned char* data = stbi_load(entry.path().string().c_str(), &width, &height, &channels, 4);
+			if (data) {
+				ID3D11Texture2D* pTexture = nullptr;
+				D3D11_TEXTURE2D_DESC desc;
+				ZeroMemory(&desc, sizeof(desc));
+				desc.Width = width;
+				desc.Height = height;
+				desc.MipLevels = 1;
+				desc.ArraySize = 1;
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				desc.SampleDesc.Count = 1;
+				desc.Usage = D3D11_USAGE_DEFAULT;
+				desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+				desc.CPUAccessFlags = 0;
+
+				D3D11_SUBRESOURCE_DATA subResource;
+				subResource.pSysMem = data;
+				subResource.SysMemPitch = width * 4;
+				subResource.SysMemSlicePitch = 0;
+				g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+
+				if (pTexture) {
+					ID3D11ShaderResourceView* pSRV = nullptr;
+					g_pd3dDevice->CreateShaderResourceView(pTexture, nullptr, &pSRV);
+					pTexture->Release();
+					if (pSRV) {
+						std::string name = entry.path().stem().string();
+						std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+						iconMap[name] = { pSRV, width, height };
+					}
+				}
+				stbi_image_free(data);
+			}
+		}
+	}
+}
+
+std::string SuperNormalize(std::string s) {
+	std::string res = "";
+	for (char c : s) {
+		if (isalnum(c)) res += toupper(c);
+	}
+	return res;
+}
+
+bool Overlay::DrawItemIcon(const char* name, ImVec2 pos, int category)
+{
+	static std::unordered_map<std::string, std::string> matchCache;
+	std::string normalizedName = SuperNormalize(name);
+
+	auto cacheIt = matchCache.find(normalizedName);
+	std::string matchedKey = "";
+
+	if (cacheIt != matchCache.end()) {
+		matchedKey = cacheIt->second;
+	}
+	else {
+		// Try exact match first (after normalization)
+		for (auto const& [iconName, iconTex] : iconMap) {
+			if (SuperNormalize(iconName) == normalizedName) {
+				matchedKey = iconName;
+				break;
+			}
+		}
+
+		// Try substring match if exact fails
+		if (matchedKey == "") {
+			for (auto const& [iconName, iconTex] : iconMap) {
+				std::string normalizedIcon = SuperNormalize(iconName);
+				if (normalizedName.find(normalizedIcon) != std::string::npos ||
+					normalizedIcon.find(normalizedName) != std::string::npos) {
+					matchedKey = iconName;
+					break;
+				}
+			}
+		}
+		matchCache[normalizedName] = matchedKey;
+	}
+
+	auto it = matchedKey != "" ? iconMap.find(matchedKey) : iconMap.end();
+
+	if (it != iconMap.end()) {
+		float size = 32.0f;
+		ImColor col = WHITE;
+		switch(category) {
+			case 1: col = WHITE; break; // COMMON
+			case 2: col = BLUE; break;  // RARE
+			case 3: col = ImColor(163, 53, 238); break; // EPIC
+			case 4: col = ImColor(255, 128, 0); break; // LEGENDARY
+			case 5: col = RED; break; // MYTHIC
+			case 6: col = ImColor(0, 255, 255); break; // WEAPON
+			case 7: col = ImColor(255, 255, 0); break; // AMMO
+		}
+		ImGui::GetWindowDrawList()->AddImage(it->second.texture, ImVec2(pos.x - size/2, pos.y - size/2), ImVec2(pos.x + size/2, pos.y + size/2), ImVec2(0, 0), ImVec2(1, 1), col);
+		return true;
+	}
+	return false;
+}
+
 void Overlay::RenderMenu()
 {
 	static bool aim_enable = false;
@@ -205,6 +332,11 @@ void Overlay::RenderMenu()
 			}
 
 			ImGui::Checkbox(XorStr("Glow items"), &item_glow);
+			ImGui::Checkbox(XorStr("Items ESP"), &item_esp_enabled);
+			if (item_esp_enabled) {
+				const char* filters[] = { "All", "Common", "Rare", "Epic", "Legendary", "Mythic", "Weapon", "Ammo" };
+				ImGui::Combo(XorStr("Item Filter"), &item_esp_filter, filters, IM_ARRAYSIZE(filters));
+			}
 			ImGui::Checkbox(XorStr("Glow players"), &player_glow);
 
 			ImGui::Separator();
@@ -478,6 +610,8 @@ DWORD Overlay::CreateOverlay()
 	// Setup Platform/Renderer bindings
 	ImGui_ImplWin32_Init(overlayHWND);
 	ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+
+	LoadIcons();
 
 	ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.00f);
 

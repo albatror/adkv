@@ -118,6 +118,7 @@ float glowbknocked = 1; //Blue 0-255, higher is brighter color.
 
 bool actions_t = false;
 bool esp_t = false;
+bool item_esp_t = false;
 bool aim_t = false;
 bool vars_t = false;
 bool item_t = false;
@@ -161,6 +162,15 @@ typedef struct player
 	char name[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
+
+typedef struct item_esp
+{
+	float dist = 0;
+	float x = 0;
+	float y = 0;
+	int category = 0;
+	char name[64] = { 0 };
+}item_esp;
 
 typedef struct spectator{
 	bool is_spec = false;
@@ -687,6 +697,115 @@ if (bhop && SuperKey) {
 	actions_t = false;
 }
 player players[toRead];
+item_esp items_esp[toRead];
+bool item_esp_next = false;
+bool item_esp_valid = false;
+bool item_esp_enabled = false;
+int item_esp_filter = 0;
+
+static void ItemEspLoop()
+{
+	item_esp_t = true;
+	while (item_esp_t)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		while (g_Base != 0 && c_Base != 0)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			if (item_esp_enabled)
+			{
+				item_esp_valid = false;
+
+				uint64_t LocalPlayer = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+				if (LocalPlayer == 0)
+				{
+					item_esp_next = true;
+					while (item_esp_next && g_Base != 0 && c_Base != 0 && item_esp_enabled)
+					{
+						std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					}
+					continue;
+				}
+
+				Entity LPlayer = getEntity(LocalPlayer);
+				Vector LocalPlayerPosition = LPlayer.getPosition();
+
+				uint64_t viewRenderer = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_RENDER, viewRenderer);
+				uint64_t viewMatrix = 0;
+				apex_mem.Read<uint64_t>(viewRenderer + OFFSET_MATRIX, viewMatrix);
+				Matrix m = {};
+				apex_mem.Read<Matrix>(viewMatrix, m);
+
+				uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+
+				memset(items_esp, 0, sizeof(items_esp));
+				int c = 0;
+				for (int i = 0; i < 10000; i++)
+				{
+					if (c >= toRead) break;
+
+					uint64_t centity = 0;
+					apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+					if (centity == 0) continue;
+
+					Item Target = getItem(centity);
+					if (!Target.isItem() && !Target.isBox()) continue;
+
+					Vector EntityPosition = Target.getPosition();
+					float dist = LocalPlayerPosition.DistTo(EntityPosition);
+					if (dist > max_dist || dist < 50.0f) continue;
+
+					Vector screenPos = Vector();
+					if (WorldToScreen(EntityPosition, m.matrix, screen_width, screen_height, screenPos))
+					{
+						std::string itemName;
+						ItemCategory category = ItemCategory::OTHER;
+
+						if (Target.isBox())
+						{
+							itemName = "Deathbox";
+							category = ItemCategory::LEGENDARY;
+						}
+						else
+						{
+							char modelName[256] = { 0 };
+							Target.getModelName(modelName, 256);
+							if (!ItemManager::getInstance().GetItemInfo(modelName, itemName, category)) {
+								uint32_t scriptInt = 0;
+								apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
+								if (!ItemManager::getInstance().GetItemInfoByID(scriptInt, itemName, category)) {
+									continue;
+								}
+							}
+						}
+
+						// Filter by type if needed (0 = all, 1+ = specific category)
+						if (item_esp_filter != 0 && (int)category != item_esp_filter)
+							continue;
+
+						items_esp[c].dist = dist;
+						items_esp[c].x = screenPos.x;
+						items_esp[c].y = screenPos.y;
+						items_esp[c].category = (int)category;
+						strncpy(items_esp[c].name, itemName.c_str(), 63);
+
+						item_esp_valid = true;
+						c++;
+					}
+				}
+
+				item_esp_next = true;
+				while (item_esp_next && g_Base != 0 && c_Base != 0 && item_esp_enabled)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+			}
+		}
+	}
+	item_esp_t = false;
+}
 
 static void EspLoop()
 {
@@ -1409,6 +1528,21 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, skeleton_thickne
   printf("Read failed!\n");
 }
 
+uint64_t item_esp_enabled_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, item_esp_enabled_addr);
+
+uint64_t item_esp_filter_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, item_esp_filter_addr);
+
+uint64_t item_esp_next_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, item_esp_next_addr);
+
+uint64_t item_esp_valid_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, item_esp_valid_addr);
+
+uint64_t items_esp_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 62, items_esp_addr);
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1582,6 +1716,29 @@ while (vars_t)
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 
+        if (item_esp_enabled_addr)
+            client_mem.Read<bool>(item_esp_enabled_addr, item_esp_enabled);
+
+        if (item_esp_filter_addr)
+            client_mem.Read<int>(item_esp_filter_addr, item_esp_filter);
+
+        if (item_esp_enabled && item_esp_next)
+        {
+            if (item_esp_valid)
+                client_mem.WriteArray<item_esp>(items_esp_addr, items_esp, toRead);
+            client_mem.Write<bool>(item_esp_valid_addr, item_esp_valid);
+            client_mem.Write<bool>(item_esp_next_addr, true);
+
+            bool next_val = false;
+            do
+            {
+                client_mem.Read<bool>(item_esp_next_addr, next_val);
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            } while (next_val && g_Base != 0 && c_Base != 0);
+
+            item_esp_next = false;
+        }
+
         if (esp && next)
         {
             if (valid)
@@ -1748,6 +1905,7 @@ int main(int argc, char *argv[])
 	std::thread esp_thr;
 	std::thread actions_thr;
 	std::thread itemglow_thr;
+	std::thread itemesp_thr;
 	std::thread stuffbot_thr;
 
 	std::thread vars_thr;
@@ -1799,11 +1957,13 @@ int main(int argc, char *argv[])
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
 				itemglow_thr = std::thread(item_glow_t);
+				itemesp_thr = std::thread(ItemEspLoop);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
+				itemesp_thr.detach();
 			}
 		}
 		else

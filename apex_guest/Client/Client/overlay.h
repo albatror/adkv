@@ -58,6 +58,8 @@ public:
 	void RenderInfo();
 	void RenderMenu();
 	void RenderEsp();
+	void LoadIcons();
+	bool DrawItemIcon(const char* name, ImVec2 pos, int category);
 	void RenderSpectator();
 	void ClickThrough(bool v);
 	void DrawLine(ImVec2 a, ImVec2 b, ImColor color, float width);

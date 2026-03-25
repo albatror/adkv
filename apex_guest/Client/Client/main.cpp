@@ -33,6 +33,15 @@ typedef struct player
 	float bones[15][2] = { 0 };
 }player;
 
+typedef struct item_esp
+{
+	float dist = 0;
+	float x = 0;
+	float y = 0;
+	int category = 0;
+	char name[64] = { 0 };
+}item_esp;
+
 typedef struct spectator {
 	bool is_spec = false;
 	char name[33] = { 0 };
@@ -71,6 +80,8 @@ extern visuals v;
 int aim = 0; //read
 bool esp = false; //read
 bool item_glow = false;
+bool item_esp_enabled = false;
+int item_esp_filter = 0;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
@@ -187,6 +198,8 @@ float glowcolorknocked[3] = { 000.0f, 000.0f, 000.0f };
 
 bool valid = false; //write
 bool next = false; //read write
+bool item_esp_valid = false;
+bool item_esp_next = false;
 
 int index = 0;
 
@@ -211,6 +224,7 @@ bool IsKeyDown(int vk)
 }
 
 player players[100];
+item_esp items_esp[100];
 
 void randomBone()
 {
@@ -262,6 +276,52 @@ float smoothStep(float edge0, float edge1, float x) {
 
 void Overlay::RenderEsp()
 {
+	item_esp_next = false;
+	if (g_Base != 0 && item_esp_enabled)
+	{
+		memset(items_esp, 0, sizeof(items_esp));
+		while (!item_esp_next && item_esp_enabled)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+
+		if (item_esp_next && item_esp_valid)
+		{
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::SetNextWindowSize(ImVec2((float)getWidth(), (float)getHeight()));
+			ImGui::Begin(XorStr("##item_esp"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+			for (int i = 0; i < 100; i++)
+			{
+				if (items_esp[i].dist > 0)
+				{
+					std::string name = items_esp[i].name;
+					std::string distance = std::to_string((int)(items_esp[i].dist / 39.62)) + "m";
+
+					// Draw icon if loaded
+					bool drawn = DrawItemIcon(items_esp[i].name, ImVec2(items_esp[i].x, items_esp[i].y), items_esp[i].category);
+
+					if (!drawn) {
+						// Fallback to text if icon not found
+						ImColor col = WHITE;
+						switch(items_esp[i].category) {
+							case 1: col = WHITE; break; // COMMON
+							case 2: col = BLUE; break;  // RARE
+							case 3: col = ImColor(163, 53, 238); break; // EPIC
+							case 4: col = ImColor(255, 128, 0); break; // LEGENDARY
+							case 5: col = RED; break; // MYTHIC
+							case 6: col = ImColor(0, 255, 255); break; // WEAPON
+							case 7: col = ImColor(255, 255, 0); break; // AMMO
+						}
+						String(ImVec2(items_esp[i].x, items_esp[i].y), col, items_esp[i].name);
+					}
+					String(ImVec2(items_esp[i].x, items_esp[i].y + 15), WHITE, distance.c_str());
+				}
+			}
+			ImGui::End();
+		}
+	}
+
 	next = false;
 	if (g_Base != 0 && esp)
 	{
@@ -521,6 +581,11 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&item_esp_enabled;
+	add[59] = (uintptr_t)&item_esp_filter;
+	add[60] = (uintptr_t)&item_esp_next;
+	add[61] = (uintptr_t)&item_esp_valid;
+	add[62] = (uintptr_t)&items_esp[0];
 	add[63] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
