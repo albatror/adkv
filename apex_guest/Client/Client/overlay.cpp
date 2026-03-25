@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <filesystem>
 #include <unordered_map>
+#include <algorithm>
+#include <cctype>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "imgui/stb_image.h"
@@ -165,15 +167,23 @@ void Overlay::LoadIcons()
 	if (!iconMap.empty()) return;
 
 	std::string path = "icons";
-	if (!std::filesystem::exists(path)) {
-		std::filesystem::create_directory(path);
+
+	// Use Win32 API as fallback if std::filesystem is acting up
+	WIN32_FIND_DATAA findData;
+	HANDLE hFind = FindFirstFileA((path + "\\*").c_str(), &findData);
+
+	if (hFind == INVALID_HANDLE_VALUE) {
+		CreateDirectoryA(path.c_str(), NULL);
 		return;
 	}
 
-	for (const auto& entry : std::filesystem::directory_iterator(path)) {
-		if (entry.path().extension() == ".png" || entry.path().extension() == ".jpg") {
-			int width, height, channels;
-			unsigned char* data = stbi_load(entry.path().string().c_str(), &width, &height, &channels, 4);
+	do {
+		if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			std::string fileName = findData.cFileName;
+			if (fileName.find(".png") != std::string::npos || fileName.find(".jpg") != std::string::npos) {
+				std::string fullPath = path + "\\" + fileName;
+				int width, height, channels;
+				unsigned char* data = stbi_load(fullPath.c_str(), &width, &height, &channels, 4);
 			if (data) {
 				ID3D11Texture2D* pTexture = nullptr;
 				D3D11_TEXTURE2D_DESC desc;
@@ -199,15 +209,19 @@ void Overlay::LoadIcons()
 					g_pd3dDevice->CreateShaderResourceView(pTexture, nullptr, &pSRV);
 					pTexture->Release();
 					if (pSRV) {
-						std::string name = entry.path().stem().string();
-						std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+						std::string name = fileName;
+						size_t lastdot = name.find_last_of(".");
+						if (lastdot != std::string::npos) name = name.substr(0, lastdot);
+
+						std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return std::tolower(c); });
 						iconMap[name] = { pSRV, width, height };
 					}
 				}
 				stbi_image_free(data);
 			}
 		}
-	}
+	} while (FindNextFileA(hFind, &findData));
+	FindClose(hFind);
 }
 
 std::string SuperNormalize(std::string s) {
@@ -231,20 +245,20 @@ bool Overlay::DrawItemIcon(const char* name, ImVec2 pos, int category)
 	}
 	else {
 		// Try exact match first (after normalization)
-		for (auto const& [iconName, iconTex] : iconMap) {
-			if (SuperNormalize(iconName) == normalizedName) {
-				matchedKey = iconName;
+		for (auto itMap = iconMap.begin(); itMap != iconMap.end(); ++itMap) {
+			if (SuperNormalize(itMap->first) == normalizedName) {
+				matchedKey = itMap->first;
 				break;
 			}
 		}
 
 		// Try substring match if exact fails
 		if (matchedKey == "") {
-			for (auto const& [iconName, iconTex] : iconMap) {
-				std::string normalizedIcon = SuperNormalize(iconName);
+			for (auto itMap = iconMap.begin(); itMap != iconMap.end(); ++itMap) {
+				std::string normalizedIcon = SuperNormalize(itMap->first);
 				if (normalizedName.find(normalizedIcon) != std::string::npos ||
 					normalizedIcon.find(normalizedName) != std::string::npos) {
-					matchedKey = iconName;
+					matchedKey = itMap->first;
 					break;
 				}
 			}
