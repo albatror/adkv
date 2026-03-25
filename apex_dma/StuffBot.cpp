@@ -186,9 +186,9 @@ void StuffBotLoop()
                                 }
 
                                 // Add random jitter
-                                static std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
-                                std::uniform_int_distribution<int> dist(0, 10);
-                                lastFlickTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(dist(engine));
+                                // static std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
+                                // std::uniform_int_distribution<int> dist(0, 10);
+                                // lastFlickTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(dist(engine));
                             }
                         }
                     } else {
