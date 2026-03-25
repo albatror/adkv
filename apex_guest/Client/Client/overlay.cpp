@@ -2,15 +2,18 @@
 #include "config.h"
 #include <fstream>
 #include <iomanip>
-#include <filesystem>
 #include <unordered_map>
 #include <algorithm>
 #include <cctype>
+#include <string>
+#include <vector>
+#include <cstring>
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_THREAD_LOCALS
+#define STBI_MSC_SECURE_CRT
 #include "imgui/stb_image.h"
 
-using namespace std;
 extern int aim;
 extern bool esp;
 extern bool item_glow;
@@ -168,7 +171,6 @@ void Overlay::LoadIcons()
 
 	std::string path = "icons";
 
-	// Use Win32 API as fallback if std::filesystem is acting up
 	WIN32_FIND_DATAA findData;
 	HANDLE hFind = FindFirstFileA((path + "\\*").c_str(), &findData);
 
@@ -182,42 +184,45 @@ void Overlay::LoadIcons()
 			std::string fileName = findData.cFileName;
 			if (fileName.find(".png") != std::string::npos || fileName.find(".jpg") != std::string::npos) {
 				std::string fullPath = path + "\\" + fileName;
-				int width, height, channels;
-				unsigned char* data = stbi_load(fullPath.c_str(), &width, &height, &channels, 4);
-			if (data) {
-				ID3D11Texture2D* pTexture = nullptr;
-				D3D11_TEXTURE2D_DESC desc;
-				ZeroMemory(&desc, sizeof(desc));
-				desc.Width = width;
-				desc.Height = height;
-				desc.MipLevels = 1;
-				desc.ArraySize = 1;
-				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				desc.SampleDesc.Count = 1;
-				desc.Usage = D3D11_USAGE_DEFAULT;
-				desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-				desc.CPUAccessFlags = 0;
+				int w, h, channels;
+				unsigned char* data = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
+				if (data) {
+					ID3D11Texture2D* pTexture = nullptr;
+					D3D11_TEXTURE2D_DESC desc;
+					memset(&desc, 0, sizeof(desc));
+					desc.Width = w;
+					desc.Height = h;
+					desc.MipLevels = 1;
+					desc.ArraySize = 1;
+					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					desc.SampleDesc.Count = 1;
+					desc.Usage = D3D11_USAGE_DEFAULT;
+					desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+					desc.CPUAccessFlags = 0;
 
-				D3D11_SUBRESOURCE_DATA subResource;
-				subResource.pSysMem = data;
-				subResource.SysMemPitch = width * 4;
-				subResource.SysMemSlicePitch = 0;
-				g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+					D3D11_SUBRESOURCE_DATA subResource;
+					subResource.pSysMem = data;
+					subResource.SysMemPitch = w * 4;
+					subResource.SysMemSlicePitch = 0;
+					g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
 
-				if (pTexture) {
-					ID3D11ShaderResourceView* pSRV = nullptr;
-					g_pd3dDevice->CreateShaderResourceView(pTexture, nullptr, &pSRV);
-					pTexture->Release();
-					if (pSRV) {
-						std::string name = fileName;
-						size_t lastdot = name.find_last_of(".");
-						if (lastdot != std::string::npos) name = name.substr(0, lastdot);
+					if (pTexture) {
+						ID3D11ShaderResourceView* pSRV = nullptr;
+						g_pd3dDevice->CreateShaderResourceView(pTexture, nullptr, &pSRV);
+						pTexture->Release();
+						if (pSRV) {
+							std::string name = fileName;
+							size_t lastdot = name.find_last_of(".");
+							if (lastdot != std::string::npos) name = name.substr(0, lastdot);
 
-						std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return std::tolower(c); });
-						iconMap[name] = { pSRV, width, height };
+							for (auto& c : name) {
+								c = (char)::tolower((unsigned char)c);
+							}
+							iconMap[name] = { pSRV, w, h };
+						}
 					}
+					stbi_image_free(data);
 				}
-				stbi_image_free(data);
 			}
 		}
 	} while (FindNextFileA(hFind, &findData));
@@ -226,8 +231,9 @@ void Overlay::LoadIcons()
 
 std::string SuperNormalize(std::string s) {
 	std::string res = "";
-	for (char c : s) {
-		if (isalnum(c)) res += toupper(c);
+	for (char c_in : s) {
+		unsigned char c = (unsigned char)c_in;
+		if (::isalnum(c)) res += (char)::toupper(c);
 	}
 	return res;
 }
@@ -244,7 +250,6 @@ bool Overlay::DrawItemIcon(const char* name, ImVec2 pos, int category)
 		matchedKey = cacheIt->second;
 	}
 	else {
-		// Try exact match first (after normalization)
 		for (auto itMap = iconMap.begin(); itMap != iconMap.end(); ++itMap) {
 			if (SuperNormalize(itMap->first) == normalizedName) {
 				matchedKey = itMap->first;
@@ -252,7 +257,6 @@ bool Overlay::DrawItemIcon(const char* name, ImVec2 pos, int category)
 			}
 		}
 
-		// Try substring match if exact fails
 		if (matchedKey == "") {
 			for (auto itMap = iconMap.begin(); itMap != iconMap.end(); ++itMap) {
 				std::string normalizedIcon = SuperNormalize(itMap->first);
@@ -266,7 +270,7 @@ bool Overlay::DrawItemIcon(const char* name, ImVec2 pos, int category)
 		matchCache[normalizedName] = matchedKey;
 	}
 
-	auto it = matchedKey != "" ? iconMap.find(matchedKey) : iconMap.end();
+	auto it = (matchedKey != "") ? iconMap.find(matchedKey) : iconMap.end();
 
 	if (it != iconMap.end()) {
 		float size = 32.0f;
@@ -280,7 +284,7 @@ bool Overlay::DrawItemIcon(const char* name, ImVec2 pos, int category)
 			case 6: col = ImColor(0, 255, 255); break; // WEAPON
 			case 7: col = ImColor(255, 255, 0); break; // AMMO
 		}
-		ImGui::GetWindowDrawList()->AddImage(it->second.texture, ImVec2(pos.x - size/2, pos.y - size/2), ImVec2(pos.x + size/2, pos.y + size/2), ImVec2(0, 0), ImVec2(1, 1), col);
+		ImGui::GetWindowDrawList()->AddImage((ImTextureID)it->second.texture, ImVec2(pos.x - size/2, pos.y - size/2), ImVec2(pos.x + size/2, pos.y + size/2), ImVec2(0, 0), ImVec2(1, 1), (ImU32)col);
 		return true;
 	}
 	return false;
@@ -882,7 +886,7 @@ void DrawQuadFilled(ImVec2 p1, ImVec2 p2, ImVec2 p3, ImVec2 p4, ImColor color) {
 void DrawHexagon(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, const ImVec2& p5, const ImVec2& p6, ImU32 col, float thickness)
 {
 	ImVec2 points[6] = { p1, p2, p3, p4, p5, p6 };
-	ImGui::GetWindowDrawList()->AddPolyline(points, 6, col, ImDrawFlags_Closed, thickness);
+	ImGui::GetWindowDrawList()->AddPolyline(points, 6, col, 1, thickness);
 }
 void DrawHexagonFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, const ImVec2& p5, const ImVec2& p6, ImU32 col)
 {
