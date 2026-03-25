@@ -1678,11 +1678,26 @@ void item_glow_t()
 								// Fallback to scriptInt if not found by model
 								uint32_t scriptInt = 0;
 								apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
-								if (scriptInt == 1) highlightID = COMMON_GLOW_ID;
-								else if (scriptInt == 2) highlightID = RARE_GLOW_ID;
-								else if (scriptInt == 3) highlightID = EPIC_GLOW_ID;
-								else if (scriptInt == 4) highlightID = LEGENDARY_GLOW_ID;
-								else if (scriptInt >= 5) highlightID = MYTHIC_GLOW_ID;
+
+								if (ItemManager::getInstance().GetItemInfoByID(scriptInt, itemName, category)) {
+									switch (category) {
+										case ItemCategory::COMMON: highlightID = COMMON_GLOW_ID; break;
+										case ItemCategory::RARE: highlightID = RARE_GLOW_ID; break;
+										case ItemCategory::EPIC: highlightID = EPIC_GLOW_ID; break;
+										case ItemCategory::LEGENDARY: highlightID = LEGENDARY_GLOW_ID; break;
+										case ItemCategory::MYTHIC: highlightID = MYTHIC_GLOW_ID; break;
+										case ItemCategory::WEAPON: highlightID = WEAPON_GLOW_ID; break;
+										case ItemCategory::AMMO: highlightID = AMMO_GLOW_ID; break;
+										default: highlightID = 65; break;
+									}
+								} else {
+									// Hardcoded legacy fallback
+									if (scriptInt == 1) highlightID = COMMON_GLOW_ID;
+									else if (scriptInt == 2) highlightID = RARE_GLOW_ID;
+									else if (scriptInt == 3) highlightID = EPIC_GLOW_ID;
+									else if (scriptInt == 4) highlightID = LEGENDARY_GLOW_ID;
+									else if (scriptInt >= 5) highlightID = MYTHIC_GLOW_ID;
+								}
 							}
 						}
 						item.enableGlow(highlightID);
