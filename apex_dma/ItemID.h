@@ -415,42 +415,42 @@ namespace ItemID {
 
     inline std::string getItemName(int id) {
         switch (id) {
-            case mp_weapon_sniper: return "Kraber";
+            case mp_weapon_sniper: return "KRABER";
             case mp_weapon_mastiff:
             case mp_weapon_mastiff_whiteset:
             case mp_weapon_mastiff_blueset:
             case mp_weapon_mastiff_purpleset:
             case mp_weapon_mastiff_gold:
-            case mp_weapon_mastiff_crate: return "Mastiff";
+            case mp_weapon_mastiff_crate: return "MASTIFF";
             case mp_weapon_lstar:
             case mp_weapon_lstar_crate:
             case mp_weapon_lstar_whiteset:
             case mp_weapon_lstar_blueset:
             case mp_weapon_lstar_purpleset:
-            case mp_weapon_lstar_gold: return "L-Star";
+            case mp_weapon_lstar_gold: return "L-STAR";
             case mp_weapon_energy_ar:
             case mp_weapon_energy_ar_whiteset:
             case mp_weapon_energy_ar_blueset:
             case mp_weapon_energy_ar_purpleset:
             case mp_weapon_energy_ar_gold:
-            case mp_weapon_energy_ar_crate: return "Havoc";
+            case mp_weapon_energy_ar_crate: return "HAVOC";
             case mp_weapon_esaw:
             case mp_weapon_esaw_crate:
             case mp_weapon_esaw_whiteset:
             case mp_weapon_esaw_blueset:
             case mp_weapon_esaw_purpleset:
-            case mp_weapon_esaw_gold: return "Devotion";
+            case mp_weapon_esaw_gold: return "DEVOTION";
             case mp_weapon_doubletake:
             case mp_weapon_doubletake_crate:
             case mp_weapon_doubletake_whiteset:
             case mp_weapon_doubletake_blueset:
             case mp_weapon_doubletake_purpleset:
-            case mp_weapon_doubletake_gold: return "TripleTake";
+            case mp_weapon_doubletake_gold: return "TRIPLE_TAKE";
             case mp_weapon_vinson:
             case mp_weapon_vinson_whiteset:
             case mp_weapon_vinson_blueset:
             case mp_weapon_vinson_purpleset:
-            case mp_weapon_vinson_gold: return "Flatline";
+            case mp_weapon_vinson_gold: return "FLATLINE";
             case mp_weapon_hemlok:
             case mp_weapon_hemlok_crate:
             case mp_weapon_hemlok_whiteset:
@@ -461,19 +461,19 @@ namespace ItemID {
             case mp_weapon_auto_hemlok_whiteset:
             case mp_weapon_auto_hemlok_blueset:
             case mp_weapon_auto_hemlok_purpleset:
-            case mp_weapon_auto_hemlok_gold: return "Hemlok";
+            case mp_weapon_auto_hemlok_gold: return "HEMLOK";
             case mp_weapon_g2:
             case mp_weapon_g2_crate:
             case mp_weapon_g2_whiteset:
             case mp_weapon_g2_blueset:
             case mp_weapon_g2_purpleset:
-            case mp_weapon_g2_gold: return "G7 Scout";
+            case mp_weapon_g2_gold: return "G7_SCOUT";
             case mp_weapon_alternator_smg:
             case mp_weapon_alternator_smg_crate:
             case mp_weapon_alternator_smg_whiteset:
             case mp_weapon_alternator_smg_blueset:
             case mp_weapon_alternator_smg_purpleset:
-            case mp_weapon_alternator_smg_gold: return "Alternator";
+            case mp_weapon_alternator_smg_gold: return "ALTERNATOR";
             case mp_weapon_r97:
             case mp_weapon_r97_whiteset:
             case mp_weapon_r97_blueset:
@@ -485,27 +485,27 @@ namespace ItemID {
             case mp_weapon_pdw_whiteset:
             case mp_weapon_pdw_blueset:
             case mp_weapon_pdw_purpleset:
-            case mp_weapon_pdw_gold: return "Prowler";
+            case mp_weapon_pdw_gold: return "PROWLER";
             case mp_weapon_volt_smg:
             case mp_weapon_volt_smg_whiteset:
             case mp_weapon_volt_smg_blueset:
             case mp_weapon_volt_smg_purpleset:
-            case mp_weapon_volt_smg_gold: return "Volt";
+            case mp_weapon_volt_smg_gold: return "VOLT";
             case mp_weapon_dmr:
             case mp_weapon_dmr_whiteset:
             case mp_weapon_dmr_blueset:
             case mp_weapon_dmr_purpleset:
-            case mp_weapon_dmr_gold: return "Longbow";
+            case mp_weapon_dmr_gold: return "LONGBOW";
             case mp_weapon_defender:
             case mp_weapon_defender_whiteset:
             case mp_weapon_defender_blueset:
             case mp_weapon_defender_purpleset:
-            case mp_weapon_defender_gold: return "Charge Rifle";
+            case mp_weapon_defender_gold: return "CHARGE_RIFLE";
             case mp_weapon_lmg:
             case mp_weapon_lmg_whiteset:
             case mp_weapon_lmg_blueset:
             case mp_weapon_lmg_purpleset:
-            case mp_weapon_lmg_gold: return "Spitfire";
+            case mp_weapon_lmg_gold: return "SPITFIRE";
             case mp_weapon_rspn101:
             case mp_weapon_rspn101_whiteset:
             case mp_weapon_rspn101_blueset:
@@ -522,37 +522,37 @@ namespace ItemID {
             case mp_weapon_energy_shotgun_whiteset:
             case mp_weapon_energy_shotgun_blueset:
             case mp_weapon_energy_shotgun_purpleset:
-            case mp_weapon_energy_shotgun_gold: return "Peacekeeper";
+            case mp_weapon_energy_shotgun_gold: return "PEACEKEEPER";
             case mp_weapon_shotgun_pistol:
             case mp_weapon_shotgun_pistol_whiteset:
             case mp_weapon_shotgun_pistol_blueset:
             case mp_weapon_shotgun_pistol_purpleset:
             case mp_weapon_shotgun_pistol_gold:
-            case mp_weapon_shotgun_pistol_akimbo_whiteset:
-            case mp_weapon_shotgun_pistol_akimbo_blueset:
-            case mp_weapon_shotgun_pistol_akimbo_purpleset:
-            case mp_weapon_shotgun_pistol_akimbo_gold:
             case mp_weapon_shotgun_pistol_light:
             case mp_weapon_shotgun_pistol_heavy:
             case mp_weapon_shotgun_pistol_sniper:
-            case mp_weapon_shotgun_pistol_energy: return "Mozambique";
+            case mp_weapon_shotgun_pistol_energy: return "MOZAMBIQUE";
+            case mp_weapon_shotgun_pistol_akimbo_whiteset:
+            case mp_weapon_shotgun_pistol_akimbo_blueset:
+            case mp_weapon_shotgun_pistol_akimbo_purpleset:
+            case mp_weapon_shotgun_pistol_akimbo_gold: return "MOZAMBIQUE_AKIMBO";
             case mp_weapon_wingman:
             case mp_weapon_wingman_crate:
             case mp_weapon_wingman_whiteset:
             case mp_weapon_wingman_blueset:
             case mp_weapon_wingman_purpleset:
-            case mp_weapon_wingman_gold: return "Wingman";
+            case mp_weapon_wingman_gold: return "WINGMAN";
             case mp_weapon_semipistol:
             case mp_weapon_semipistol_whiteset:
             case mp_weapon_semipistol_blueset:
             case mp_weapon_semipistol_purpleset:
             case mp_weapon_semipistol_gold:
-            case mp_weapon_semipistol_crate:
+            case mp_weapon_semipistol_crate: return "P2020";
             case mp_weapon_semipistol_crate_akimbo:
             case mp_weapon_semipistol_akimbo_whiteset:
             case mp_weapon_semipistol_akimbo_blueset:
             case mp_weapon_semipistol_akimbo_purpleset:
-            case mp_weapon_semipistol_akimbo_gold: return "P2020";
+            case mp_weapon_semipistol_akimbo_gold: return "P2020_AKIMBO";
             case mp_weapon_autopistol:
             case mp_weapon_autopistol_crate:
             case mp_weapon_autopistol_fusion:
@@ -568,14 +568,14 @@ namespace ItemID {
             case mp_weapon_sentinel_whiteset:
             case mp_weapon_sentinel_blueset:
             case mp_weapon_sentinel_purpleset:
-            case mp_weapon_sentinel_gold: return "Sentinel";
+            case mp_weapon_sentinel_gold: return "SENTINEL";
             case mp_weapon_bow:
             case mp_weapon_bow_crate:
             case mp_weapon_bow_cupid:
             case mp_weapon_bow_whiteset:
             case mp_weapon_bow_blueset:
             case mp_weapon_bow_purpleset:
-            case mp_weapon_bow_gold: return "Bocek";
+            case mp_weapon_bow_gold: return "BOCEK";
             case mp_weapon_3030:
             case mp_weapon_3030_whiteset:
             case mp_weapon_3030_blueset:
@@ -585,24 +585,24 @@ namespace ItemID {
             case mp_weapon_nemesis_whiteset:
             case mp_weapon_nemesis_blueset:
             case mp_weapon_nemesis_purpleset:
-            case mp_weapon_nemesis_gold: return "Nemesis";
-            case bullet: return "Light Ammo";
-            case special: return "Energy Ammo";
-            case shotgun: return "Shotgun Ammo";
-            case highcal: return "Heavy Ammo";
-            case sniper: return "Sniper Ammo";
+            case mp_weapon_nemesis_gold: return "NEMESIS";
+            case bullet: return "LIGHT_AMMO";
+            case special: return "ENERGY_AMMO";
+            case shotgun: return "SHOTGUN_AMMO";
+            case highcal: return "HEAVY_AMMO";
+            case sniper: return "SNIPER_AMMO";
             case mp_weapon_dragon_lmg:
             case mp_weapon_dragon_lmg_crate:
             case mp_weapon_dragon_lmg_whiteset:
             case mp_weapon_dragon_lmg_blueset:
             case mp_weapon_dragon_lmg_purpleset:
-            case mp_weapon_dragon_lmg_gold: return "Rampage";
+            case mp_weapon_dragon_lmg_gold: return "RAMPAGE";
             case mp_weapon_car:
             case mp_weapon_car_crate:
             case mp_weapon_car_whiteset:
             case mp_weapon_car_blueset:
             case mp_weapon_car_purpleset:
-            case mp_weapon_car_gold: return "C.A.R. SMG";
+            case mp_weapon_car_gold: return "C.A.R.";
             case mp_weapon_semipistol_paintball_akimbo_blueset: return "P2020";
             case mp_weapon_shotgun_pistol_paintball_akimbo_blueset: return "Mozambique";
             case mp_weapon_alternator_smg_paintball_blueset: return "Alternator";
@@ -635,89 +635,89 @@ namespace ItemID {
             case mp_weapon_rspn101_paintball_gold: return "R-301";
             case mp_weapon_g2_paintball_gold: return "G7 Scout";
             case mp_weapon_dmr_paintball_gold: return "Longbow";
-            case health_pickup_ultimate: return "Ult Accelerant";
-            case health_pickup_combo_full: return "Phoenix Kit";
-            case health_pickup_health_large: return "Med Kit";
-            case health_pickup_health_small: return "Syringe";
-            case health_pickup_combo_large: return "Shield Battery";
-            case health_pickup_combo_small: return "Shield Cell";
-            case helmet_pickup_lv1: return "Helmet Lv1";
-            case helmet_pickup_lv2: return "Helmet Lv2";
-            case helmet_pickup_lv3: return "Helmet Lv3";
+            case health_pickup_ultimate: return "ULTIMATE_ACCEL";
+            case health_pickup_combo_full: return "PHOENIX_KIT";
+            case health_pickup_health_large: return "MED_KIT";
+            case health_pickup_health_small: return "SYRINGE";
+            case health_pickup_combo_large: return "SHIELD_BATTERY";
+            case health_pickup_combo_small: return "SHIELD_CELL";
+            case helmet_pickup_lv1: return "HELMET_LV1";
+            case helmet_pickup_lv2: return "HELMET_LV2";
+            case helmet_pickup_lv3: return "HELMET_LV3";
             case helmet_pickup_lv4_abilities:
-            case helmet_pickup_lv4_armor_upgrade: return "Helmet Lv4";
+            case helmet_pickup_lv4_armor_upgrade: return "HELMET_LV4";
             case armor_pickup_lv0:
-            case armor_pickup_lv1: return "Armor Lv1";
-            case armor_pickup_lv2: return "Armor Lv2";
-            case armor_pickup_lv3: return "Armor Lv3";
-            case armor_pickup_lv4_all_fast: return "Armor Lv4";
+            case armor_pickup_lv1: return "ARMOR_LV1";
+            case armor_pickup_lv2: return "ARMOR_LV2";
+            case armor_pickup_lv3: return "ARMOR_LV3";
+            case armor_pickup_lv4_all_fast: return "ARMOR_LV4";
             case armor_pickup_lv0_evolving:
-            case armor_pickup_lv1_evolving: return "Evo Armor Lv1";
-            case armor_pickup_lv2_evolving: return "Evo Armor Lv2";
-            case armor_pickup_lv3_evolving: return "Evo Armor Lv3";
-            case armor_pickup_lv5_evolving: return "Evo Armor Lv5";
-            case armor_core_pickup_lv1: return "Armor Core Lv1";
-            case armor_core_pickup_lv2: return "Armor Core Lv2";
-            case armor_core_pickup_lv3: return "Armor Core Lv3";
-            case armor_core_pickup_lv5: return "Armor Core Lv5";
-            case incapshield_pickup_lv1: return "Knockdown Lv1";
-            case incapshield_pickup_lv2: return "Knockdown Lv2";
-            case incapshield_pickup_lv3: return "Knockdown Lv3";
-            case incapshield_pickup_lv4_selfrevive: return "Knockdown Lv4";
-            case backpack_pickup_lv1: return "Backpack Lv1";
-            case backpack_pickup_lv2: return "Backpack Lv2";
-            case backpack_pickup_lv3: return "Backpack Lv3";
-            case backpack_pickup_lv4_revive_boost: return "Backpack Lv4";
+            case armor_pickup_lv1_evolving: return "EVO_ARMOR_LV1";
+            case armor_pickup_lv2_evolving: return "EVO_ARMOR_LV2";
+            case armor_pickup_lv3_evolving: return "EVO_ARMOR_LV3";
+            case armor_pickup_lv5_evolving: return "EVO_ARMOR_LV5";
+            case armor_core_pickup_lv1: return "ARMOR_CORE_L1";
+            case armor_core_pickup_lv2: return "ARMOR_CORE_L2";
+            case armor_core_pickup_lv3: return "ARMOR_CORE_L3";
+            case armor_core_pickup_lv5: return "ARMOR_CORE_L5";
+            case incapshield_pickup_lv1: return "KNOCKDOWN_LV1";
+            case incapshield_pickup_lv2: return "KNOCKDOWN_LV2";
+            case incapshield_pickup_lv3: return "KNOCKDOWN_LV3";
+            case incapshield_pickup_lv4_selfrevive: return "KNOCKDOWN_LV4";
+            case backpack_pickup_lv1: return "BACKPACK_LV1";
+            case backpack_pickup_lv2: return "MEDIUM_BACKPACK";
+            case backpack_pickup_lv3: return "HEAVY_BACKPACK";
+            case backpack_pickup_lv4_revive_boost: return "BACKPACK_LV4";
             case mp_weapon_throwingknife: return "Thermite";
             case mp_weapon_thermite_grenade: return "Thermite";
             case mp_weapon_frag_grenade: return "Frag Grenade";
             case mp_weapon_grenade_emp: return "Arc Star";
-            case optic_cq_hcog_classic: return "1x HCOG";
-            case optic_cq_hcog_bruiser: return "2x HCOG";
-            case optic_cq_holosight:
-            case optic_cq_holosight_variable: return "1x Holo";
-            case optic_ranged_hcog: return "3x HCOG";
-            case optic_ranged_aog_variable: return "2x-4x AOG";
+            case optic_cq_hcog_classic: return "1X_HCOG";
+            case optic_cq_hcog_bruiser: return "2X_HCOG";
+            case optic_cq_holosight: return "1X_HOLO";
+            case optic_cq_holosight_variable: return "1X-2X_HOLO";
+            case optic_ranged_hcog: return "3X_HCOG";
+            case optic_ranged_aog_variable: return "2X-4X_AOG";
             case optic_sniper:
             case optic_sniper_variable:
-            case optic_sniper_threat: return "Sniper Scope";
-            case barrel_stabilizer_l1: return "Barrel Lv1";
-            case barrel_stabilizer_l2: return "Barrel Lv2";
-            case barrel_stabilizer_l3: return "Barrel Lv3";
-            case laser_sight_l1: return "Laser Lv1";
-            case laser_sight_l2: return "Laser Lv2";
-            case laser_sight_l3: return "Laser Lv3";
-            case bullets_mag_l1: return "Light Mag Lv1";
-            case bullets_mag_l2: return "Light Mag Lv2";
-            case bullets_mag_l3: return "Light Mag Lv3";
-            case bullets_mag_l4: return "Light Mag Lv4";
-            case highcal_mag_l1: return "Heavy Mag Lv1";
-            case highcal_mag_l2: return "Heavy Mag Lv2";
-            case highcal_mag_l3: return "Heavy Mag Lv3";
-            case highcal_mag_l4: return "Heavy Mag Lv4";
-            case energy_mag_l1: return "Energy Mag Lv1";
-            case energy_mag_l2: return "Energy Mag Lv2";
-            case energy_mag_l3: return "Energy Mag Lv3";
-            case energy_mag_l4: return "Energy Mag Lv4";
-            case sniper_mag_l1: return "Sniper Mag Lv1";
-            case sniper_mag_l2: return "Sniper Mag Lv2";
-            case sniper_mag_l3: return "Sniper Mag Lv3";
-            case sniper_mag_l4: return "Sniper Mag Lv4";
-            case shotgun_bolt_l1: return "Bolt Lv1";
-            case shotgun_bolt_l2: return "Bolt Lv2";
-            case shotgun_bolt_l3: return "Bolt Lv3";
-            case shotgun_bolt_l4: return "Bolt Lv4";
-            case stock_tactical_l1: return "Stock Lv1";
-            case stock_tactical_l2: return "Stock Lv2";
-            case stock_tactical_l3: return "Stock Lv3";
-            case stock_sniper_l1: return "Sniper Stock Lv1";
-            case stock_sniper_l2: return "Sniper Stock Lv2";
-            case stock_sniper_l3: return "Sniper Stock Lv3";
-            case mp_ability_mobile_respawn_beacon: return "Mobile Respawn";
-            case s4t_item0: return "Keycard";
-            case mp_ability_void_ring: return "Heat Shield";
-            case ship_keycard: return "Keycard";
-            case mp_ability_redeploy_balloon: return "Evac Tower";
+            case optic_sniper_threat: return "SNIPER_SCOPE";
+            case barrel_stabilizer_l1: return "BARREL_LV1";
+            case barrel_stabilizer_l2: return "BARREL_LV2";
+            case barrel_stabilizer_l3: return "BARREL_LV3";
+            case laser_sight_l1: return "LASER_LV1";
+            case laser_sight_l2: return "LASER_LV2";
+            case laser_sight_l3: return "LASER_LV3";
+            case bullets_mag_l1: return "LIGHT_MAG_LV1";
+            case bullets_mag_l2: return "LIGHT_MAG_LV2";
+            case bullets_mag_l3: return "LIGHT_MAG_LV3";
+            case bullets_mag_l4: return "LIGHT_MAG_LV4";
+            case highcal_mag_l1: return "HEAVY_MAG_LV1";
+            case highcal_mag_l2: return "HEAVY_MAG_LV2";
+            case highcal_mag_l3: return "HEAVY_MAG_LV3";
+            case highcal_mag_l4: return "HEAVY_MAG_LV4";
+            case energy_mag_l1: return "ENERGY_MAG_LV1";
+            case energy_mag_l2: return "ENERGY_MAG_LV2";
+            case energy_mag_l3: return "ENERGY_MAG_LV3";
+            case energy_mag_l4: return "ENERGY_MAG_LV4";
+            case sniper_mag_l1: return "SNIPER_MAG_LV1";
+            case sniper_mag_l2: return "SNIPER_MAG_LV2";
+            case sniper_mag_l3: return "SNIPER_MAG_LV3";
+            case sniper_mag_l4: return "SNIPER_MAG_LV4";
+            case shotgun_bolt_l1: return "BOLT_LV1";
+            case shotgun_bolt_l2: return "BOLT_LV2";
+            case shotgun_bolt_l3: return "BOLT_LV3";
+            case shotgun_bolt_l4: return "BOLT_LV4";
+            case stock_tactical_l1: return "STOCK_LV1";
+            case stock_tactical_l2: return "STOCK_LV2";
+            case stock_tactical_l3: return "STOCK_LV3";
+            case stock_sniper_l1: return "SNIPER_STOCK_LV1";
+            case stock_sniper_l2: return "SNIPER_STOCK_LV2";
+            case stock_sniper_l3: return "SNIPER_STOCK_LV3";
+            case mp_ability_mobile_respawn_beacon: return "MOBILE_RESPAWN";
+            case s4t_item0: return "KEYCARD";
+            case mp_ability_void_ring: return "HEAT_SHIELD";
+            case ship_keycard: return "KEYCARD";
+            case mp_ability_redeploy_balloon: return "EVAC_TOWER";
             case fr_nessie:
             case fr_nessie_yellow:
             case fr_nessie_pink:
