@@ -299,6 +299,8 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Name"), &v.name);
 			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Weapon"), &v.weapon);
+			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Distance"), &v.distance);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Platform"), &v.platform);

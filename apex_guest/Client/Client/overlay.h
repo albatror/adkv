@@ -32,6 +32,7 @@ typedef struct visuals
 	bool healthbar = true;
 	bool shieldbar = true;
 	bool name = true;
+	bool weapon = false;
 	bool platform = false;
 	bool skeleton = false;
 	bool spectator_notifier = false;

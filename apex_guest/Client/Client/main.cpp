@@ -30,6 +30,7 @@ typedef struct player
 	int xp_level = 0;
 	int platform = 0;
 	char name[33] = { 0 };
+	char weapon[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
 
@@ -363,6 +364,14 @@ void Overlay::RenderEsp()
 							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 35)), RED, platformName.c_str());
 						else
 							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 35)), GREEN, platformName.c_str());
+					}
+
+					if (v.weapon)
+					{
+						if (players[i].knocked)
+							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 45)), RED, players[i].weapon);
+						else
+							String(ImVec2(players[i].boxMiddle, (players[i].b_y + 45)), GREEN, players[i].weapon);
 					}
 
 					if (v.skeleton)

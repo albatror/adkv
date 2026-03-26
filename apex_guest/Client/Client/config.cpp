@@ -91,6 +91,7 @@ void SaveConfig(const std::string& filename) {
     file << "bone " << bone << "\n";
     file << "healthbar " << std::boolalpha << v.healthbar << "\n";
     file << "shieldbar " << std::boolalpha << v.shieldbar << "\n";
+    file << "weapon " << std::boolalpha << v.weapon << "\n";
     file << "distance " << std::boolalpha << v.distance << "\n";
     file << "platform " << std::boolalpha << v.platform << "\n";
     file << "line " << std::boolalpha << v.line << "\n";
@@ -167,6 +168,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "bone") ss >> bone;
         else if (key == "healthbar") ss >> std::boolalpha >> v.healthbar;
         else if (key == "shieldbar") ss >> std::boolalpha >> v.shieldbar;
+        else if (key == "weapon") ss >> std::boolalpha >> v.weapon;
         else if (key == "distance") ss >> std::boolalpha >> v.distance;
         else if (key == "platform") ss >> std::boolalpha >> v.platform;
         else if (key == "line") ss >> std::boolalpha >> v.line;
