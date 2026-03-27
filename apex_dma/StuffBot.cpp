@@ -52,54 +52,70 @@ void StuffBotLoop()
         if (triggerbot && triggerbot_aiming)
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-            for (int i = 0; i < 256; i++) {
+            int ent_count = firing_range ? 10000 : 100;
+            static std::unordered_map<uint64_t, float> last_crosshair_times;
+
+            for (int i = 0; i < ent_count; i++) {
                 uint64_t centity = 0;
                 if (!apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity) || centity == 0 || centity == LocalPlayer) continue;
 
-                // Targeted reads to avoid getEntity overhead
-                int health = 0;
-                apex_mem.Read<int>(centity + OFFSET_HEALTH, health);
-                if (health <= 0) continue;
-
-                int team = 0;
-                apex_mem.Read<int>(centity + OFFSET_TEAM, team);
-                if (team == LPlayer.getTeamId() && !firing_range) continue;
-
-                // Dummy check if firing range
-                if (firing_range) {
-                    char class_name[33] = {};
-                    get_class_name(centity, class_name);
-                    if (strncmp(class_name, "CAI_BaseNPC", 11) != 0) continue;
-                }
-
-                // Check FOV
-                Vector EntityPosition;
-                apex_mem.Read<Vector>(centity + OFFSET_ORIGIN, EntityPosition);
-                float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), EntityPosition));
-                if (fov > triggerbot_fov) continue;
-
-                // Finally check crosshair
+                // First check crosshair timestamp - fast read
                 float now_crosshair_target_time = 0;
-                apex_mem.Read<float>(centity + OFFSET_CROSSHAIR_LAST, now_crosshair_target_time);
+                if (!apex_mem.Read<float>(centity + OFFSET_CROSSHAIR_LAST, now_crosshair_target_time)) continue;
 
-                static std::unordered_map<uint64_t, float> last_crosshair_times;
                 if (last_crosshair_times.find(centity) == last_crosshair_times.end()) {
                     last_crosshair_times[centity] = now_crosshair_target_time;
                     continue;
                 }
 
                 if (now_crosshair_target_time > last_crosshair_times[centity]) {
-                    char weaponModel[256] = { 0 };
-                    LPlayer.getWeaponModelName(weaponModel, 256);
-                    std::string weaponName = get_weapon_name_by_model(weaponModel);
-                    if (weaponName == "Unknown") {
-                        int weaponId = LPlayer.getCurrentWeaponId();
-                        weaponName = get_weapon_name(weaponId);
+                    // Possible target detected by crosshair, now perform detailed checks
+                    int health = 0;
+                    apex_mem.Read<int>(centity + OFFSET_HEALTH, health);
+                    if (health <= 0) {
+                        last_crosshair_times[centity] = now_crosshair_target_time;
+                        continue;
                     }
-                    printf("[TRIGGERBOT] Shooting at entity %d with weapon %s\n", i, weaponName.c_str());
-                    TriggerBotRun();
-                    last_crosshair_times[centity] = now_crosshair_target_time;
-                    break;
+
+                    int team = 0;
+                    apex_mem.Read<int>(centity + OFFSET_TEAM, team);
+                    if (team == LPlayer.getTeamId() && !firing_range) {
+                        last_crosshair_times[centity] = now_crosshair_target_time;
+                        continue;
+                    }
+
+                    // Dummy check if firing range
+                    if (firing_range) {
+                        char class_name[33] = {};
+                        get_class_name(centity, class_name);
+                        if (strncmp(class_name, "CAI_BaseNPC", 11) != 0) {
+                            last_crosshair_times[centity] = now_crosshair_target_time;
+                            continue;
+                        }
+                    }
+
+                    // Check FOV using head bone for better accuracy
+                    Entity Target = getEntity(centity);
+                    Vector HeadPos = Target.getBonePositionByHitbox(0);
+                    if (HeadPos.IsZero()) {
+                        last_crosshair_times[centity] = now_crosshair_target_time;
+                        continue;
+                    }
+
+                    float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
+                    if (fov <= triggerbot_fov) {
+                        char weaponModel[256] = { 0 };
+                        LPlayer.getWeaponModelName(weaponModel, 256);
+                        std::string weaponName = get_weapon_name_by_model(weaponModel);
+                        if (weaponName == "Unknown" || weaponName == "unknown") {
+                            int weaponId = LPlayer.getCurrentWeaponId();
+                            weaponName = get_weapon_name(weaponId);
+                        }
+                        printf("[TRIGGERBOT] Shooting at entity %d (time: %f) with weapon %s\n", i, now_crosshair_target_time, weaponName.c_str());
+                        TriggerBotRun();
+                        last_crosshair_times[centity] = now_crosshair_target_time;
+                        break;
+                    }
                 }
                 last_crosshair_times[centity] = now_crosshair_target_time;
             }

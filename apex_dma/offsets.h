@@ -49,7 +49,7 @@
 #define OFFSET_IN_JUMP 0x3c74290 //[Buttons].in_jump updated 2026/03/24
 #define OFFSET_IN_TOGGLE_DUCK 0x3c741a8 //[Buttons].in_toggle_duck updated 2026/03/24
  
-#define OFFSET_WEAPON_NAME 0x15f0 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/03/24
+#define OFFSET_WEAPON_NAME 0x1888 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/03/24
 #define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/03/24
 #define OFFSET_WALL_RUN_START_TIME 0x370c //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunStartTime updated 2026/03/24
 #define OFFSET_WALL_RUN_CLEAR_TIME 0x3710 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/03/24
@@ -113,7 +113,7 @@
 #define GLOW_FADE 0x388+ 0x30 // ats 3rd result of 3 offsets consecutive or first + 8 updated 01/10/2024
 #define HIGHLIGHT_SETTINGS 0x6875130 //[Miscellaneous].HighlightSettings updated 2026/03/24
 #define HIGHLIGHT_TYPE_SIZE 0x34 //? updated 01/10/2024
-#define OFFSET_CROSSHAIR_LAST OFFSET_VISIBLE_TIME + 0x19f8 //[Miscellaneous].CWeaponX!lastCrosshairTargetTime updated 2025/04/18
+#define OFFSET_CROSSHAIR_LAST 0x1a6c //[Miscellaneous].CWeaponX!lastCrosshairTargetTime updated 2025/04/18
 //#define OFFSET_CROSSHAIR_START 0x1958 //CPlayer!crosshairTargetStartTime updated 01/9/2024
 #define OFFSET_INPUT_SYSTEM 0x1dc4d80 //[Miscellaneous].InputSystem updated 2026/03/24 
 
