@@ -21,7 +21,7 @@ GameVersion v3.0.3.18
 - **Health & Shields:** Integrated Seer-style health and shield bars.
 - **Skeleton:** Real-time bone rendering for precise movement tracking.
 - **Glow:** Highly customizable player glow (Green: Visible, Red: Hidden, Yellow: Knocked).
-- **Extra Info:** XP Level, Player Name, Distance, Platform User and Snap-lines.
+- **Extra Info:** XP Level, Player Name, Distance, Players Weapons, Players Platforms and Snap-lines.
 - **Spectator List:** Keep track of who is watching you (Count + Names).
 - **Target Indicator:** A visual DOT with configurable FOV to show best near target.
 - **Glow Items:** Glow items (Loba Style)
