@@ -99,7 +99,7 @@ GameVersion v3.0.3.18
 2.  **Guest Side:** Nothing is showed from Client/Overlay at start to prevent screenshoot detection.
 3.  **Game:** Start Apex Legends.
 4.  **Host Side:** Run the server with root privileges:
-5.      ```bash
+5.  ```bash
     cd build
     ```
     ```bash
