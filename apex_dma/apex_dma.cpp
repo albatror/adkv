@@ -9,6 +9,7 @@
 #include "offsets_dynamic.h"
 #include "Game.h"
 #include "StuffBot.h"
+#include "Weapon.h"
 #include "ItemManager.h"
 #include <thread>
 #include <array>
@@ -159,6 +160,7 @@ typedef struct player
 	int player_xp_level = 0;
 	int platform = 0;
 	char name[33] = { 0 };
+	char weapon[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
 
@@ -855,6 +857,16 @@ Entity LPlayer = getEntity(LocalPlayer);
 							}
 
 							Target.get_name(g_Base, &players[c].name[0]);
+
+							char weaponModel[256] = { 0 };
+							Target.getWeaponModelName(weaponModel, 256);
+							std::string weaponName = get_weapon_name_by_model(weaponModel);
+							if (weaponName == "Unknown") {
+								int weaponId = Target.getCurrentWeaponId();
+								weaponName = get_weapon_name(weaponId);
+							}
+							strncpy(players[c].weapon, weaponName.c_str(), 32);
+
 							lastvis_esp[c] = Target.lastVisTime();
 							valid = true;
 							c++;
@@ -964,6 +976,16 @@ Entity LPlayer = getEntity(LocalPlayer);
 							}
 
 							Target.get_name(g_Base, &players[i].name[0]);
+
+							char weaponModel[256] = { 0 };
+							Target.getWeaponModelName(weaponModel, 256);
+							std::string weaponName = get_weapon_name_by_model(weaponModel);
+							if (weaponName == "Unknown") {
+								int weaponId = Target.getCurrentWeaponId();
+								weaponName = get_weapon_name(weaponId);
+							}
+							strncpy(players[i].weapon, weaponName.c_str(), 32);
+
 							lastvis_esp[i] = Target.lastVisTime();
 							valid = true;
 						}
