@@ -99,10 +99,13 @@ GameVersion v3.0.3.18
 2.  **Guest Side:** Nothing is showed from Client/Overlay at start to prevent screenshoot detection.
 3.  **Game:** Start Apex Legends.
 4.  **Host Side:** Run the server with root privileges:
+5.      ```bash
+    cd build
+    ```
     ```bash
     sudo -E ./apex_dma
     ```
-5. **Guest Side:** Press INSERT to active the menu and save your config. You can aswell choose to show Overlay Base Infos and/or Spectators's List at start by selecting them in menu. 
+6. **Guest Side:** Press INSERT to active the menu and save your config. You can aswell choose to show Overlay Base Infos and/or Spectators's List at start by selecting them in menu. 
 
 ### Hotkeys
 - **INSERT:** Open/Close Overlay Menu.
