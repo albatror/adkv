@@ -83,6 +83,7 @@ bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+uint64_t triggerbot_weapons[4] = { 0, 0, 0, 0 };
 
 bool superglide = false;
 bool bhop = false;
@@ -1329,6 +1330,14 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, triggerbot_aimin
   printf("Read failed!\n");
 }
 
+uint64_t triggerbot_weapons_addr[4] = { 0, 0, 0, 0 };
+for (int i = 0; i < 4; i++) {
+    printf("Reading triggerbot_weapons[%d] address: %lx\n", i, add_addr + sizeof(uint64_t) * (58 + i));
+    if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * (58 + i), triggerbot_weapons_addr[i])) {
+        printf("Read failed!\n");
+    }
+}
+
 uint64_t superglide_addr = 0;
 printf("Reading superglide address: %lx\n", add_addr + sizeof(uint64_t) * 40);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 40, superglide_addr)) {
@@ -1569,6 +1578,10 @@ while (vars_t)
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
 
         if (triggerbot_aiming_addr) client_mem.Read<bool>(triggerbot_aiming_addr, triggerbot_aiming);
+
+        for (int i = 0; i < 4; i++) {
+            if (triggerbot_weapons_addr[i]) client_mem.Read<uint64_t>(triggerbot_weapons_addr[i], triggerbot_weapons[i]);
+        }
 
         if (superglide_addr) client_mem.Read<bool>(superglide_addr, superglide);
 

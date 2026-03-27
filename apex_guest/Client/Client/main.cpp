@@ -59,6 +59,7 @@ bool triggerbot = false;
 int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+uint64_t triggerbot_weapons[4] = { 0, 0, 0, 0 };
 
 bool superglide = false;
 bool bhop = false;
@@ -530,6 +531,10 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&triggerbot_weapons[0];
+	add[59] = (uintptr_t)&triggerbot_weapons[1];
+	add[60] = (uintptr_t)&triggerbot_weapons[2];
+	add[61] = (uintptr_t)&triggerbot_weapons[3];
 	add[63] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));

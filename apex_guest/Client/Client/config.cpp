@@ -57,6 +57,7 @@ extern bool flickbot_flickback;
 extern int flickbot_flickback_delay;
 extern int flickbot_delay;
 extern float triggerbot_fov;
+extern uint64_t triggerbot_weapons[4];
 extern bool fov;
 extern float cfsize;
 extern visuals v;
@@ -134,6 +135,7 @@ void SaveConfig(const std::string& filename) {
     file << "flickbot_auto_shoot " << std::boolalpha << flickbot_auto_shoot << "\n";
     file << "flickbot_flickback " << std::boolalpha << flickbot_flickback << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
+    file << "triggerbot_weapons " << triggerbot_weapons[0] << " " << triggerbot_weapons[1] << " " << triggerbot_weapons[2] << " " << triggerbot_weapons[3] << "\n";
     file << "flickbot_fov_circle " << std::boolalpha << v.flickbot_fov_circle << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
@@ -211,6 +213,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "flickbot_auto_shoot") ss >> std::boolalpha >> flickbot_auto_shoot;
         else if (key == "flickbot_flickback") ss >> std::boolalpha >> flickbot_flickback;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
+        else if (key == "triggerbot_weapons") ss >> triggerbot_weapons[0] >> triggerbot_weapons[1] >> triggerbot_weapons[2] >> triggerbot_weapons[3];
         else if (key == "flickbot_fov_circle") ss >> std::boolalpha >> v.flickbot_fov_circle;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;

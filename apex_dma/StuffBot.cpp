@@ -22,6 +22,7 @@ extern int flickbot_delay;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
+extern uint64_t triggerbot_weapons[4];
 extern bool firing_range;
 extern bool is_aimentity_visible;
 bool stuff_t = false;
@@ -34,9 +35,35 @@ void TriggerBotRun()
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 }
 
+bool isWeaponAllowed(int weaponId, int zoomElapsedMs) {
+    // Bounds check to prevent out-of-bounds access with negative or too large IDs
+    if (weaponId < 0 || weaponId >= 256)
+        return false;
+
+    // Check bitmask
+    if (!(triggerbot_weapons[weaponId >> 6] & (1ULL << (weaponId & 63))))
+        return false;
+
+    // Special long zoom delay for Kraber and Sentinel
+    if (weaponId == WeaponIDs::KRABER || weaponId == WeaponIDs::SENTINEL) {
+        if (zoomElapsedMs < 950)
+            return false;
+    } else {
+        // All other weapons need some delay after zoom
+        if (zoomElapsedMs < 600)
+            return false;
+    }
+
+    return true;
+}
+
 void StuffBotLoop()
 {
     stuff_t = true;
+
+    // Zoom tracking for local player
+    auto zoomStartTime = std::chrono::steady_clock::now();
+    bool wasZooming = false;
 
     while (stuff_t)
     {
@@ -48,8 +75,17 @@ void StuffBotLoop()
         if (LocalPlayer == 0) continue;
         Entity LPlayer = getEntity(LocalPlayer);
 
+        // Update zoom timing
+        bool isZooming = LPlayer.isZooming();
+        auto now = std::chrono::steady_clock::now();
+        if (isZooming && !wasZooming) {
+            zoomStartTime = now;
+        }
+        int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
+        wasZooming = isZooming;
+
         // Triggerbot logic
-        if (triggerbot && triggerbot_aiming)
+        if (triggerbot && triggerbot_aiming && isZooming)
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
             int ent_count = firing_range ? 10000 : 100;
@@ -104,17 +140,13 @@ void StuffBotLoop()
 
                     float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
                     if (fov <= triggerbot_fov) {
-                        char weaponModel[256] = { 0 };
-                        LPlayer.getWeaponModelName(weaponModel, 256);
-                        std::string weaponName = get_weapon_name_by_model(weaponModel);
-                        if (weaponName == "Unknown" || weaponName == "unknown") {
-                            int weaponId = LPlayer.getCurrentWeaponId();
-                            weaponName = get_weapon_name(weaponId);
+                        int weaponId = LPlayer.getCurrentWeaponId();
+                        if (isWeaponAllowed(weaponId, zoomElapsedMs)) {
+                            printf("[TRIGGERBOT] Shooting at entity %d (time: %f) with weapon %s (ID: %d)\n", i, now_crosshair_target_time, get_weapon_name(weaponId).c_str(), weaponId);
+                            TriggerBotRun();
+                            last_crosshair_times[centity] = now_crosshair_target_time;
+                            break;
                         }
-                        printf("[TRIGGERBOT] Shooting at entity %d (time: %f) with weapon %s\n", i, now_crosshair_target_time, weaponName.c_str());
-                        TriggerBotRun();
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        break;
                     }
                 }
                 last_crosshair_times[centity] = now_crosshair_target_time;

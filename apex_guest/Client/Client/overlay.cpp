@@ -39,6 +39,7 @@ extern int flickbot_delay;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
+extern uint64_t triggerbot_weapons[4];
 
 extern bool superglide;
 extern bool bhop;
@@ -217,6 +218,38 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+
+			if (ImGui::TreeNode(XorStr("Triggerbot Weapons")))
+			{
+				if (ImGui::Button(XorStr("Apply Pre-made List")))
+				{
+					memset(triggerbot_weapons, 0, sizeof(triggerbot_weapons));
+					// IDs from Weapon.h: KRABER(103), WINGMAN(125), LONGBOW(93), SENTINEL(2), G7_SCOUT(100), HEMLOCK(101), REPEATER_3030(128),
+					// TRIPLE_TAKE(123), BOCEK(3), KNIFE(198), P2020(120), MOZAMBIQUE(109), EVA8(96), PEACEKEEPER(116), MASTIFF(107), NEMESIS(132)
+					int weapons[] = { 103, 125, 93, 2, 100, 101, 128, 123, 3, 198, 120, 109, 96, 116, 107, 132 };
+					for (int w : weapons) {
+						triggerbot_weapons[w >> 6] |= (1ULL << (w & 63));
+					}
+				}
+
+				static const struct { int id; const char* name; } weapon_list[] = {
+					{0, "R301"}, {86, "Alternator"}, {118, "R-99"}, {120, "P2020"}, {89, "RE-45"},
+					{94, "Havoc"}, {91, "Devotion"}, {105, "L-STAR"}, {127, "Volt"}, {132, "Nemesis"},
+					{100, "G7 Scout"}, {98, "Flatline"}, {101, "Hemlok"}, {114, "Prowler"}, {128, "30-30"}, {7, "Rampage"},
+					{93, "Longbow"}, {103, "Kraber"}, {2, "Sentinel"}, {123, "Triple Take"}, {3, "Bocek"}, {125, "Wingman"},
+					{109, "Mozambique"}, {116, "Peacekeeper"}, {107, "Mastiff"}, {96, "EVA-8"}, {131, "C.A.R"},
+					{136, "Fists"}, {198, "Throwing Knife"}
+				};
+
+				for (const auto& w : weapon_list) {
+					bool selected = (triggerbot_weapons[w.id >> 6] & (1ULL << (w.id & 63))) != 0;
+					if (ImGui::Checkbox(w.name, &selected)) {
+						if (selected) triggerbot_weapons[w.id >> 6] |= (1ULL << (w.id & 63));
+						else triggerbot_weapons[w.id >> 6] &= ~(1ULL << (w.id & 63));
+					}
+				}
+				ImGui::TreePop();
+			}
 
 			ImGui::EndTabItem();
 		}
