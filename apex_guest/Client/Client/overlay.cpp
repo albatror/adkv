@@ -2,7 +2,9 @@
 #include "config.h"
 #include <fstream>
 #include <iomanip>
-
+#include "apex_color_atlas.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 using namespace std;
 extern int aim;
@@ -87,6 +89,11 @@ bool k_leftclick = false;
 bool k_ins = false;
 bool show_menu = false;
 visuals v;
+extern bool item_esp;
+extern float item_max_dist;
+extern int item_filter;
+extern bool item_next;
+extern item_data items_list[100];
 
 extern bool IsKeyDown(int vk);
 
@@ -137,6 +144,7 @@ static ID3D11Device* g_pd3dDevice = NULL;
 static ID3D11DeviceContext* g_pd3dDeviceContext = NULL;
 static IDXGISwapChain* g_pSwapChain = NULL;
 static ID3D11RenderTargetView* g_mainRenderTargetView = NULL;
+static ID3D11ShaderResourceView* g_apexAtlasSRVs[kApexColorAtlasPageCount] = { NULL, NULL, NULL };
 
 // Forward declarations of helper functions
 bool CreateDeviceD3D(HWND hWnd);
@@ -144,6 +152,7 @@ void CleanupDeviceD3D();
 void DrawHexagon(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, const ImVec2& p5, const ImVec2& p6, ImU32 col, float thickness);
 void CreateRenderTarget();
 void CleanupRenderTarget();
+bool LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
 
 void Overlay::RenderMenu()
 {
@@ -217,6 +226,12 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("Item ESP"), &item_esp);
+			ImGui::SliderFloat(XorStr("Item Max Distance"), &item_max_dist, 10.0f * 40, 500.0f * 40, "%.2f");
+			const char* filters[] = { "All", "Weapons", "Ammo", "Heal", "Gear", "Attachments" };
+			ImGui::Combo(XorStr("Item Filter"), &item_filter, filters, IM_ARRAYSIZE(filters));
 
 			ImGui::EndTabItem();
 		}
@@ -481,6 +496,14 @@ DWORD Overlay::CreateOverlay()
 	ImGui_ImplWin32_Init(overlayHWND);
 	ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
+	// Load ApexIcons
+	for (int i = 0; i < kApexColorAtlasPageCount; i++) {
+		int w, h;
+		char path[256];
+		sprintf(path, "icons/apex_icons_page_%d.png", i);
+		LoadTextureFromFile(path, &g_apexAtlasSRVs[i], &w, &h);
+	}
+
 	ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.00f);
 
 	// Main loop
@@ -560,6 +583,8 @@ DWORD Overlay::CreateOverlay()
 			RenderMenu();
 		else
 			RenderInfo();
+
+		RenderItemEsp();
 
 		RenderSpectator();
 
@@ -742,6 +767,92 @@ void DrawHexagonFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, con
 {
 	ImVec2 points[6] = { p1, p2, p3, p4, p5, p6 };
 	ImGui::GetWindowDrawList()->AddConvexPolyFilled(points, 6, col);
+}
+
+void Overlay::RenderItemEsp()
+{
+	if (g_Base != 0 && item_esp)
+	{
+		item_next = true;
+		while (item_next && item_esp)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImVec2((float)getWidth(), (float)getHeight()));
+		ImGui::Begin(XorStr("##item_esp"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+		for (int i = 0; i < 100; i++)
+		{
+			if (items_list[i].dist > 0)
+			{
+				if (items_list[i].icon_id >= 0 && items_list[i].icon_id < kApexColorAtlasIconCount)
+				{
+					const ApexColorAtlasIcon& icon = GetApexColorAtlasIcon(items_list[i].icon_id);
+					ImVec2 pos = ImVec2(items_list[i].x - 16, items_list[i].y - 16);
+					ImGui::SetCursorPos(pos);
+					ImGui::Image((ImTextureID)g_apexAtlasSRVs[icon.page], ImVec2(32, 32), icon.uv0, icon.uv1);
+
+					std::string distStr = std::to_string((int)(items_list[i].dist / 40)) + "m";
+					String(ImVec2(items_list[i].x - 15, items_list[i].y + 15), WHITE, items_list[i].name);
+					String(ImVec2(items_list[i].x - 10, items_list[i].y + 25), GREEN, distStr.c_str());
+				}
+				else
+				{
+					String(ImVec2(items_list[i].x, items_list[i].y), WHITE, items_list[i].name);
+				}
+			}
+		}
+
+		ImGui::End();
+	}
+}
+
+bool LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height)
+{
+	// Load from disk into a raw RGBA buffer
+	int image_width = 0;
+	int image_height = 0;
+	unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
+	if (image_data == NULL)
+		return false;
+
+	// Create texture
+	D3D11_TEXTURE2D_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.Width = image_width;
+	desc.Height = image_height;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = 0;
+
+	ID3D11Texture2D* pTexture = NULL;
+	D3D11_SUBRESOURCE_DATA subResource;
+	subResource.pSysMem = image_data;
+	subResource.SysMemPitch = desc.Width * 4;
+	subResource.SysMemSlicePitch = 0;
+	g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+
+	// Create texture view
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(srvDesc));
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv);
+	pTexture->Release();
+
+	*out_width = image_width;
+	*out_height = image_height;
+	stbi_image_free(image_data);
+
+	return true;
 }
 
 void Overlay::DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health) {

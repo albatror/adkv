@@ -114,7 +114,12 @@ bool update_offsets = false;
 bool onevone = false;
 
 //items
-//bool medbackpack = true;
+bool item_esp = false;
+float item_max_dist = 50.0f * 40.0f;
+int item_filter = 0; // 0: All, 1: Weapons, 2: Ammo, 3: Heal, 4: Gear, 5: Attachments
+bool item_valid = false;
+bool item_next = false;
+item_data items_list[100];
 
 ///test contraste texte
 ImU32 GetContrastColor(ImU32 backgroundColor) {
@@ -530,6 +535,11 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&item_esp;
+	add[59] = (uintptr_t)&item_max_dist;
+	add[60] = (uintptr_t)&item_filter;
+	add[61] = (uintptr_t)&item_next;
+	add[62] = (uintptr_t)&items_list[0];
 	add[63] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
@@ -565,6 +575,9 @@ int main(int argc, char** argv)
 
 		screen_width = ov1.getWidth();
 		screen_height = ov1.getHeight();
+
+		v.item_esp = item_esp;
+		v.item_max_dist = item_max_dist / 40.0f;
 		if (IsKeyDown(VK_F4))
 		{
 			active = false;
@@ -583,6 +596,7 @@ int main(int argc, char** argv)
 			player_glow = !player_glow;
 			k_f6 = 1;
 			item_glow = !item_glow;
+			item_esp = !item_esp;
 		}
 		else if (!IsKeyDown(VK_F1) && k_f1 == 1)
 		{
@@ -637,6 +651,7 @@ int main(int argc, char** argv)
 		{
 			k_f8 = 1;
 			item_glow = !item_glow;
+			item_esp = !item_esp;
 		}
 		else if (!IsKeyDown(VK_F8) && k_f8 == 1)
 		{
