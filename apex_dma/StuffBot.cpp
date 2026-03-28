@@ -49,7 +49,51 @@ void StuffBotLoop()
         uint64_t LocalPlayer = 0;
         apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
         if (LocalPlayer == 0) continue;
-        Entity LPlayer = getEntity(LocalPlayer);
+
+        // Optimized: only read essential data for tracking
+        Entity LPlayer = Entity();
+        LPlayer.ptr = LocalPlayer;
+        apex_mem.ReadArray<uint8_t>(LocalPlayer, LPlayer.buffer, 0x2800); // Read up to view angles/recoil
+
+        // AssistMe tracking logic - MUST BE FIRST
+        if (assistme && assistme_aiming && aimentity != 0)
+        {
+            // First check if target is still valid before full read
+            int health = 0;
+            apex_mem.Read<int>(aimentity + OFFSET_HEALTH, health);
+            if (health <= 0) {
+                aimentity = 0;
+                continue;
+            }
+
+            Entity Target = Entity();
+            Target.ptr = aimentity;
+            apex_mem.ReadArray<uint8_t>(aimentity, Target.buffer, 0x2000); // Read up to visibility/bones
+
+            if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
+            {
+                float distance = LPlayer.getPosition().DistTo(Target.getPosition());
+
+                // Re-read current view angles directly for maximum accuracy
+                QAngle current_angles;
+                apex_mem.Read<QAngle>(LocalPlayer + OFFSET_VIEWANGLES, current_angles);
+                // Update LPlayer buffer with latest angles
+                *(QAngle*)(LPlayer.buffer + OFFSET_VIEWANGLES) = current_angles;
+
+                float fov = CalculateFov(LPlayer, Target);
+
+                if (fov <= assistme_fov && distance <= assistme_max_dist)
+                {
+                    QAngle aim_angles = CalculateBestBoneAim(LPlayer, Target, assistme_fov, assistme_smooth);
+                    if (!aim_angles.IsZero())
+                    {
+                        LPlayer.SetViewAngles(aim_angles);
+                        // Update LPlayer buffer with new angles for Triggerbot
+                        *(QAngle*)(LPlayer.buffer + OFFSET_VIEWANGLES) = aim_angles;
+                    }
+                }
+            }
+        }
 
         // Triggerbot logic
         if ((triggerbot && triggerbot_aiming) || (assistme && assistme_aiming && assistme_auto_shoot))
@@ -170,26 +214,6 @@ void StuffBotLoop()
                     }
                 }
                 last_crosshair_times[centity] = now_crosshair_target_time;
-            }
-        }
-
-        // AssistMe tracking logic
-        if (assistme && assistme_aiming && aimentity != 0)
-        {
-            Entity Target = getEntity(aimentity);
-            if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
-            {
-                float distance = LPlayer.getPosition().DistTo(Target.getPosition());
-                float fov = CalculateFov(LPlayer, Target);
-
-                if (fov <= assistme_fov && distance <= assistme_max_dist)
-                {
-                    QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, assistme_fov, assistme_smooth);
-                    if (aim_angles.x != 0 || aim_angles.y != 0)
-                    {
-                        LPlayer.SetViewAngles(aim_angles);
-                    }
-                }
             }
         }
     }

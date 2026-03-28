@@ -511,9 +511,8 @@ float CalculateFov(Entity& from, Entity& target)
 	return Math::GetFov(ViewAngles, Angle);
 }
 
-QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing)
+QAngle CalculateBestBoneAim(Entity& from, Entity& target, float max_fov, float smoothing)
 {
-	Entity target = getEntity(t);
 	if(firing_range)
 	{
 		if (!target.isAlive())
@@ -547,23 +546,42 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 		max_fov *= zoom_fov/90.0f;
 	}
 
-  // Find best bone
+  // Find best bone based on FOV (closest to crosshair)
   if (bone_auto) {
-    float NearestBoneDistance = FLT_MAX;
-    for (int i = 0; i < 4; i++) {
-      Vector currentBonePosition = target.getBonePositionByHitbox(i);
-      float DistanceFromCrosshair =
-          (currentBonePosition - LocalCamera).Length();
-      if (DistanceFromCrosshair < NearestBoneDistance) {
-        TargetBonePosition = currentBonePosition;
-        distanceToTarget = DistanceFromCrosshair;
-        NearestBoneDistance = DistanceFromCrosshair;
-      }
+    static int last_bone_id = -1;
+    static uint64_t last_target_ptr = 0;
+
+    QAngle current_angles = from.GetViewAngles();
+
+    // Bone selection hysteresis: stick to previous bone if it's still good
+    if (last_target_ptr == target.ptr && last_bone_id != -1) {
+        Vector prevBonePos = target.getBonePositionByHitbox(last_bone_id);
+        QAngle angle_to_prev = Math::CalcAngle(LocalCamera, prevBonePos);
+        if (Math::GetFov(current_angles, angle_to_prev) < (max_fov * 0.8f)) {
+            TargetBonePosition = prevBonePos;
+        } else {
+            last_bone_id = -1;
+        }
+    }
+
+    if (last_bone_id == -1) {
+        float best_fov = FLT_MAX;
+        for (int i = 0; i < 4; i++) {
+          Vector currentBonePosition = target.getBonePositionByHitbox(i);
+          QAngle angle_to_bone = Math::CalcAngle(LocalCamera, currentBonePosition);
+          float fov = Math::GetFov(current_angles, angle_to_bone);
+          if (fov < best_fov) {
+            best_fov = fov;
+            TargetBonePosition = currentBonePosition;
+            last_bone_id = i;
+          }
+        }
+        last_target_ptr = target.ptr;
     }
   } else {
     TargetBonePosition = target.getBonePositionByHitbox(bone);
-    distanceToTarget = (TargetBonePosition - LocalCamera).Length();
   }
+  distanceToTarget = (TargetBonePosition - LocalCamera).Length();
 	/*
 	//simple aim prediction
 	if (BulletSpeed > 1.f)
@@ -591,19 +609,31 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 			CalculatedAngles = QAngle{Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f};
     }
 
-	if (CalculatedAngles == QAngle(0, 0, 0))
+	if (CalculatedAngles.IsZero())
     	CalculatedAngles = Math::CalcAngle(LocalCamera, TargetBonePosition);
+
 	QAngle ViewAngles = from.GetViewAngles();
-	QAngle SwayAngles = from.GetSwayAngles();
-	//remove sway and recoil
-	if(aim_no_recoil)
-		CalculatedAngles-=SwayAngles-ViewAngles;
+
+	// Remove recoil (Punch Angles)
+	if (aim_no_recoil) {
+		QAngle Recoil = from.GetRecoil();
+		CalculatedAngles.x -= Recoil.x * 2.0f;
+		CalculatedAngles.y -= Recoil.y * 2.0f;
+	}
+
 	Math::NormalizeAngles(CalculatedAngles);
 	QAngle Delta = CalculatedAngles - ViewAngles;
-
 	Math::NormalizeAngles(Delta);
 
-	QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
+	if (smoothing <= 1.0f)
+		return CalculatedAngles;
+
+	// Deadzone to prevent micro-oscillations (shaking)
+	if (Delta.Length() < 0.05f)
+		return ViewAngles;
+
+	QAngle SmoothedAngles = ViewAngles + Delta / smoothing;
+	Math::NormalizeAngles(SmoothedAngles);
 	return SmoothedAngles;
 }
 

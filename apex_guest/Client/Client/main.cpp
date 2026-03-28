@@ -50,7 +50,7 @@ bool assistme_aiming = false;
 float assistme_fov = 10.0f;
 float assistme_max_dist = 50.0f * 40.0f;
 bool assistme_auto_shoot = false;
-float assistme_smooth = 100.0f;
+float assistme_smooth = 15.0f;
 
 bool triggerbot = false;
 int triggerbot_key = VK_LSHIFT;

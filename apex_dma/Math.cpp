@@ -2,30 +2,30 @@
 
 void Math::NormalizeAngles(QAngle& angle)
 {
-	while (angle.x > 89.0f)
-		angle.x -= 180.f;
-
-	while (angle.x < -89.0f)
-		angle.x += 180.f;
+	if (angle.x > 89.0f)
+		angle.x = 89.0f;
+	if (angle.x < -89.0f)
+		angle.x = -89.0f;
 
 	while (angle.y > 180.f)
 		angle.y -= 360.f;
 
 	while (angle.y < -180.f)
 		angle.y += 360.f;
+
+	angle.z = 0;
 }
 
 QAngle Math::CalcAngle(const Vector& src, const Vector& dst)
 {
 	QAngle angle = QAngle();
-	SVector delta = SVector((src.x - dst.x), (src.y - dst.y), (src.z - dst.z));
+	Vector delta = dst - src;
 
-	double hyp = sqrt(delta.x*delta.x + delta.y * delta.y);
+	double hyp = sqrt(delta.x * delta.x + delta.y * delta.y);
 
-	angle.x = atan(delta.z / hyp) * (180.0f / M_PI);
-	angle.y = atan(delta.y / delta.x) * (180.0f / M_PI);
+	angle.x = atan2(-delta.z, hyp) * (180.0f / M_PI);
+	angle.y = atan2(delta.y, delta.x) * (180.0f / M_PI);
 	angle.z = 0;
-	if (delta.x >= 0.0) angle.y += 180.0f;
 
 	return angle;
 }

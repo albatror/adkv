@@ -80,7 +80,7 @@ bool assistme_aiming = false;
 float assistme_fov = 10.0f;
 float assistme_max_dist = 50.0f * 40.0f;
 bool assistme_auto_shoot = false;
-float assistme_smooth = 100.0f;
+float assistme_smooth = 15.0f;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
@@ -177,10 +177,10 @@ struct Matrix
 	float matrix[16];
 };
 
-spectator spectator_list[toRead];
+spectator spectator_list[10000];
 
-float lastvis_esp[toRead];
-float lastvis_aim[toRead];
+float lastvis_esp[10000];
+float lastvis_aim[10000];
 
 int tmp_spec = 0, spectators = 0;
 int tmp_all_spec = 0, allied_spectators = 0;
@@ -267,6 +267,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			return;
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	if (firing_range) visible = true;
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -289,11 +290,13 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 
+	bool use_vis_check = (aim == 2 || assistme);
+
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (use_vis_check)
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
@@ -301,13 +304,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			{
 				max = fov;
 				tmp_aimentity = target.ptr;
-			}
-		}
-		else
-		{
-			if (aimentity == target.ptr && !shooting)
-			{
-				aimentity = tmp_aimentity = lastaimentity = 0;
 			}
 		}
 	}
@@ -664,7 +660,8 @@ if (bhop && SuperKey) {
 			}
 			else
 			{
-				for (int i = 0; i < toRead; i++)
+				int max_players = firing_range ? 10000 : toRead;
+				for (int i = 0; i < max_players; i++)
 				{
 					uint64_t centity = 0;
 					apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
@@ -673,9 +670,13 @@ if (bhop && SuperKey) {
 					if (LocalPlayer == centity)
 						continue;
 					Entity Target = getEntity(centity);
-					if (!Target.isPlayer())
-					{
-						continue;
+
+					if (!firing_range) {
+						if (!Target.isPlayer())
+							continue;
+					} else {
+						if (!Target.isDummy())
+							continue;
 					}
 					
 					ProcessPlayer(LPlayer, Target, entitylist, i, spectated_ptr);
@@ -1098,7 +1099,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				QAngle Angles = CalculateBestBoneAim(LPlayer, Target, max_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
