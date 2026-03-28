@@ -529,7 +529,12 @@ int main(int argc, char** argv)
 	add[53] = (uintptr_t)&flickbot_auto_shoot_delay;
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
+	add[56] = (uintptr_t)&DDS;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&min_max_fov;
+	add[59] = (uintptr_t)&max_max_fov;
+	add[60] = (uintptr_t)&min_smooth;
+	add[61] = (uintptr_t)&max_smooth;
 	add[63] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
