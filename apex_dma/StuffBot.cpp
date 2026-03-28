@@ -49,7 +49,7 @@ void StuffBotLoop()
         Entity LPlayer = getEntity(LocalPlayer);
 
         // Triggerbot logic
-        if (triggerbot && triggerbot_aiming)
+        if ((triggerbot && triggerbot_aiming) || (flickbot && flickbot_aiming && flickbot_auto_shoot))
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
             int ent_count = firing_range ? 10000 : 100;
@@ -188,9 +188,7 @@ void StuffBotLoop()
                                 if (flickbot_auto_shoot)
                                 {
                                     std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                                    // Triggerbot will handle shooting
                                 }
 
                                 // -> Optional: return to the initial angle if flickback is selected by the user
