@@ -21,8 +21,8 @@ GameVersion v3.0.3.18
 - **Health & Shields:** Integrated Seer-style health and shield bars.
 - **Skeleton:** Real-time bone rendering for precise movement tracking.
 - **Glow:** Highly customizable player glow (Green: Visible, Red: Hidden, Yellow: Knocked).
-- **Extra Info:** XP Level, Player Name, Distance, Players Weapons, Players Platforms and Snap-lines.
-- **Spectator List:** Keep track of who is watching you (Count + Names).
+- **Extra Info:** PLayer XP Level, Player Name, PLayer Distance, Players Weapons, Players Platforms and Snap-lines.
+- **Spectator List:** Keep track of who is watching you (Count + List of Names).
 - **Target Indicator:** A visual DOT with configurable FOV to show best near target.
 - **Glow Items:** Glow items (Loba Style)
 
@@ -30,7 +30,7 @@ GameVersion v3.0.3.18
 - **Aimbot:** Smooth and adjustable aiming with FOV locking.
 - **Lock On Target:** Prevents target switching during active combat.
 - **FlickBot:** Fast target acquisition with configurable FOV and distance [HOLD Left SHIFT Key to activate].
-- **TriggerBot:** Automated firing when crosshairs are over an enemy with configurable FOV [HOLD Left SHIFT Key to activate].
+- **TriggerBot:** Automated firing when crosshairs are over an enemy with configurable FOV, auto-scaling FOV in DDS and Bullet/scale prediction [HOLD Left SHIFT Key to activate].
 - **Dynamic Settings (DDS):** On-the-fly adjustment of FOV and Smoothing from specific distance (Default: 40m).
 
 ### 🏃 Movement & Misc
