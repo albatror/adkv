@@ -1,9 +1,12 @@
 #include "ItemManager.h"
 #include "ItemID.h"
+#include "memory.h"
+#include "offsets.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <cstdint>
 
 ItemManager::ItemManager() {
     LoadItems("items.ini");
