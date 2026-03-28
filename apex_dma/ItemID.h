@@ -411,6 +411,7 @@ namespace ItemID {
         mp_ability_beamstick_stave = 405,
         hopup_car_crate = 406,
         mp_weapon_buster_rifle = 407,
+        vault_key = 408,
     };
 
     inline std::string getItemName(int id) {

@@ -14,6 +14,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
 #include "imgui/imgui_impl_win32.h"
+#include "types.h"
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
 
@@ -42,6 +43,8 @@ typedef struct visuals
 	bool flickbot_fov_circle = false;
 	bool triggerbot_fov_circle = false;
 	float skeleton_thickness = 1.0f;
+	bool item_esp = false;
+	float item_max_dist = 50.0f;
 }visuals;
 
 struct GColor {
@@ -59,6 +62,7 @@ public:
 	void RenderInfo();
 	void RenderMenu();
 	void RenderEsp();
+	void RenderItemEsp();
 	void RenderSpectator();
 	void ClickThrough(bool v);
 	void DrawLine(ImVec2 a, ImVec2 b, ImColor color, float width);

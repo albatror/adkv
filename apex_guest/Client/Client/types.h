@@ -20,11 +20,22 @@ typedef struct player {
     int xp_level = 0;
     int platform = 0;
     char name[33] = { 0 };
+	char weapon[33] = { 0 };
+	float bones[15][2] = { 0 };
 } player;
 
 typedef struct spectator {
     bool is_spec = false;
     char name[33] = { 0 };
 } spectator;
+
+typedef struct item_data
+{
+	float x = 0;
+	float y = 0;
+	float dist = 0;
+	int icon_id = -1;
+	char name[33] = { 0 };
+}item_data;
 
 #endif // TYPES_H

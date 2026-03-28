@@ -59,6 +59,9 @@ extern int flickbot_delay;
 extern float triggerbot_fov;
 extern bool fov;
 extern float cfsize;
+extern bool item_esp;
+extern float item_max_dist;
+extern int item_filter;
 extern visuals v;
 
 // Helper to trim strings
@@ -138,6 +141,9 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
+    file << "item_esp " << std::boolalpha << item_esp << "\n";
+    file << "item_max_dist " << item_max_dist << "\n";
+    file << "item_filter " << item_filter << "\n";
 
     file.close();
 }
@@ -215,6 +221,9 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
+        else if (key == "item_esp") ss >> std::boolalpha >> item_esp;
+        else if (key == "item_max_dist") ss >> item_max_dist;
+        else if (key == "item_filter") ss >> item_filter;
     }
 
     file.close();

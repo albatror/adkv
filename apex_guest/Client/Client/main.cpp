@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "types.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>
@@ -9,35 +10,7 @@
 #include <fstream>
 #include <iostream>
 //test contraste texte
-#include ".\imgui\imgui.h"
-
-typedef struct player
-{
-	float dist = 0;
-	int entity_team = 0;
-	float boxMiddle = 0;
-	float h_y = 0;
-	float width = 0;
-	float height = 0;
-	float b_x = 0;
-	float b_y = 0;
-	bool knocked = false;
-	bool visible = false;
-	int health = 0;
-	int shield = 0;
-	int maxshield = 0;
-	int armortype = 0;
-	int xp_level = 0;
-	int platform = 0;
-	char name[33] = { 0 };
-	char weapon[33] = { 0 };
-	float bones[15][2] = { 0 };
-}player;
-
-typedef struct spectator {
-	bool is_spec = false;
-	char name[33] = { 0 };
-}spectator;
+#include "imgui/imgui.h"
 
 uint32_t check = 0xABCD;
 
@@ -114,7 +87,12 @@ bool update_offsets = false;
 bool onevone = false;
 
 //items
-//bool medbackpack = true;
+bool item_esp = false;
+float item_max_dist = 50.0f * 40.0f;
+int item_filter = 0; // 0: All, 1: Weapons, 2: Ammo, 3: Heal, 4: Gear, 5: Attachments
+bool item_valid = false;
+bool item_next = false;
+item_data items_list[100];
 
 ///test contraste texte
 ImU32 GetContrastColor(ImU32 backgroundColor) {
@@ -530,6 +508,11 @@ int main(int argc, char** argv)
 	add[54] = (uintptr_t)&flickbot_flickback;
 	add[55] = (uintptr_t)&flickbot_flickback_delay;
 	add[57] = (uintptr_t)&flickbot_delay;
+	add[58] = (uintptr_t)&item_esp;
+	add[59] = (uintptr_t)&item_max_dist;
+	add[60] = (uintptr_t)&item_filter;
+	add[61] = (uintptr_t)&item_next;
+	add[62] = (uintptr_t)&items_list[0];
 	add[63] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
@@ -565,6 +548,10 @@ int main(int argc, char** argv)
 
 		screen_width = ov1.getWidth();
 		screen_height = ov1.getHeight();
+
+		v.item_esp = item_esp;
+		v.item_max_dist = item_max_dist / 40.0f;
+
 		if (IsKeyDown(VK_F4))
 		{
 			active = false;
@@ -583,6 +570,7 @@ int main(int argc, char** argv)
 			player_glow = !player_glow;
 			k_f6 = 1;
 			item_glow = !item_glow;
+			item_esp = !item_esp;
 		}
 		else if (!IsKeyDown(VK_F1) && k_f1 == 1)
 		{
@@ -637,6 +625,7 @@ int main(int argc, char** argv)
 		{
 			k_f8 = 1;
 			item_glow = !item_glow;
+			item_esp = !item_esp;
 		}
 		else if (!IsKeyDown(VK_F8) && k_f8 == 1)
 		{

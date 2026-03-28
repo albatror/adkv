@@ -40,6 +40,10 @@ bool esp = false;
 bool skeleton = false;
 float skeleton_thickness = 1.0f;
 bool item_glow = false;
+bool item_esp = false;
+float item_max_dist = 50.0f * 40.0f;
+int item_filter = 0;
+bool item_next_host = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
@@ -122,8 +126,10 @@ bool esp_t = false;
 bool aim_t = false;
 bool vars_t = false;
 bool item_t = false;
+bool item_esp_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
+uint64_t g_add_addr;
 bool next = false;
 bool valid = false;
 bool lock = false;
@@ -163,6 +169,15 @@ typedef struct player
 	char weapon[33] = { 0 };
 	float bones[15][2] = { 0 };
 }player;
+
+typedef struct item_data
+{
+	float x = 0;
+	float y = 0;
+	float dist = 0;
+	int icon_id = -1;
+	char name[33] = { 0 };
+}item_data;
 
 typedef struct spectator{
 	bool is_spec = false;
@@ -689,6 +704,119 @@ if (bhop && SuperKey) {
 	actions_t = false;
 }
 player players[toRead];
+item_data item_list[100];
+bool item_valid = false;
+
+static void ItemEspLoop()
+{
+	item_esp_t = true;
+	while (item_esp_t)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		while (g_Base != 0 && c_Base != 0 && g_add_addr != 0)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+			if (item_esp)
+			{
+				uint64_t LocalPlayer = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+				if (LocalPlayer == 0) continue;
+				Entity LPlayer = getEntity(LocalPlayer);
+				Vector LocalPlayerPosition = LPlayer.getPosition();
+
+				uint64_t viewRenderer = 0;
+				apex_mem.Read<uint64_t>(g_Base + OFFSET_RENDER, viewRenderer);
+				uint64_t viewMatrix = 0;
+				apex_mem.Read<uint64_t>(viewRenderer + OFFSET_MATRIX, viewMatrix);
+				Matrix m = {};
+				apex_mem.Read<Matrix>(viewMatrix, m);
+
+				uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+				memset(item_list, 0, sizeof(item_list));
+				int c = 0;
+				item_valid = false;
+
+				for (int i = 0; i < 10000 && c < 100; i++)
+				{
+					uint64_t centity = 0;
+					apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+					if (centity == 0) continue;
+
+					Item item = getItem(centity);
+					if (item.isItem() || item.isBox())
+					{
+						Vector EntityPosition = item.getPosition();
+						float dist = LocalPlayerPosition.DistTo(EntityPosition);
+						if (dist > item_max_dist) continue;
+
+						Vector screenPos = Vector();
+						if (WorldToScreen(EntityPosition, m.matrix, screen_width, screen_height, screenPos))
+						{
+							uint32_t scriptInt = 0;
+							apex_mem.Read<uint32_t>(centity + OFFSET_M_CUSTOMSCRIPTINT, scriptInt);
+
+							std::string itemName;
+							ItemCategory category = ItemCategory::OTHER;
+
+							char modelName[256] = { 0 };
+							item.getModelName(modelName, 256);
+
+							if (!ItemManager::getInstance().GetItemInfo(modelName, itemName, category)) {
+								ItemManager::getInstance().GetItemInfoByID(scriptInt, itemName, category);
+							}
+
+							// Apply Filter
+							if (item_filter > 0) {
+                                bool match = false;
+                                if (item_filter == 1 && category == ItemCategory::WEAPON) match = true;
+                                else if (item_filter == 2 && category == ItemCategory::AMMO) match = true;
+                                else if (item_filter == 3) { // Heal
+                                    if (itemName.find("Kit") != std::string::npos || itemName.find("Syringe") != std::string::npos ||
+                                        itemName.find("Battery") != std::string::npos || itemName.find("Cell") != std::string::npos ||
+                                        itemName.find("Phoenix") != std::string::npos || itemName.find("Accelerant") != std::string::npos)
+                                        match = true;
+                                }
+                                else if (item_filter == 4) { // Gear
+                                    if (itemName.find("Armor") != std::string::npos || itemName.find("Helmet") != std::string::npos ||
+                                        itemName.find("Backpack") != std::string::npos || itemName.find("Knockdown") != std::string::npos)
+                                        match = true;
+                                }
+                                else if (item_filter == 5) { // Attachments
+                                    if (itemName.find("Optic") != std::string::npos || itemName.find("Mag") != std::string::npos ||
+                                        itemName.find("Stock") != std::string::npos || itemName.find("Bolt") != std::string::npos ||
+                                        itemName.find("Barrel") != std::string::npos || itemName.find("Laser") != std::string::npos ||
+                                        itemName.find("Hopup") != std::string::npos)
+                                        match = true;
+                                }
+                                if (!match) continue;
+							}
+
+							item_list[c].x = screenPos.x;
+							item_list[c].y = screenPos.y;
+							item_list[c].dist = dist;
+							item_list[c].icon_id = ItemManager::getInstance().GetItemIconID(scriptInt, category);
+							strncpy(item_list[c].name, itemName.c_str(), 32);
+							c++;
+						}
+					}
+				}
+				if (c > 0) item_valid = true;
+
+				item_next_host = true;
+				while(item_next_host && g_Base != 0 && c_Base != 0 && g_add_addr != 0 && item_esp)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+			}
+			else
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
+		}
+	}
+	item_esp_t = false;
+}
 
 static void EspLoop()
 {
@@ -1106,6 +1234,7 @@ static void AimbotLoop()
 
 static void set_vars(uint64_t add_addr)
 {
+	g_add_addr = add_addr;
 	printf("Reading client vars...\n");
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	//Get addresses of client vars
@@ -1431,6 +1560,24 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, skeleton_thickne
   printf("Read failed!\n");
 }
 
+uint64_t item_esp_addr = 0;
+printf("Reading item_esp address: %lx\n", add_addr + sizeof(uint64_t) * 58);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, item_esp_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t item_max_dist_addr = 0;
+printf("Reading item_max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 59);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, item_max_dist_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t item_filter_addr = 0;
+printf("Reading item_filter address: %lx\n", add_addr + sizeof(uint64_t) * 60);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, item_filter_addr)) {
+  printf("Read failed!\n");
+}
+
 ////////
 
 uint64_t onevone_addr = 0;
@@ -1604,6 +1751,34 @@ while (vars_t)
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 
+        if (item_esp_addr) client_mem.Read<bool>(item_esp_addr, item_esp);
+        if (item_max_dist_addr) client_mem.Read<float>(item_max_dist_addr, item_max_dist);
+        if (item_filter_addr) client_mem.Read<int>(item_filter_addr, item_filter);
+
+        uint64_t item_next_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, item_next_addr);
+
+        if (item_esp && item_next_host)
+        {
+            if (item_next_addr)
+            {
+                bool item_next_val = false;
+                client_mem.Read<bool>(item_next_addr, item_next_val);
+                if (item_next_val)
+                {
+                    uint64_t item_data_addr = 0;
+                    client_mem.Read<uint64_t>(g_add_addr + sizeof(uint64_t) * 62, item_data_addr);
+                    if (item_data_addr)
+                    {
+                        if (item_valid)
+                            client_mem.WriteArray<item_data>(item_data_addr, item_list, 100);
+                        client_mem.Write<bool>(item_next_addr, false);
+                    }
+                    item_next_host = false;
+                }
+            }
+        }
+
         if (esp && next)
         {
             if (valid)
@@ -1768,6 +1943,7 @@ int main(int argc, char *argv[])
 	uint64_t add_off = 0x000000;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
+	std::thread itemesp_thr;
 	std::thread actions_thr;
 	std::thread itemglow_thr;
 	std::thread stuffbot_thr;
@@ -1818,11 +1994,13 @@ int main(int argc, char *argv[])
 
 				aimbot_thr = std::thread(AimbotLoop);
 				esp_thr = std::thread(EspLoop);
+				itemesp_thr = std::thread(ItemEspLoop);
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
 				itemglow_thr = std::thread(item_glow_t);
 				aimbot_thr.detach();
 				esp_thr.detach();
+				itemesp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
