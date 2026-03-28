@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "types.h"
 #include <random>
 #include <Windows.h>
 //#include <chrono>

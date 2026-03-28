@@ -42,6 +42,8 @@ typedef struct visuals
 	bool flickbot_fov_circle = false;
 	bool triggerbot_fov_circle = false;
 	float skeleton_thickness = 1.0f;
+	bool item_esp = false;
+	float item_max_dist = 50.0f;
 }visuals;
 
 struct GColor {
