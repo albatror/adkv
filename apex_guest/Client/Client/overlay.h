@@ -39,7 +39,7 @@ typedef struct visuals
 	bool info_window = false;
 	bool target_indicator = false;
 	float target_indicator_fov = 10.0f;
-	bool flickbot_fov_circle = false;
+	bool assistme_fov_circle = false;
 	bool triggerbot_fov_circle = false;
 	float skeleton_thickness = 1.0f;
 }visuals;
