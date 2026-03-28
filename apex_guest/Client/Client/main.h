@@ -7,4 +7,5 @@
 #include <locale>
 
 #include "math.h"
+#include "types.h"
 #include "overlay.h"

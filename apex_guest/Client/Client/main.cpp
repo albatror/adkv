@@ -10,35 +10,7 @@
 #include <fstream>
 #include <iostream>
 //test contraste texte
-#include ".\imgui\imgui.h"
-
-typedef struct player
-{
-	float dist = 0;
-	int entity_team = 0;
-	float boxMiddle = 0;
-	float h_y = 0;
-	float width = 0;
-	float height = 0;
-	float b_x = 0;
-	float b_y = 0;
-	bool knocked = false;
-	bool visible = false;
-	int health = 0;
-	int shield = 0;
-	int maxshield = 0;
-	int armortype = 0;
-	int xp_level = 0;
-	int platform = 0;
-	char name[33] = { 0 };
-	char weapon[33] = { 0 };
-	float bones[15][2] = { 0 };
-}player;
-
-typedef struct spectator {
-	bool is_spec = false;
-	char name[33] = { 0 };
-}spectator;
+#include "imgui/imgui.h"
 
 uint32_t check = 0xABCD;
 
@@ -579,6 +551,7 @@ int main(int argc, char** argv)
 
 		v.item_esp = item_esp;
 		v.item_max_dist = item_max_dist / 40.0f;
+
 		if (IsKeyDown(VK_F4))
 		{
 			active = false;

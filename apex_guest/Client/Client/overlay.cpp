@@ -1,5 +1,6 @@
 #include "overlay.h"
 #include "config.h"
+#include "types.h"
 #include <fstream>
 #include <iomanip>
 #include "apex_color_atlas.h"
@@ -26,6 +27,7 @@ extern float default_fov;
 extern int bone;
 extern int spectators;
 extern int allied_spectators;
+extern uint64_t g_Base;
 
 extern bool onevone;
 extern bool firing_range;
@@ -501,7 +503,9 @@ DWORD Overlay::CreateOverlay()
 		int w, h;
 		char path[256];
 		sprintf(path, "icons/apex_icons_page_%d.png", i);
-		LoadTextureFromFile(path, &g_apexAtlasSRVs[i], &w, &h);
+			if (!LoadTextureFromFile(path, &g_apexAtlasSRVs[i], &w, &h)) {
+				printf(XorStr("Failed to load icon page %d\n"), i);
+			}
 	}
 
 	ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.00f);

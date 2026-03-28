@@ -1,4 +1,6 @@
-#pragma once
+#ifndef APEX_COLOR_ATLAS_H
+#define APEX_COLOR_ATLAS_H
+
 #include "imgui/imgui.h"
 
 struct ApexColorAtlasPage {
@@ -1237,3 +1239,5 @@ inline void DrawApexColorAtlasIcon(const ImTextureID* page_textures, int index, 
     const ImVec2 draw_size = (size.x > 0.0f && size.y > 0.0f) ? size : icon.size;
     ImGui::Image(page_textures[icon.page], draw_size, icon.uv0, icon.uv1, ImGui::ColorConvertU32ToFloat4(tint), ImGui::ColorConvertU32ToFloat4(border));
 }
+
+#endif // APEX_COLOR_ATLAS_H
