@@ -68,6 +68,12 @@ int grappleAttached;
 //Firing Range 1v1 toggle
 bool onevone = false;
 
+float DDS = 70.0f * 40.0f;
+float min_max_fov = 4.00f;
+float max_max_fov = 25.00f;
+float min_smooth = 100.00f;
+float max_smooth = 150.00f;
+
 bool flickbot = false;
 int flickbot_key = 0xA0; // VK_LSHIFT
 bool flickbot_aiming = false;
@@ -280,6 +286,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	if (flickbot) {
 		if (flickbot_fov > active_fov) active_fov = flickbot_fov;
 		if (flickbot_max_dist > active_dist) active_dist = flickbot_max_dist;
+	}
+
+	if (triggerbot) {
+		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 
 	if (aimentity != 0 && lock)
@@ -1425,6 +1435,36 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t dds_addr = 0;
+printf("Reading DDS address: %lx\n", add_addr + sizeof(uint64_t) * 56);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, dds_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t min_max_fov_addr = 0;
+printf("Reading min_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 58);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, min_max_fov_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t max_max_fov_addr = 0;
+printf("Reading max_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 59);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, max_max_fov_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t min_smooth_addr = 0;
+printf("Reading min_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 60);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, min_smooth_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t max_smooth_addr = 0;
+printf("Reading max_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 61);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, max_smooth_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t skeleton_thickness_addr = 0;
 printf("Reading skeleton_thickness address: %lx\n", add_addr + sizeof(uint64_t) * 63);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, skeleton_thickness_addr)) {
@@ -1601,6 +1641,16 @@ while (vars_t)
         if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+
+		if (dds_addr) client_mem.Read<float>(dds_addr, DDS);
+
+		if (min_max_fov_addr) client_mem.Read<float>(min_max_fov_addr, min_max_fov);
+
+		if (max_max_fov_addr) client_mem.Read<float>(max_max_fov_addr, max_max_fov);
+
+		if (min_smooth_addr) client_mem.Read<float>(min_smooth_addr, min_smooth);
+
+		if (max_smooth_addr) client_mem.Read<float>(max_smooth_addr, max_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 

@@ -42,3 +42,12 @@ double Math::DotProduct(const Vector& v1, const float* v2)
 {
 	return v1.x * v2[0] + v1.y * v2[1] + v1.z * v2[2];
 }
+
+float Math::SmoothStep(float edge0, float edge1, float x)
+{
+	// Scale, bias and saturate x to 0..1 range
+	x = (x - edge0) / (edge1 - edge0);
+	x = x < 0 ? 0 : (x > 1 ? 1 : x);
+	// Evaluate polynomial
+	return x * x * (3 - 2 * x);
+}
