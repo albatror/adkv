@@ -117,6 +117,11 @@
 //#define OFFSET_CROSSHAIR_START 0x1958 //CPlayer!crosshairTargetStartTime updated 01/9/2024
 #define OFFSET_INPUT_SYSTEM 0x1dc4d80 //[Miscellaneous].InputSystem updated 2026/03/24 
 
+#define OFFSET_VIEWMODEL 0x2e00 //[RecvTable.DT_Player].m_hViewModels updated 2026/03/24
+#define OFFSET_CURFRAME 0xd8 // [DataMap.CBaseViewModel].m_currentFrame.modelIndex
+#define OFFSET_ANIM_MODEL_INDEX 0xe40 // [DataMap.CBaseViewModel].m_currentFrameBaseAnimating.animModelIndex
+#define OFFSET_ANIM_SEQUENCE 0xe48 // [DataMap.CBaseViewModel].m_currentFrameBaseAnimating.animSequence
+
 #define OFFSET_SKYDIVE_STATE 0x48b8 //[RecvTable.DT_Player].m_skydiveState updated 2026/03/24
 #define OFFSET_GRAPPLEACTIVED       0x1f10 //[RecvTable.DT_Player].m_grappleActive updated 2026/03/24
 #define OFFSET_GRAPPLE              0x1e88 //[RecvTable.DT_Player].m_grapple updated 2026/03/24

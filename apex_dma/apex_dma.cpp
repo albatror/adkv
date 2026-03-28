@@ -87,6 +87,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool heirloom_changer = false;
 
 ///////////
 //bool medbackpack = true;
@@ -589,6 +590,39 @@ if (isGrappling && grappleAttached == 1) {
 }
 
 //grapple END/////////////////////////////
+
+// Heirloom Changer
+if (heirloom_changer) {
+    uint32_t view_model_handle = 0;
+    if (apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_VIEWMODEL, view_model_handle)) {
+        view_model_handle &= 0xFFFF;
+        if (view_model_handle != 0xFFFF) {
+            uint64_t view_model_ptr = 0;
+            if (apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (view_model_handle << 5), view_model_ptr) && view_model_ptr != 0) {
+                uint64_t name_ptr = 0;
+                if (apex_mem.Read<uint64_t>(view_model_ptr + OFFSET_MODELNAME, name_ptr) && name_ptr != 0) {
+                    char modelName[200];
+                    if (apex_mem.ReadArray<char>(name_ptr, modelName, 200)) {
+                        std::string model_name_str = std::string(modelName);
+                        if (model_name_str.find("empty_handed") != std::string::npos) {
+                            const char* heirloom_path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
+                            apex_mem.WriteArray<char>(name_ptr, (char*)heirloom_path, strlen(heirloom_path) + 1);
+                            apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, 5272);
+                        } else if (model_name_str.find("heirloom_karambit_v24_cosmicmerc_v") != std::string::npos) {
+                            int cur_sequence = 0;
+                            apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, cur_sequence);
+                            int modelAniIndex = 0;
+                            apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, modelAniIndex);
+                            if (cur_sequence == 0 && modelAniIndex == 5272) {
+                                apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, 82);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 //bhop///
 if (bhop && SuperKey) {
@@ -1425,6 +1459,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_a
   printf("Read failed!\n");
 }
 
+uint64_t heirloom_changer_addr = 0;
+printf("Reading heirloom_changer address: %lx\n", add_addr + sizeof(uint64_t) * 56);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, heirloom_changer_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t skeleton_thickness_addr = 0;
 printf("Reading skeleton_thickness address: %lx\n", add_addr + sizeof(uint64_t) * 63);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, skeleton_thickness_addr)) {
@@ -1601,6 +1641,8 @@ while (vars_t)
         if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
 
         if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+
+        if (heirloom_changer_addr) client_mem.Read<bool>(heirloom_changer_addr, heirloom_changer);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 
