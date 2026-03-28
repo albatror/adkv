@@ -375,6 +375,12 @@ void DoActions()
 			apex_mem.ReadArray<char>(MapName_ptr, MapName, 200);
 					
 			//printf("%s\n", MapName);
+			static char LastMapName[200] = { 0 };
+			if (strcmp(MapName, LastMapName) != 0) {
+				ItemManager::getInstance().ResetModelCache();
+				strcpy(LastMapName, MapName);
+			}
+
 			if (strcmp(MapName, "mp_rr_tropic_island_mu1_storm") == 0) 
 			{
 				map = 1;
@@ -605,15 +611,17 @@ if (heirloom_changer) {
                     if (apex_mem.ReadArray<char>(name_ptr, modelName, 200)) {
                         std::string model_name_str = std::string(modelName);
                         if (model_name_str.find("empty_handed") != std::string::npos) {
-                            const char* heirloom_path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
-                            apex_mem.WriteArray<char>(name_ptr, (char*)heirloom_path, strlen(heirloom_path) + 1);
-                            apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, 5272);
+                            int heirloom_model_index = ItemManager::getInstance().GetModelIndex("heirloom_karambit_v24_cosmicmerc_v");
+                            if (heirloom_model_index != 0) {
+                                apex_mem.Write<int>(view_model_ptr + OFFSET_MODEL_INDEX, heirloom_model_index);
+                                apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, heirloom_model_index);
+                                apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, heirloom_model_index);
+                                apex_mem.Write<int>(view_model_ptr + OFFSET_SEQUENCE_FINISHED, 1);
+                            }
                         } else if (model_name_str.find("heirloom_karambit_v24_cosmicmerc_v") != std::string::npos) {
                             int cur_sequence = 0;
                             apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, cur_sequence);
-                            int modelAniIndex = 0;
-                            apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, modelAniIndex);
-                            if (cur_sequence == 0 && modelAniIndex == 5272) {
+                            if (cur_sequence == 0) {
                                 apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, 82);
                             }
                         }

@@ -119,6 +119,8 @@
 
 #define OFFSET_VIEWMODEL 0x2e00 //[RecvTable.DT_Player].m_hViewModels updated 2026/03/24
 #define OFFSET_CURFRAME 0xd8 // [DataMap.CBaseViewModel].m_currentFrame.modelIndex
+#define OFFSET_MODEL_INDEX 0x60 // [DT_BaseEntity].m_nModelIndex
+#define OFFSET_SEQUENCE_FINISHED 0xe1c // [DT_BaseViewModel].m_bSequenceFinished
 #define OFFSET_ANIM_MODEL_INDEX 0xe40 // [DataMap.CBaseViewModel].m_currentFrameBaseAnimating.animModelIndex
 #define OFFSET_ANIM_SEQUENCE 0xe48 // [DataMap.CBaseViewModel].m_currentFrameBaseAnimating.animSequence
 

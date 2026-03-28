@@ -124,3 +124,43 @@ bool ItemManager::GetItemInfoByID(int id, std::string& name, ItemCategory& categ
 
     return true;
 }
+
+int ItemManager::GetModelIndex(const std::string& search_str) {
+    auto it = modelIndexCache.find(search_str);
+    if (it != modelIndexCache.end()) {
+        return it->second;
+    }
+
+    extern uint64_t g_Base;
+    extern Memory apex_mem;
+    uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+
+    for (int i = 0; i < 2000; i++) {
+        uint64_t centity = 0;
+        apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+        if (centity == 0) continue;
+
+        uint64_t m_ptr = 0;
+        apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, m_ptr);
+        if (m_ptr == 0) continue;
+
+        char modelName[256] = { 0 };
+        apex_mem.ReadArray<char>(m_ptr, modelName, 256);
+        std::string model_str = std::string(modelName);
+
+        if (model_str.find(search_str) != std::string::npos) {
+            int modelIndex = 0;
+            apex_mem.Read<int>(centity + OFFSET_MODEL_INDEX, modelIndex);
+            if (modelIndex != 0) {
+                modelIndexCache[search_str] = modelIndex;
+                return modelIndex;
+            }
+        }
+    }
+
+    return 0;
+}
+
+void ItemManager::ResetModelCache() {
+    modelIndexCache.clear();
+}

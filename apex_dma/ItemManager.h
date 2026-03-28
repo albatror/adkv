@@ -40,10 +40,13 @@ public:
     void LoadWeapons(const std::string& path);
     bool GetItemInfo(const std::string& modelName, std::string& name, ItemCategory& category);
     bool GetItemInfoByID(int id, std::string& name, ItemCategory& category);
+    int GetModelIndex(const std::string& search_str);
+    void ResetModelCache();
 
 private:
     ItemManager();
     ItemCategory DetermineCategory(const std::string& name, int glowId);
     std::vector<ItemDef> itemDefs;
     std::unordered_map<std::string, std::pair<std::string, ItemCategory>> cache;
+    std::unordered_map<std::string, int> modelIndexCache;
 };
