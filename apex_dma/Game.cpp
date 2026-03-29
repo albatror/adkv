@@ -604,17 +604,20 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
     }
 
 	if (CalculatedAngles == QAngle(0, 0, 0))
-    	CalculatedAngles = Math::CalcAngle(LocalCamera, TargetBonePosition);
+		CalculatedAngles = Math::CalcAngle(LocalCamera, TargetBonePosition);
+
 	QAngle SwayAngles = from.GetSwayAngles();
+
 	//remove sway and recoil
-	if(aim_no_recoil)
-		CalculatedAngles-=SwayAngles-ViewAngles;
+	if (aim_no_recoil)
+		CalculatedAngles -= SwayAngles - ViewAngles;
+
 	Math::NormalizeAngles(CalculatedAngles);
 	QAngle Delta = CalculatedAngles - ViewAngles;
 
 	Math::NormalizeAngles(Delta);
 
-	QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
+	QAngle SmoothedAngles = ViewAngles + Delta / smoothing;
 	return SmoothedAngles;
 }
 
