@@ -12,15 +12,13 @@ extern Memory apex_mem;
 extern uint64_t g_Base;
 extern uintptr_t aimentity;
 extern float smooth;
-extern bool flickbot;
-extern bool flickbot_aiming;
-extern float flickbot_fov;
-extern float flickbot_max_dist;
-extern bool flickbot_auto_shoot;
-extern int flickbot_auto_shoot_delay;
-extern bool flickbot_flickback;
-extern int flickbot_flickback_delay;
-extern int flickbot_delay;
+extern bool aim_no_recoil;
+extern bool aimassist;
+extern bool aimassist_aiming;
+extern float aimassist_fov;
+extern float aimassist_max_dist;
+extern bool aimassist_auto_shoot;
+extern float aimassist_smooth;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
@@ -54,8 +52,98 @@ void StuffBotLoop()
         if (LocalPlayer == 0) continue;
         Entity LPlayer = getEntity(LocalPlayer);
 
+        // AimAssist logic
+        static uint64_t last_aim_target = 0;
+        static int last_bone_id = 2; // Default to UpperChest/Neck area
+
+        if (aimassist && aimassist_aiming)
+        {
+            if (aimentity != 0 && is_aimentity_visible)
+            {
+                Entity Target = getEntity(aimentity);
+                if (Target.isAlive() && (!Target.isKnocked() || firing_range))
+                {
+                    float dist = LPlayer.getPosition().DistTo(Target.getPosition());
+                    if (dist <= aimassist_max_dist)
+                    {
+                        // Bone selection hysteresis
+                        if (aimentity != last_aim_target)
+                        {
+                            last_aim_target = aimentity;
+                            // Select bone closest to crosshair
+                            float best_fov = FLT_MAX;
+                            QAngle CurrentAngles = LPlayer.GetViewAngles();
+                            Vector CamPos = LPlayer.GetCamPos();
+
+                            // Iterate over key bones: 0:Head, 2:UpperChest, 3:LowerChest, 5:Stomach? (let's use 0 to 8 as common hitboxes)
+                            for (int i = 0; i < 8; i++) {
+                                Vector BonePos = Target.getBonePositionByHitbox(i);
+                                if (BonePos.IsZero()) continue;
+                                float fov = Math::GetFov(CurrentAngles, Math::CalcAngle(CamPos, BonePos));
+                                if (fov < best_fov) {
+                                    best_fov = fov;
+                                    last_bone_id = i;
+                                }
+                            }
+                        }
+
+                        Vector TargetPos = Target.getBonePositionByHitbox(last_bone_id);
+                        if (!TargetPos.IsZero())
+                        {
+                            QAngle CurrentAngles = LPlayer.GetViewAngles();
+                            QAngle TargetAngles = Math::CalcAngle(LPlayer.GetCamPos(), TargetPos);
+
+                            // Refined pitch calculation - account for sway/recoil if needed
+                            QAngle SwayAngles = LPlayer.GetSwayAngles();
+                            if (aim_no_recoil)
+                                TargetAngles -= (SwayAngles - CurrentAngles);
+
+                            Math::NormalizeAngles(TargetAngles);
+
+                            float fov = Math::GetFov(CurrentAngles, TargetAngles);
+                            if (fov <= aimassist_fov)
+                            {
+                                // Smoothing with deadzone
+                                QAngle Delta = TargetAngles - CurrentAngles;
+                                Math::NormalizeAngles(Delta);
+
+                                float delta_len = sqrt(Delta.x * Delta.x + Delta.y * Delta.y);
+                                if (delta_len > 0.005f) // Deadzone to eliminate micro-shaking
+                                {
+                                    // Smooth out movement using dynamic smoothing based on distance to target
+                                    float current_smoothing = aimassist_smooth;
+                                    if (delta_len < 1.0f) {
+                                        current_smoothing *= (1.0f + (1.0f - delta_len) * 2.0f); // Increase smoothing near center
+                                    }
+
+                                    QAngle SmoothedDelta = Delta / current_smoothing;
+                                    QAngle NewAngles = CurrentAngles + SmoothedDelta;
+                                    Math::NormalizeAngles(NewAngles);
+                                    LPlayer.SetViewAngles(NewAngles);
+                                }
+
+                                // Auto-shoot integration
+                                if (aimassist_auto_shoot)
+                                {
+                                    // Reuse triggerbot firing logic if crosshair is close enough
+                                    if (delta_len < 0.5f) // Tight threshold for auto-shoot
+                                    {
+                                        TriggerBotRun();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                last_aim_target = 0;
+            }
+        }
+
         // Triggerbot logic
-        if ((triggerbot && triggerbot_aiming) || (flickbot && flickbot_aiming && flickbot_auto_shoot))
+        if (triggerbot && triggerbot_aiming)
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
             int ent_count = firing_range ? 10000 : 100;
@@ -176,101 +264,5 @@ void StuffBotLoop()
             }
         }
 
-        // Flickbot logic
-        static auto lastFlickTime = std::chrono::steady_clock::now() - std::chrono::seconds(10);
-        static QAngle manual_angles = { 0, 0, 0 };
-        static bool is_flicking = false;
-
-        if (flickbot && flickbot_aiming && aimentity != 0)
-        {
-            char weaponModel[256] = { 0 };
-            LPlayer.getWeaponModelName(weaponModel, 256);
-            std::string weaponName = get_weapon_name_by_model(weaponModel);
-
-            // Filter weapons (don't flick with melee or unknown items)
-            bool isMelee = (weaponName == "Fists" || weaponName == "Throwing Knife" || weaponName == "Unknown");
-
-            if (!isMelee)
-            {
-                Entity Target = getEntity(aimentity);
-                if (Target.isAlive() && (!Target.isKnocked() || firing_range) && is_aimentity_visible)
-                {
-                    float distance = LPlayer.getPosition().DistTo(Target.getPosition());
-
-                    // Adaptive system based on distance
-                    float current_flick_smooth = smooth;
-                    float current_flick_fov = flickbot_fov;
-                    int current_flick_delay = flickbot_delay;
-                    int current_shoot_delay = flickbot_auto_shoot_delay;
-                    int current_flickback_delay = flickbot_flickback_delay;
-
-                    if (distance < flickbot_max_dist && flickbot_max_dist > 0.0f)
-                    {
-                        float scale = 1.0f - (distance / flickbot_max_dist);
-                        // Increase speed (decrease smooth) for close targets
-                        current_flick_smooth /= (1.0f + scale * 3.0f);
-                        // Increase FOV for close targets to make acquisition easier
-                        current_flick_fov *= (1.0f + scale * 2.0f);
-                        // Decrease delays for faster reaction at close range
-                        current_flick_delay = (int)(current_flick_delay / (1.0f + scale * 2.0f));
-                        current_shoot_delay = (int)(current_shoot_delay / (1.0f + scale * 1.5f));
-                        current_flickback_delay = (int)(current_flickback_delay / (1.0f + scale * 1.5f));
-                    }
-
-                    float fov = CalculateFov(LPlayer, Target);
-                    if (fov <= current_flick_fov)
-                    {
-                        if (!is_flicking) {
-                            manual_angles = LPlayer.GetViewAngles();
-                            is_flicking = true;
-                        }
-
-                        // 1. Read current angle (already done in manual_angles capture or in LPlayer.GetViewAngles())
-                        // 2. Calculate target angle
-                        // 3. delta = difference
-                        // 4. Calculate FOV (already done above)
-                        // 5. If FOV OK:
-                        QAngle aim_angles = CalculateBestBoneAim(LPlayer, aimentity, current_flick_fov, current_flick_smooth);
-                        if (aim_angles.x != 0 || aim_angles.y != 0)
-                        {
-                            // -> apply flick (smooth)
-                            LPlayer.SetViewAngles(aim_angles);
-
-                            auto now = std::chrono::steady_clock::now();
-                            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFlickTime).count() >= current_flick_delay)
-                            {
-                                // -> optionally shoot if autoshoot is selected by the user
-                                if (flickbot_auto_shoot)
-                                {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_shoot_delay));
-                                    // Triggerbot will handle shooting
-                                }
-
-                                // -> Optional: return to the initial angle if flickback is selected by the user
-                                if (flickbot_flickback)
-                                {
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(current_flickback_delay));
-                                    LPlayer.SetViewAngles(manual_angles);
-                                    is_flicking = false; // Reset to allow fresh manual angle capture
-                                }
-
-                                // Add random jitter
-                                // static std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
-                                // std::uniform_int_distribution<int> dist(0, 10);
-                                // lastFlickTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(dist(engine));
-                            }
-                        }
-                    } else {
-                        is_flicking = false;
-                    }
-                } else {
-                    is_flicking = false;
-                }
-            } else {
-                is_flicking = false;
-            }
-        } else {
-            is_flicking = false;
-        }
     }
 }
