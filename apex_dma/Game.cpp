@@ -530,10 +530,40 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	}
 	
 	Vector LocalCamera = from.GetCamPos();
-	//
+	QAngle ViewAngles = from.GetViewAngles();
+
+	static int last_bone = -1;
+	static uintptr_t last_target = 0;
+
+	Vector TargetBonePosition;
 	float distanceToTarget;
-	//
-	Vector TargetBonePosition = target.getBonePositionByHitbox(bone);
+	int best_bone = bone;
+
+	if (bone_auto) {
+		float best_fov = FLT_MAX;
+		for (int i = 0; i < 8; i++) { // Check Head, Neck, Chest, Stomach, etc.
+			Vector currentBonePosition = target.getBonePositionByHitbox(i);
+			if (currentBonePosition.IsZero()) continue;
+
+			float current_fov = Math::GetFov(ViewAngles, Math::CalcAngle(LocalCamera, currentBonePosition));
+
+			// Bone selection hysteresis: prioritize the last bone if it's still good
+			if (last_target == t && last_bone == i && current_fov < best_fov * 1.2f) {
+				current_fov *= 0.8f;
+			}
+
+			if (current_fov < best_fov) {
+				best_fov = current_fov;
+				best_bone = i;
+			}
+		}
+		last_target = t;
+		last_bone = best_bone;
+	}
+
+	TargetBonePosition = target.getBonePositionByHitbox(best_bone);
+	distanceToTarget = (TargetBonePosition - LocalCamera).Length();
+
 	QAngle CalculatedAngles = QAngle(0, 0, 0);
 	
 	WeaponXEntity curweap = WeaponXEntity();
@@ -546,24 +576,6 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	{
 		max_fov *= zoom_fov/90.0f;
 	}
-
-  // Find best bone
-  if (bone_auto) {
-    float NearestBoneDistance = FLT_MAX;
-    for (int i = 0; i < 4; i++) {
-      Vector currentBonePosition = target.getBonePositionByHitbox(i);
-      float DistanceFromCrosshair =
-          (currentBonePosition - LocalCamera).Length();
-      if (DistanceFromCrosshair < NearestBoneDistance) {
-        TargetBonePosition = currentBonePosition;
-        distanceToTarget = DistanceFromCrosshair;
-        NearestBoneDistance = DistanceFromCrosshair;
-      }
-    }
-  } else {
-    TargetBonePosition = target.getBonePositionByHitbox(bone);
-    distanceToTarget = (TargetBonePosition - LocalCamera).Length();
-  }
 	/*
 	//simple aim prediction
 	if (BulletSpeed > 1.f)
