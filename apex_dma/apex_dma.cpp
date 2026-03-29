@@ -131,6 +131,7 @@ bool next = false;
 bool valid = false;
 bool lock = false;
 bool is_aimentity_visible = false;
+bool tmp_is_aimentity_visible = false;
 
 //map
 int map = 0;
@@ -274,7 +275,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 
 	if (target.ptr == aimentity)
 	{
-		is_aimentity_visible = visible;
+		tmp_is_aimentity_visible = visible;
 	}
 
 	float active_fov = max_fov;
@@ -293,9 +294,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2 || (aimassist && aimassist_aiming))
+	else if (aim == 2 || (aimassist && aimassist_aiming) || (triggerbot && triggerbot_aiming))
 	{
-		if (visible && fov <= active_fov && dist <= active_dist)
+		float assist_fov_buffer = (aimassist && aimassist_aiming || triggerbot && triggerbot_aiming) ? 2.0f : 0.0f;
+		if (visible && fov <= (active_fov + assist_fov_buffer) && dist <= active_dist)
 		{
 			if (fov < max)
 			{
@@ -627,6 +629,7 @@ if (bhop && SuperKey) {
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;
+			tmp_is_aimentity_visible = false;
 
 			// Clear spectator list every frame to prevent ghosting/stale data
 			memset(spectator_list, 0, sizeof(spectator_list));
@@ -643,12 +646,16 @@ if (bhop && SuperKey) {
 					if (LocalPlayer == centity)
 						continue;
 
-					char class_name[33] = {};
-					get_class_name(centity, class_name);
-					if (strncmp(class_name, "CAI_BaseNPC", 11) != 0)
-						continue;
-
 					Entity Target = getEntity(centity);
+					if (!Target.isDummy())
+					{
+						continue;
+					}
+
+					if (c < toRead) {
+						ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
+						c++;
+					}
 
 					if (player_glow && !Target.isGlowing())
 					{
@@ -658,9 +665,6 @@ if (bhop && SuperKey) {
 					{
 						Target.disableGlow();
 					}
-
-					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
-					c++;
 				}
 			}
 			else
@@ -691,6 +695,7 @@ if (bhop && SuperKey) {
 			}else{
 				aimentity = lastaimentity;
 			}
+			is_aimentity_visible = tmp_is_aimentity_visible;
 		}
 	}
 
@@ -762,7 +767,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 				if (firing_range)
 				{
 					int c = 0;
-					for (int i = 0; i < 10000; i++)
+					for (int i = 0; i < 2000; i++)
 					{
 						uint64_t centity = 0;
 						apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
@@ -1043,9 +1048,9 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || (aimassist && aimassist_aiming) || (triggerbot && triggerbot_aiming))
 			{
-				if (aimentity == 0 || !aiming)
+				if (aimentity == 0 || (!aiming && !aimassist_aiming && !triggerbot_aiming))
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -1085,6 +1090,7 @@ static void AimbotLoop()
 				float fov = CalculateFov(LPlayer, Target);
 				float active_max_fov = max_fov;
 				if (aimassist && aimassist_aiming && aimassist_fov > active_max_fov) active_max_fov = aimassist_fov;
+				if (triggerbot && triggerbot_aiming && triggerbot_fov > active_max_fov) active_max_fov = triggerbot_fov;
 
 				if (fov > active_max_fov)
 				{
@@ -1104,6 +1110,7 @@ static void AimbotLoop()
 
 				float active_target_max_fov = max_fov;
 				if (aimassist && aimassist_aiming && aimassist_fov > active_target_max_fov) active_target_max_fov = aimassist_fov;
+				if (triggerbot && triggerbot_aiming && triggerbot_fov > active_target_max_fov) active_target_max_fov = triggerbot_fov;
 
 				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, active_target_max_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
@@ -1111,7 +1118,8 @@ static void AimbotLoop()
 					continue;
 				}
 
-				LPlayer.SetViewAngles(Angles);
+				if (aim > 0 && aiming && !aimassist_aiming && !triggerbot_aiming)
+					LPlayer.SetViewAngles(Angles);
 			}
 		}
 	}

@@ -88,34 +88,40 @@ void StuffBotLoop()
                         }
 
                         Vector TargetPos = Target.getBonePositionByHitbox(last_bone_id);
-                        if (!TargetPos.IsZero() && is_aimentity_visible)
+                        if (!TargetPos.IsZero() && (is_aimentity_visible || firing_range))
                         {
                             QAngle CurrentAngles = LPlayer.GetViewAngles();
                             QAngle TargetAngles = Math::CalcAngle(LPlayer.GetCamPos(), TargetPos);
 
-                            // Refined pitch calculation - account for sway/recoil if needed
-                            QAngle SwayAngles = LPlayer.GetSwayAngles();
-                            QAngle CurrentAnglesCaptured = LPlayer.GetViewAngles();
-                            if (aim_no_recoil) {
-                                TargetAngles -= (SwayAngles - CurrentAnglesCaptured);
-                            }
-
-                            Math::NormalizeAngles(TargetAngles);
-
+                            // 1. Calculate FOV before compensation
                             float fov = Math::GetFov(CurrentAngles, TargetAngles);
+
                             if (fov <= aimassist_fov)
                             {
-                                // Smoothing with deadzone
+                            // 2. Refined calculation - always account for sway/recoil to prevent engine fighting
+                            QAngle SwayAngles = LPlayer.GetSwayAngles();
+                            QAngle Recoil = LPlayer.GetRecoil();
+                            TargetAngles -= (SwayAngles - CurrentAngles);
+                            TargetAngles -= Recoil;
+
+                                Math::NormalizeAngles(TargetAngles);
+
+                                // 3. Smoothing with deadzone
                                 QAngle Delta = TargetAngles - CurrentAngles;
                                 Math::NormalizeAngles(Delta);
 
                                 float delta_len = sqrt(Delta.x * Delta.x + Delta.y * Delta.y);
-                                if (delta_len > 0.01f) // Deadzone to eliminate micro-shaking
+                                if (delta_len > 0.01f && aimassist_smooth >= 1.0f) // Deadzone for stability
                                 {
+                                    // Smooth out movement
                                     QAngle SmoothedDelta = Delta / aimassist_smooth;
                                     QAngle NewAngles = CurrentAngles + SmoothedDelta;
                                     Math::NormalizeAngles(NewAngles);
-                                    LPlayer.SetViewAngles(NewAngles);
+
+                                    // Ensure we don't set invalid angles
+                                    if (!isnan(NewAngles.x) && !isnan(NewAngles.y)) {
+                                        LPlayer.SetViewAngles(NewAngles);
+                                    }
                                 }
                             }
                         }
@@ -128,132 +134,37 @@ void StuffBotLoop()
             }
         }
 
-        // Triggerbot logic
+        // Triggerbot logic - optimized to run in StuffBot thread
         if ((triggerbot && triggerbot_aiming) || (aimassist && aimassist_aiming && aimassist_auto_shoot))
         {
-            uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-            int ent_count = firing_range ? 10000 : 100;
-            static std::unordered_map<uint64_t, float> last_crosshair_times;
-
-            for (int i = 0; i < ent_count; i++) {
-                uint64_t centity = 0;
-                if (!apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity) || centity == 0 || centity == LocalPlayer) continue;
-
+            if (aimentity != 0 && (is_aimentity_visible || firing_range))
+            {
                 // First check crosshair timestamp - fast read
                 float now_crosshair_target_time = 0;
-                if (!apex_mem.Read<float>(centity + OFFSET_CROSSHAIR_LAST, now_crosshair_target_time)) continue;
+                if (apex_mem.Read<float>(aimentity + OFFSET_CROSSHAIR_LAST, now_crosshair_target_time))
+                {
+                    static std::unordered_map<uint64_t, float> last_crosshair_times;
+                    if (now_crosshair_target_time > last_crosshair_times[aimentity])
+                    {
+                        Entity Target = getEntity(aimentity);
+                        Vector HeadPos = Target.getBonePositionByHitbox(0);
+                        if (!HeadPos.IsZero())
+                        {
+                            QAngle CurrentAngles = LPlayer.GetViewAngles();
+                            float fov = Math::GetFov(CurrentAngles, Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
 
-                if (last_crosshair_times.find(centity) == last_crosshair_times.end()) {
-                    last_crosshair_times[centity] = now_crosshair_target_time;
-                    continue;
-                }
-
-                if (now_crosshair_target_time > last_crosshair_times[centity]) {
-                    // Possible target detected by crosshair, now perform detailed checks
-                    int health = 0;
-                    apex_mem.Read<int>(centity + OFFSET_HEALTH, health);
-                    if (health <= 0) {
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        continue;
-                    }
-
-                    int team = 0;
-                    apex_mem.Read<int>(centity + OFFSET_TEAM, team);
-                    if (team == LPlayer.getTeamId() && !firing_range) {
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        continue;
-                    }
-
-                    // Dummy check if firing range
-                    if (firing_range) {
-                        char class_name[33] = {};
-                        get_class_name(centity, class_name);
-                        if (strncmp(class_name, "CAI_BaseNPC", 11) != 0) {
-                            last_crosshair_times[centity] = now_crosshair_target_time;
-                            continue;
-                        }
-                    }
-
-                    // Check FOV using head bone for better accuracy
-                    Entity Target = getEntity(centity);
-                    Vector HeadPos = Target.getBonePositionByHitbox(0);
-                    if (HeadPos.IsZero()) {
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        continue;
-                    }
-
-                    float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
-
-                    bool can_shoot = false;
-                    float dist = LPlayer.getPosition().DistTo(Target.getPosition());
-
-                    if (aim_dist > 0.0f && dist > aim_dist) {
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        continue;
-                    }
-
-                    if (dist < DDS) {
-                        float distRatio = (DDS > 0.0f) ? (dist / DDS) : 0.0f;
-                        float distanceFactor = 1.0f - distRatio;
-                        float easedDistanceFactor = Math::SmoothStep(0.0f, 1.0f, distanceFactor);
-                        float fovDiff = max_max_fov - min_max_fov;
-                        float current_max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
-
-                        if (fov <= current_max_fov) {
-                            can_shoot = true;
-                        }
-                    } else {
-                        // Prediction for targets outside DDS
-                        if (fov <= triggerbot_fov) {
-                            WeaponXEntity curweap = WeaponXEntity();
-                            curweap.update(LPlayer.ptr);
-                            float BulletSpeed = curweap.get_projectile_speed();
-                            float BulletGrav = curweap.get_projectile_gravity();
-
-                            if (BulletSpeed > 1.f) {
-                                PredictCtx Ctx;
-                                Ctx.StartPos = LPlayer.GetCamPos();
-                                Ctx.TargetPos = HeadPos;
-                                // Scale bullet speed and gravity for prediction offset
-                                Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
-                                Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
-                                Ctx.TargetVel = Target.getAbsVelocity();
-
-                                if (BulletPredict(Ctx)) {
-                                    QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
-                                    float predicted_fov = Math::GetFov(LPlayer.GetViewAngles(), PredictedAngles);
-                                    if (predicted_fov <= triggerbot_fov) {
-                                        can_shoot = true;
-                                    }
-                                }
-                            } else {
-                                can_shoot = true;
+                            if (fov <= triggerbot_fov)
+                            {
+                                char weaponModel[256] = { 0 };
+                                LPlayer.getWeaponModelName(weaponModel, 256);
+                                std::string weaponName = get_weapon_name_by_model(weaponModel);
+                                printf("[TRIGGERBOT] Shooting at aimentity with weapon %s (fov: %.2f)\n", weaponName.c_str(), fov);
+                                TriggerBotRun();
                             }
                         }
-                    }
-
-                    if (can_shoot) {
-                        char weaponModel[256] = { 0 };
-                        LPlayer.getWeaponModelName(weaponModel, 256);
-                        std::string weaponName = get_weapon_name_by_model(weaponModel);
-                        if (weaponName == "Unknown" || weaponName == "unknown") {
-                            int weaponId = LPlayer.getCurrentWeaponId();
-                            weaponName = get_weapon_name(weaponId);
-                        }
-                        float current_trigger_fov = triggerbot_fov;
-                        if (aimassist && aimassist_auto_shoot) {
-                            if (aimassist_fov > current_trigger_fov) current_trigger_fov = aimassist_fov;
-                        }
-
-                        if (fov <= current_trigger_fov) {
-                            printf("[TRIGGERBOT] Shooting at entity %d (dist: %.2f, fov: %.2f) with weapon %s\n", i, dist / 40.0f, fov, weaponName.c_str());
-                            TriggerBotRun();
-                            last_crosshair_times[centity] = now_crosshair_target_time;
-                            break;
-                        }
+                        last_crosshair_times[aimentity] = now_crosshair_target_time;
                     }
                 }
-                last_crosshair_times[centity] = now_crosshair_target_time;
             }
         }
 
