@@ -256,14 +256,17 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	Vector LocalPlayerPosition = LPlayer.getPosition();
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
 
-	if (dist > max_dist)
+	float active_max_dist = max_dist;
+	if (aimassist && aimassist_max_dist > active_max_dist) active_max_dist = aimassist_max_dist;
+
+	if (dist > active_max_dist)
 		return;
 
 	if(!firing_range && !onevone)
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
 	
-	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	bool visible = (target.lastVisTime() > lastvis_aim[index]) || firing_range;
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -290,7 +293,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || (aimassist && aimassist_aiming))
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
@@ -640,11 +643,12 @@ if (bhop && SuperKey) {
 					if (LocalPlayer == centity)
 						continue;
 
-					Entity Target = getEntity(centity);
-					if (!Target.isDummy())
-					{
+					char class_name[33] = {};
+					get_class_name(centity, class_name);
+					if (strncmp(class_name, "CAI_BaseNPC", 11) != 0)
 						continue;
-					}
+
+					Entity Target = getEntity(centity);
 
 					if (player_glow && !Target.isGlowing())
 					{
@@ -1079,7 +1083,10 @@ static void AimbotLoop()
 
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				float active_max_fov = max_fov;
+				if (aimassist && aimassist_aiming && aimassist_fov > active_max_fov) active_max_fov = aimassist_fov;
+
+				if (fov > active_max_fov)
 				{
 					if (!shooting) {
 						lock = false;
@@ -1095,7 +1102,10 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				float active_target_max_fov = max_fov;
+				if (aimassist && aimassist_aiming && aimassist_fov > active_target_max_fov) active_target_max_fov = aimassist_fov;
+
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, active_target_max_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;

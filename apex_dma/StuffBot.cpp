@@ -58,7 +58,7 @@ void StuffBotLoop()
 
         if (aimassist && aimassist_aiming)
         {
-            if (aimentity != 0 && is_aimentity_visible)
+            if (aimentity != 0)
             {
                 Entity Target = getEntity(aimentity);
                 if (Target.isAlive() && (!Target.isKnocked() || firing_range))
@@ -88,15 +88,17 @@ void StuffBotLoop()
                         }
 
                         Vector TargetPos = Target.getBonePositionByHitbox(last_bone_id);
-                        if (!TargetPos.IsZero())
+                        if (!TargetPos.IsZero() && is_aimentity_visible)
                         {
                             QAngle CurrentAngles = LPlayer.GetViewAngles();
                             QAngle TargetAngles = Math::CalcAngle(LPlayer.GetCamPos(), TargetPos);
 
                             // Refined pitch calculation - account for sway/recoil if needed
                             QAngle SwayAngles = LPlayer.GetSwayAngles();
-                            if (aim_no_recoil)
-                                TargetAngles -= (SwayAngles - CurrentAngles);
+                            QAngle CurrentAnglesCaptured = LPlayer.GetViewAngles();
+                            if (aim_no_recoil) {
+                                TargetAngles -= (SwayAngles - CurrentAnglesCaptured);
+                            }
 
                             Math::NormalizeAngles(TargetAngles);
 
@@ -108,28 +110,12 @@ void StuffBotLoop()
                                 Math::NormalizeAngles(Delta);
 
                                 float delta_len = sqrt(Delta.x * Delta.x + Delta.y * Delta.y);
-                                if (delta_len > 0.005f) // Deadzone to eliminate micro-shaking
+                                if (delta_len > 0.01f) // Deadzone to eliminate micro-shaking
                                 {
-                                    // Smooth out movement using dynamic smoothing based on distance to target
-                                    float current_smoothing = aimassist_smooth;
-                                    if (delta_len < 1.0f) {
-                                        current_smoothing *= (1.0f + (1.0f - delta_len) * 2.0f); // Increase smoothing near center
-                                    }
-
-                                    QAngle SmoothedDelta = Delta / current_smoothing;
+                                    QAngle SmoothedDelta = Delta / aimassist_smooth;
                                     QAngle NewAngles = CurrentAngles + SmoothedDelta;
                                     Math::NormalizeAngles(NewAngles);
                                     LPlayer.SetViewAngles(NewAngles);
-                                }
-
-                                // Auto-shoot integration
-                                if (aimassist_auto_shoot)
-                                {
-                                    // Reuse triggerbot firing logic if crosshair is close enough
-                                    if (delta_len < 0.5f) // Tight threshold for auto-shoot
-                                    {
-                                        TriggerBotRun();
-                                    }
                                 }
                             }
                         }
@@ -143,7 +129,7 @@ void StuffBotLoop()
         }
 
         // Triggerbot logic
-        if (triggerbot && triggerbot_aiming)
+        if ((triggerbot && triggerbot_aiming) || (aimassist && aimassist_aiming && aimassist_auto_shoot))
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
             int ent_count = firing_range ? 10000 : 100;
@@ -254,10 +240,17 @@ void StuffBotLoop()
                             int weaponId = LPlayer.getCurrentWeaponId();
                             weaponName = get_weapon_name(weaponId);
                         }
-                        printf("[TRIGGERBOT] Shooting at entity %d (dist: %.2f, fov: %.2f) with weapon %s\n", i, dist / 40.0f, fov, weaponName.c_str());
-                        TriggerBotRun();
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        break;
+                        float current_trigger_fov = triggerbot_fov;
+                        if (aimassist && aimassist_auto_shoot) {
+                            if (aimassist_fov > current_trigger_fov) current_trigger_fov = aimassist_fov;
+                        }
+
+                        if (fov <= current_trigger_fov) {
+                            printf("[TRIGGERBOT] Shooting at entity %d (dist: %.2f, fov: %.2f) with weapon %s\n", i, dist / 40.0f, fov, weaponName.c_str());
+                            TriggerBotRun();
+                            last_crosshair_times[centity] = now_crosshair_target_time;
+                            break;
+                        }
                     }
                 }
                 last_crosshair_times[centity] = now_crosshair_target_time;
