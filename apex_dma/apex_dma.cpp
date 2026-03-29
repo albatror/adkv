@@ -74,16 +74,13 @@ float max_max_fov = 25.00f;
 float min_smooth = 100.00f;
 float max_smooth = 150.00f;
 
-bool flickbot = false;
-int flickbot_key = 0xA0; // VK_LSHIFT
-bool flickbot_aiming = false;
-float flickbot_fov = 10.0f;
-float flickbot_max_dist = 50.0f * 40.0f;
-bool flickbot_auto_shoot = false;
-int flickbot_auto_shoot_delay = 0;
-bool flickbot_flickback = false;
-int flickbot_flickback_delay = 0;
-int flickbot_delay = 0;
+bool aimassist = false;
+int aimassist_key = 0xA0; // VK_LSHIFT
+bool aimassist_aiming = false;
+float aimassist_fov = 10.0f;
+float aimassist_max_dist = 50.0f * 40.0f;
+float aimassist_smooth = 20.0f;
+bool aimassist_auto_shoot = false;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
@@ -260,7 +257,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	float dist = LocalPlayerPosition.DistTo(EntityPosition);
 
 	float active_max_dist = max_dist;
-	if (flickbot && flickbot_max_dist > active_max_dist) active_max_dist = flickbot_max_dist;
+	if (aimassist && aimassist_max_dist > active_max_dist) active_max_dist = aimassist_max_dist;
 
 	if (dist > active_max_dist)
 		return;
@@ -283,9 +280,9 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	float active_fov = max_fov;
 	float active_dist = aim_dist;
 
-	if (flickbot) {
-		if (flickbot_fov > active_fov) active_fov = flickbot_fov;
-		if (flickbot_max_dist > active_dist) active_dist = flickbot_max_dist;
+	if (aimassist) {
+		if (aimassist_fov > active_fov) active_fov = aimassist_fov;
+		if (aimassist_max_dist > active_dist) active_dist = aimassist_max_dist;
 	}
 
 	if (triggerbot) {
@@ -1315,15 +1312,15 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_ad
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_addr = 0;
-printf("Reading flickbot address: %lx\n", add_addr + sizeof(uint64_t) * 34);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, flickbot_addr)) {
+uint64_t aimassist_addr = 0;
+printf("Reading aimassist address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, aimassist_addr)) {
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_aiming_addr = 0;
-printf("Reading flickbot_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 36);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, flickbot_aiming_addr)) {
+uint64_t aimassist_aiming_addr = 0;
+printf("Reading aimassist_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 36);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, aimassist_aiming_addr)) {
   printf("Read failed!\n");
 }
 
@@ -1363,15 +1360,15 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr)) 
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_fov_addr = 0;
-printf("Reading flickbot_fov address: %lx\n", add_addr + sizeof(uint64_t) * 44);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, flickbot_fov_addr)) {
+uint64_t aimassist_fov_addr = 0;
+printf("Reading aimassist_fov address: %lx\n", add_addr + sizeof(uint64_t) * 44);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, aimassist_fov_addr)) {
   printf("Read failed!\n");
 }
 
-        uint64_t flickbot_max_dist_addr = 0;
-        printf("Reading flickbot_max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 45);
-        if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, flickbot_max_dist_addr)) {
+        uint64_t aimassist_max_dist_addr = 0;
+        printf("Reading aimassist_max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 45);
+        if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, aimassist_max_dist_addr)) {
   printf("Read failed!\n");
 }
 
@@ -1405,33 +1402,15 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_auto_shoot_addr = 0;
-printf("Reading flickbot_auto_shoot address: %lx\n", add_addr + sizeof(uint64_t) * 52);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, flickbot_auto_shoot_addr)) {
+uint64_t aimassist_auto_shoot_addr = 0;
+printf("Reading aimassist_auto_shoot address: %lx\n", add_addr + sizeof(uint64_t) * 52);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aimassist_auto_shoot_addr)) {
   printf("Read failed!\n");
 }
 
-uint64_t flickbot_auto_shoot_delay_addr = 0;
-printf("Reading flickbot_auto_shoot_delay address: %lx\n", add_addr + sizeof(uint64_t) * 53);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, flickbot_auto_shoot_delay_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_flickback_addr = 0;
-printf("Reading flickbot_flickback address: %lx\n", add_addr + sizeof(uint64_t) * 54);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, flickbot_flickback_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_flickback_delay_addr = 0;
-printf("Reading flickbot_flickback_delay address: %lx\n", add_addr + sizeof(uint64_t) * 55);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, flickbot_flickback_delay_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t flickbot_delay_addr = 0;
-printf("Reading flickbot_delay address: %lx\n", add_addr + sizeof(uint64_t) * 57);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, flickbot_delay_addr)) {
+uint64_t aimassist_smooth_addr = 0;
+printf("Reading aimassist_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 53);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aimassist_smooth_addr)) {
   printf("Read failed!\n");
 }
 
@@ -1602,9 +1581,9 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
-        if (flickbot_addr) client_mem.Read<bool>(flickbot_addr, flickbot);
+        if (aimassist_addr) client_mem.Read<bool>(aimassist_addr, aimassist);
 
-        if (flickbot_aiming_addr) client_mem.Read<bool>(flickbot_aiming_addr, flickbot_aiming);
+        if (aimassist_aiming_addr) client_mem.Read<bool>(aimassist_aiming_addr, aimassist_aiming);
 
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
 
@@ -1620,9 +1599,9 @@ while (vars_t)
 
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
 
-        if (flickbot_fov_addr) client_mem.Read<float>(flickbot_fov_addr, flickbot_fov);
+        if (aimassist_fov_addr) client_mem.Read<float>(aimassist_fov_addr, aimassist_fov);
 
-        if (flickbot_max_dist_addr) client_mem.Read<float>(flickbot_max_dist_addr, flickbot_max_dist);
+        if (aimassist_max_dist_addr) client_mem.Read<float>(aimassist_max_dist_addr, aimassist_max_dist);
 
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
@@ -1632,15 +1611,9 @@ while (vars_t)
 
         if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
 
-        if (flickbot_auto_shoot_addr) client_mem.Read<bool>(flickbot_auto_shoot_addr, flickbot_auto_shoot);
+        if (aimassist_auto_shoot_addr) client_mem.Read<bool>(aimassist_auto_shoot_addr, aimassist_auto_shoot);
 
-        if (flickbot_auto_shoot_delay_addr) client_mem.Read<int>(flickbot_auto_shoot_delay_addr, flickbot_auto_shoot_delay);
-
-        if (flickbot_flickback_addr) client_mem.Read<bool>(flickbot_flickback_addr, flickbot_flickback);
-
-        if (flickbot_flickback_delay_addr) client_mem.Read<int>(flickbot_flickback_delay_addr, flickbot_flickback_delay);
-
-        if (flickbot_delay_addr) client_mem.Read<int>(flickbot_delay_addr, flickbot_delay);
+        if (aimassist_smooth_addr) client_mem.Read<float>(aimassist_smooth_addr, aimassist_smooth);
 
 		if (dds_addr) client_mem.Read<float>(dds_addr, DDS);
 
