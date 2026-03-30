@@ -200,6 +200,7 @@ void Overlay::RenderMenu()
 
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
+			ImGui::Checkbox(XorStr("Tracking (LSHIFT)"), &tracking);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::EndTabItem();

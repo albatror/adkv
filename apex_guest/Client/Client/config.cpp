@@ -117,6 +117,7 @@ void SaveConfig(const std::string& filename) {
     file << "min_cfsize " << min_cfsize << "\n";
     file << "max_cfsize " << max_cfsize << "\n";
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
+    file << "tracking " << std::boolalpha << tracking << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
@@ -188,6 +189,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "min_cfsize") ss >> min_cfsize;
         else if (key == "max_cfsize") ss >> max_cfsize;
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
+        else if (key == "tracking") ss >> std::boolalpha >> tracking;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;

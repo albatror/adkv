@@ -65,6 +65,7 @@ bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
 bool aiming = false; //read
+bool tracking = false;
 uint64_t g_Base = 0; //write
 float max_dist = 120.0f * 40.0f;
 float aim_dist = 120.0f * 40.0f;
@@ -496,6 +497,7 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&tracking;
 	add[37] = (uintptr_t)&triggerbot;
 	add[38] = (uintptr_t)&triggerbot_key;
 	add[39] = (uintptr_t)&triggerbot_aiming;
@@ -682,7 +684,7 @@ int main(int argc, char** argv)
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)))
+		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)) || (tracking && IsKeyDown(VK_LSHIFT)))
 		{
 			aiming = true;
 			//randomBone();//RANDOMIZE BONE WHEN SHOOT
@@ -692,7 +694,7 @@ int main(int argc, char** argv)
 			aiming = false;
 		}
 
-		if (triggerbot && IsKeyDown(VK_LSHIFT))
+		if (IsKeyDown(VK_LSHIFT))
 		{
 			triggerbot_aiming = true;
 		}

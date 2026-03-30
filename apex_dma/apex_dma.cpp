@@ -44,6 +44,7 @@ bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
 bool aiming = false;
+bool tracking = false;
 
 extern float smooth;
 //added stuff
@@ -279,13 +280,14 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || tracking)
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			float score = fov + (dist / 1600.0f);
+			if (score < max)
 			{
-				max = fov;
+				max = score;
 				tmp_aimentity = target.ptr;
 			}
 		}
@@ -301,9 +303,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		if (fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			float score = fov + (dist / 1600.0f);
+			if (score < max)
 			{
-				max = fov;
+				max = score;
 				tmp_aimentity = target.ptr;
 			}
 		}
@@ -1028,7 +1031,7 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || (tracking && aiming))
 			{
 				if (aimentity == 0 || !aiming)
 				{
@@ -1298,6 +1301,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_ad
   printf("Read failed!\n");
 }
 
+uint64_t tracking_addr = 0;
+printf("Reading tracking address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, tracking_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t triggerbot_addr = 0;
 printf("Reading triggerbot address: %lx\n", add_addr + sizeof(uint64_t) * 37);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr)) {
@@ -1530,6 +1539,8 @@ while (vars_t)
 
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
+
+        if (tracking_addr) client_mem.Read<bool>(tracking_addr, tracking);
 
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
 
