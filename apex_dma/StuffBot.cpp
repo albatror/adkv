@@ -129,9 +129,12 @@ void StuffBotLoop()
                                 QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
                                 float predicted_fov = Math::GetFov(LPlayer.GetViewAngles(), PredictedAngles);
                                 // Add 15% grace buffer to FOV check when using prediction
-                                if (predicted_fov <= (triggerbot_fov * 1.15f)) {
-                                    can_shoot = true;
-                                }
+                                // if (predicted_fov <= (triggerbot_fov * 1.15f)) {
+                                //     can_shoot = true;
+                                // }
+				   if (predicted_fov <= triggerbot_fov) {
+                                        can_shoot = true;
+                                    }
                             }
                         } else {
                             can_shoot = true;
