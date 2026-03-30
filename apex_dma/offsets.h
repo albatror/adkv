@@ -29,7 +29,7 @@
 //#define OFFSET_VISIBLE_TIME 0x1a64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/03/24
 //#define OFFSET_LAST_AIMEDAT_TIME 0x1a64 //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
 #define OFFSET_VISIBLE_TIME 0x1A64 //0x1a62 + 0x02 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02
-#define OFFSET_LAST_AIMEDAT_TIME       8 //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
+#define OFFSET_LAST_AIMEDAT_TIME   0x1a6c //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
 #define OFFSET_ZOOMING 0x1cb1 //[RecvTable.DT_Player].m_bZooming updated 2026/03/24
 
 #define OFFSET_VIEW_OFFSET 0xe8 //[DataMap.DT_BaseEntity].m_currentFrame.viewOffset updated 2026/03/24
