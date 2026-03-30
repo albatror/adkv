@@ -259,6 +259,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			return;
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	if (firing_range) visible = true;
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -272,7 +273,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	float active_fov = max_fov;
 	float active_dist = aim_dist;
 
-	if (triggerbot) {
+	if (triggerbot || tracking) {
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 
@@ -280,34 +281,20 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2 || tracking)
-	{
-		if (visible && fov <= active_fov && dist <= active_dist)
-		{
-			float score = fov + (dist / 1600.0f);
-			if (score < max)
-			{
-				max = score;
-				tmp_aimentity = target.ptr;
-			}
-		}
-		else
-		{
-			if (aimentity == target.ptr && !shooting)
-			{
-				aimentity = tmp_aimentity = lastaimentity = 0;
-			}
-		}
-	}
 	else
 	{
+		bool needs_vis = (aim == 2 || tracking);
+		float score = (tracking) ? (fov + (dist / 1600.0f)) : fov;
+
 		if (fov <= active_fov && dist <= active_dist)
 		{
-			float score = fov + (dist / 1600.0f);
-			if (score < max)
+			if (!needs_vis || visible)
 			{
-				max = score;
-				tmp_aimentity = target.ptr;
+				if (score < max)
+				{
+					max = score;
+					tmp_aimentity = target.ptr;
+				}
 			}
 		}
 	}
@@ -647,8 +634,10 @@ if (bhop && SuperKey) {
 						Target.disableGlow();
 					}
 
-					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
-					c++;
+					if (c < toRead) {
+						ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
+						c++;
+					}
 				}
 			}
 			else
@@ -1070,8 +1059,13 @@ static void AimbotLoop()
 				}
 
 
+				float active_max_fov = max_fov;
+				if (tracking) {
+					if (triggerbot_fov > active_max_fov) active_max_fov = triggerbot_fov;
+				}
+
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				if (fov > active_max_fov)
 				{
 					if (!shooting) {
 						lock = false;
@@ -1082,7 +1076,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				if (aim == 2 && !is_aimentity_visible)
+				if ((aim == 2 || tracking) && !is_aimentity_visible && !firing_range)
 				{
 					continue;
 				}

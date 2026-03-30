@@ -8,3 +8,5 @@
 
 #include "math.h"
 #include "overlay.h"
+
+extern bool tracking;
