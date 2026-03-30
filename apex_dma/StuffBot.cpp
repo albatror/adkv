@@ -132,7 +132,7 @@ void StuffBotLoop()
                                 // if (predicted_fov <= (triggerbot_fov * 1.15f)) {
                                 //     can_shoot = true;
                                 // }
-				   if (predicted_fov <= triggerbot_fov) {
+				   				if (predicted_fov <= triggerbot_fov) {
                                         can_shoot = true;
                                     }
                             }
