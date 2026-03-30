@@ -29,7 +29,7 @@ GameVersion v3.0.3.18
 ### 🔫 Combat & Aimbot
 - **Aimbot:** Smooth and adjustable aiming with FOV locking.
 - **Lock On Target:** Prevents target switching during active combat.
-- **TriggerBot:** Automated firing when crosshairs are over an enemy with configurable FOV, auto-scaling FOV in DDS and Bullet/scale prediction [HOLD Left SHIFT Key to activate].
+- **TriggerBot:** Automated firing when crosshairs are over an enemy with configurable FOV and prediction [HOLD Left SHIFT Key to activate].
 - **Dynamic Settings (DDS):** On-the-fly adjustment of FOV and Smoothing from specific distance (Default: 40m).
 
 ### 🏃 Movement & Misc
