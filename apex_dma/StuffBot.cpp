@@ -49,7 +49,7 @@ void StuffBotLoop()
         if (triggerbot && triggerbot_aiming)
         {
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-            int ent_count = firing_range ? 10000 : 100;
+            int ent_count = firing_range ? 10000 : 1000;
             static std::unordered_map<uint64_t, float> last_crosshair_times;
 
             for (int i = 0; i < ent_count; i++) {
@@ -109,43 +109,32 @@ void StuffBotLoop()
                         continue;
                     }
 
-                    if (dist < DDS) {
-                        float distRatio = (DDS > 0.0f) ? (dist / DDS) : 0.0f;
-                        float distanceFactor = 1.0f - distRatio;
-                        float easedDistanceFactor = Math::SmoothStep(0.0f, 1.0f, distanceFactor);
-                        float fovDiff = max_max_fov - min_max_fov;
-                        float current_max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
+                    // Universal Prediction and fixed FOV check
+                    if (fov <= triggerbot_fov) {
+                        WeaponXEntity curweap = WeaponXEntity();
+                        curweap.update(LPlayer.ptr);
+                        float BulletSpeed = curweap.get_projectile_speed();
+                        float BulletGrav = curweap.get_projectile_gravity();
 
-                        if (fov <= current_max_fov) {
-                            can_shoot = true;
-                        }
-                    } else {
-                        // Prediction for targets outside DDS
-                        if (fov <= triggerbot_fov) {
-                            WeaponXEntity curweap = WeaponXEntity();
-                            curweap.update(LPlayer.ptr);
-                            float BulletSpeed = curweap.get_projectile_speed();
-                            float BulletGrav = curweap.get_projectile_gravity();
+                        if (BulletSpeed > 1.f) {
+                            PredictCtx Ctx;
+                            Ctx.StartPos = LPlayer.GetCamPos();
+                            Ctx.TargetPos = HeadPos;
+                            // Scale bullet speed and gravity for prediction offset
+                            Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
+                            Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
+                            Ctx.TargetVel = Target.getAbsVelocity();
 
-                            if (BulletSpeed > 1.f) {
-                                PredictCtx Ctx;
-                                Ctx.StartPos = LPlayer.GetCamPos();
-                                Ctx.TargetPos = HeadPos;
-                                // Scale bullet speed and gravity for prediction offset
-                                Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
-                                Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
-                                Ctx.TargetVel = Target.getAbsVelocity();
-
-                                if (BulletPredict(Ctx)) {
-                                    QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
-                                    float predicted_fov = Math::GetFov(LPlayer.GetViewAngles(), PredictedAngles);
-                                    if (predicted_fov <= triggerbot_fov) {
-                                        can_shoot = true;
-                                    }
+                            if (BulletPredict(Ctx)) {
+                                QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
+                                float predicted_fov = Math::GetFov(LPlayer.GetViewAngles(), PredictedAngles);
+                                // Add 15% grace buffer to FOV check when using prediction
+                                if (predicted_fov <= (triggerbot_fov * 1.15f)) {
+                                    can_shoot = true;
                                 }
-                            } else {
-                                can_shoot = true;
                             }
+                        } else {
+                            can_shoot = true;
                         }
                     }
 
@@ -163,7 +152,6 @@ void StuffBotLoop()
                         break;
                     }
                 }
-                last_crosshair_times[centity] = now_crosshair_target_time;
             }
         }
     }
