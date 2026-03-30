@@ -663,7 +663,7 @@ if (bhop && SuperKey) {
 			spectators = tmp_spec;
 			allied_spectators = tmp_all_spec;
 
-			if (!lock){
+			if (!lock || aimentity == 0){
 				aimentity = tmp_aimentity;
 			}else{
 				aimentity = lastaimentity;
@@ -1081,7 +1081,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, active_max_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
