@@ -45,6 +45,7 @@ extern float max_smooth;
 extern float min_cfsize;
 extern float max_cfsize;
 extern bool triggerbot;
+extern bool tracking;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;

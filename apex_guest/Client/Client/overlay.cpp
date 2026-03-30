@@ -29,6 +29,7 @@ extern bool onevone;
 extern bool firing_range;
 
 extern bool triggerbot;
+extern bool tracking;
 extern float triggerbot_fov;
 
 extern bool superglide;
