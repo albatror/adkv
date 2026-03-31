@@ -31,6 +31,9 @@ extern bool firing_range;
 extern bool triggerbot;
 extern float triggerbot_fov;
 
+extern bool aassist;
+extern float aassist_dist;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -201,6 +204,9 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+
+			ImGui::Checkbox(XorStr("AAssist (LSHIFT)"), &aassist);
+			ImGui::SliderFloat(XorStr("AAssist distance"), &aassist_dist, 10.0f * 40.0f, 800.0f * 40.0f, "%.2f");
 
 			ImGui::EndTabItem();
 		}

@@ -8,3 +8,7 @@
 
 #include "math.h"
 #include "overlay.h"
+
+extern bool aassist;
+extern float aassist_dist;
+extern bool aassist_aiming;

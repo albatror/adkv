@@ -49,6 +49,10 @@ int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool aassist = false;
+float aassist_dist = 100.0f * 40.0f;
+bool aassist_aiming = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -253,10 +257,10 @@ float smoothStep(float edge0, float edge1, float x) {
 void Overlay::RenderEsp()
 {
 	next = false;
-	if (g_Base != 0 && esp)
+	if (g_Base != 0 && (esp || aassist))
 	{
 		memset(players, 0, sizeof(players));
-		while (!next && esp)
+		while (!next && (esp || aassist))
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
@@ -425,13 +429,19 @@ void Overlay::RenderEsp()
 						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, color, 12, 2.0f);
 					}
 				}
-				float distRatio = players[active_idx].dist / max_dist;
+
+				float active_max_dist = max_dist;
+				if (aassist && aassist_aiming) {
+					active_max_dist = aassist_dist;
+				}
+
+				float distRatio = players[active_idx].dist / active_max_dist;
 				float distanceFactor = 1.0f - distRatio;
 				float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
 				float fovDiff = max_max_fov - min_max_fov;
 				float smoothDiff = max_smooth - min_smooth;
 
-				if (players[active_idx].dist < DDS) {
+				if (players[active_idx].dist < (aassist && aassist_aiming ? aassist_dist : DDS)) {
 					max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
 					smooth = max_smooth - (smoothDiff * easedDistanceFactor);
 					dds_active = true;
@@ -496,6 +506,9 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&aassist;
+	add[35] = (uintptr_t)&aassist_dist;
+	add[36] = (uintptr_t)&aassist_aiming;
 	add[37] = (uintptr_t)&triggerbot;
 	add[38] = (uintptr_t)&triggerbot_key;
 	add[39] = (uintptr_t)&triggerbot_aiming;
@@ -682,7 +695,7 @@ int main(int argc, char** argv)
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)))
+		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)) || (aassist && IsKeyDown(VK_LSHIFT)))
 		{
 			aiming = true;
 			//randomBone();//RANDOMIZE BONE WHEN SHOOT
@@ -690,6 +703,15 @@ int main(int argc, char** argv)
 		else
 		{
 			aiming = false;
+		}
+
+		if (aassist && IsKeyDown(VK_LSHIFT))
+		{
+			aassist_aiming = true;
+		}
+		else
+		{
+			aassist_aiming = false;
 		}
 
 		if (triggerbot && IsKeyDown(VK_LSHIFT))

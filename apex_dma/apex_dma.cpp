@@ -79,6 +79,10 @@ int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool aassist = false;
+float aassist_dist = 100.0f * 40.0f;
+bool aassist_aiming = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -275,11 +279,17 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 
+	if (aassist && aassist_aiming) {
+		if (aassist_dist > active_dist) active_dist = aassist_dist;
+		// AAssist should override normal FOV checks for target selection within its distance
+		active_fov = 180.0f;
+	}
+
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || (aassist && aassist_aiming))
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
@@ -692,7 +702,7 @@ static void EspLoop()
 		while(g_Base != 0 && c_Base != 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			if (esp)
+			if (esp || aassist)
 			{
 				valid = false;
 
@@ -701,7 +711,7 @@ static void EspLoop()
 				if (LocalPlayer == 0)
 {
     next = true;
-    while(next && g_Base != 0 && c_Base != 0 && esp)
+    while(next && g_Base != 0 && c_Base != 0 && (esp || aassist))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -712,7 +722,7 @@ static void EspLoop()
 if (LocalPlayer == 0)
 {
     next = true;
-    while(next && g_Base != 0 && c_Base != 0 && esp)
+    while(next && g_Base != 0 && c_Base != 0 && (esp || aassist))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -726,7 +736,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 				if (team_player < 0 || team_player > 50)
 				{
 					next = true;
-					while(next && g_Base != 0 && c_Base != 0 && esp)
+					while(next && g_Base != 0 && c_Base != 0 && (esp || aassist))
 					{
 						std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					}
@@ -986,7 +996,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 				}
 
 				next = true;
-				while(next && g_Base != 0 && c_Base != 0 && esp)
+				while(next && g_Base != 0 && c_Base != 0 && (esp || aassist))
 				{
 					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				}
@@ -1028,7 +1038,7 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || (aassist && aassist_aiming))
 			{
 				if (aimentity == 0 || !aiming)
 				{
@@ -1298,6 +1308,24 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_ad
   printf("Read failed!\n");
 }
 
+uint64_t aassist_addr = 0;
+printf("Reading aassist address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if (!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, aassist_addr)) {
+	printf("Read failed!\n");
+}
+
+uint64_t aassist_dist_addr = 0;
+printf("Reading aassist_dist address: %lx\n", add_addr + sizeof(uint64_t) * 35);
+if (!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, aassist_dist_addr)) {
+	printf("Read failed!\n");
+}
+
+uint64_t aassist_aiming_addr = 0;
+printf("Reading aassist_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 36);
+if (!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, aassist_aiming_addr)) {
+	printf("Read failed!\n");
+}
+
 uint64_t triggerbot_addr = 0;
 printf("Reading triggerbot address: %lx\n", add_addr + sizeof(uint64_t) * 37);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr)) {
@@ -1531,6 +1559,10 @@ while (vars_t)
         if (screen_height_addr)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
+        if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
+        if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
+        if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
 
         if (triggerbot_aiming_addr) client_mem.Read<bool>(triggerbot_aiming_addr, triggerbot_aiming);
@@ -1565,7 +1597,7 @@ while (vars_t)
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 
-        if (esp && next)
+        if ((esp || aassist) && next)
         {
             if (valid)
                 client_mem.WriteArray<player>(player_addr, players, toRead);
