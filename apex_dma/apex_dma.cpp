@@ -43,6 +43,7 @@ bool item_glow = false;
 bool player_glow = false;
 bool aim_no_recoil = true;
 bool lock_target = false;
+bool aassist_fov_circle = false;
 bool aiming = false;
 
 extern float smooth;
@@ -262,6 +263,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			return;
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	if (firing_range) visible = true;
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -293,9 +295,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			float score = fov + (dist / 1600.0f);
+			if (score < max)
 			{
-				max = fov;
+				max = score;
 				tmp_aimentity = target.ptr;
 			}
 		}
@@ -311,9 +314,10 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		if (fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			float score = fov + (dist / 1600.0f);
+			if (score < max)
 			{
-				max = fov;
+				max = score;
 				tmp_aimentity = target.ptr;
 			}
 		}
@@ -632,6 +636,7 @@ if (bhop && SuperKey) {
 				int c = 0;
 				for (int i = 0; i < 10000; i++)
 				{
+					if (c >= toRead) break;
 					uint64_t centity = 0;
 					apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
 					if (centity == 0)
@@ -1080,7 +1085,7 @@ static void AimbotLoop()
 				float fov = CalculateFov(LPlayer, Target);
 				if (fov > max_fov)
 				{
-					if (!shooting) {
+					if (!shooting && !aassist_aiming) {
 						lock = false;
 						lastaimentity = 0;
 						last_locked_entity = 0;
@@ -1089,7 +1094,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				if (aim == 2 && !is_aimentity_visible)
+				if ((aim == 2 || (aassist && aassist_aiming)) && !is_aimentity_visible && !firing_range)
 				{
 					continue;
 				}
@@ -1368,6 +1373,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_a
   printf("Read failed!\n");
 }
 
+uint64_t aassist_fov_circle_addr = 0;
+printf("Reading aassist_fov_circle address: %lx\n", add_addr + sizeof(uint64_t) * 44);
+if (!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, aassist_fov_circle_addr)) {
+	printf("Read failed!\n");
+}
+
 uint64_t lock_target_addr = 0;
 printf("Reading lock_target address: %lx\n", add_addr + sizeof(uint64_t) * 47);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr)) {
@@ -1578,6 +1589,8 @@ while (vars_t)
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
 
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        if (aassist_fov_circle_addr) client_mem.Read<bool>(aassist_fov_circle_addr, aassist_fov_circle);
 
         if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
 

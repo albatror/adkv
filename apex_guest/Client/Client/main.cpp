@@ -516,6 +516,7 @@ int main(int argc, char** argv)
 	add[41] = (uintptr_t)&bhop;
 	add[42] = (uintptr_t)&walljump;
 	add[43] = (uintptr_t)&SuperKey;
+	add[44] = (uintptr_t)&v.aassist_fov_circle;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&player_glow;

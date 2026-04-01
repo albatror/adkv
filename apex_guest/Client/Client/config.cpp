@@ -126,6 +126,7 @@ void SaveConfig(const std::string& filename) {
     file << "walljump " << std::boolalpha << walljump << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
+    file << "aassist_fov_circle " << std::boolalpha << v.aassist_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
 
@@ -199,6 +200,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "walljump") ss >> std::boolalpha >> walljump;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
+        else if (key == "aassist_fov_circle") ss >> std::boolalpha >> v.aassist_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
     }
