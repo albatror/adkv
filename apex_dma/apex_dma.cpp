@@ -53,7 +53,7 @@ extern float smooth;
 //extern float max_smooth;
 //en stuff
 
-extern int bone;
+int bone = 2;
 bool shooting = false;
 
 //const int SuperKey = VK_SPACE;
@@ -156,7 +156,7 @@ typedef struct player
 	int platform = 0;
 	char name[33] = { 0 };
 	char weapon[33] = { 0 };
-	float bones[15][2] = { 0 };
+	float bones[17][2] = { 0 };
 }player;
 
 typedef struct spectator{
@@ -835,9 +835,9 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 							if (skeleton)
 							{
-								// 0:Pelvis, 1:UpperChest, 2:LowerChest, 3:L_Shoulder, 4:L_Elbow, 5:L_Hand, 6:R_Shoulder, 7:R_Elbow, 8:R_Hand, 9:L_Hip, 10:L_Knee, 11:L_Foot, 12:R_Hip, 13:R_Knee, 14:R_Foot
-								int boneIDs[] = { 0, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18 };
-								for (int b = 0; b < 15; b++)
+								// 0:Head, 1:Neck, 2:UpperChest, 3:LowerChest, 4:Pelvis, 5:L_Shoulder, 6:L_Elbow, 7:L_Hand, 8:R_Shoulder, 9:R_Elbow, 10:R_Hand, 11:L_Hip, 12:L_Knee, 13:L_Foot, 14:R_Hip, 15:R_Knee, 16:R_Foot
+								int boneIDs[] = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18 };
+								for (int b = 0; b < 17; b++)
 								{
 									Vector bonePos = Target.getBonePositionByHitbox(boneIDs[b]);
 									Vector boneScreen = Vector();
@@ -954,9 +954,9 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 							if (skeleton)
 							{
-								// 0:Pelvis, 1:UpperChest, 2:LowerChest, 3:L_Shoulder, 4:L_Elbow, 5:L_Hand, 6:R_Shoulder, 7:R_Elbow, 8:R_Hand, 9:L_Hip, 10:L_Knee, 11:L_Foot, 12:R_Hip, 13:R_Knee, 14:R_Foot
-								int boneIDs[] = { 0, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18 };
-								for (int b = 0; b < 15; b++)
+								// 0:Head, 1:Neck, 2:UpperChest, 3:LowerChest, 4:Pelvis, 5:L_Shoulder, 6:L_Elbow, 7:L_Hand, 8:R_Shoulder, 9:R_Elbow, 10:R_Hand, 11:L_Hip, 12:L_Knee, 13:L_Foot, 14:R_Hip, 15:R_Knee, 16:R_Foot
+								int boneIDs[] = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18 };
+								for (int b = 0; b < 17; b++)
 								{
 									Vector bonePos = Target.getBonePositionByHitbox(boneIDs[b]);
 									Vector boneScreen = Vector();
