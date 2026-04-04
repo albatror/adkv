@@ -38,8 +38,7 @@ GameVersion v3.0.1.35
 - **BunnyHop (BHOP):** Effortless movement across the map |HOLD SPACEBAR Key].
 - **DirectX 12 Support:** Fully compatible with DX12 game mode.
 - **Offset Dumper:** Built-in dumper to keep the hack updated with game patches (dump will be on host side /build).
-
-- **1V1:** Battle in training against friends
+- **1V1:** Battle in training against friends.
 
 ---
 
