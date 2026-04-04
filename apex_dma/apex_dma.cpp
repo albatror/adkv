@@ -53,7 +53,7 @@ extern float smooth;
 //extern float max_smooth;
 //en stuff
 
-extern int bone;
+int bone = 2;
 bool shooting = false;
 
 //const int SuperKey = VK_SPACE;
