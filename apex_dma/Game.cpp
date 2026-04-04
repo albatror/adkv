@@ -13,7 +13,7 @@ extern unsigned char insidevalue;
 extern unsigned char outlinesize;
 float smooth = 12.0f;
 extern bool aim_no_recoil;
-int bone = 2;
+extern int bone;
 //
 bool bone_auto = true;
 extern float max_dist;
