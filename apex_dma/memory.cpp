@@ -115,9 +115,7 @@ bool Memory::testDtbValue(const uint64_t &dtb_val)
 
 	if (c == 0x5A4D)
 	{
-		proc.hProcess.set_dtb(dtb_val, Address_INVALID);
 		lastCorrectDtbPhysicalAddress = dtb_val;
-		status = process_status::FOUND_READY;
 		return true;
 	}
 
@@ -324,6 +322,7 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
+	std::lock_guard<std::mutex> l(m);
 	if (!conn)
 	{
 		conn = std::make_unique<ConnectorInstance<>>();
@@ -364,58 +363,50 @@ void Memory::open_proc(const char *name)
 
 	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 	{
-		return;
-	}
-	close_proc();
-
-	// Re-fetch info as close_proc might have invalidated things
-	if (kernel.get()->process_info_by_name(name, &info))
-	{
-		status = process_status::NOT_FOUND;
-		return;
-	}
-
-	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
-	{
-		status = process_status::FOUND_NO_ACCESS;
-		printf("Error while opening process %s\n", name);
-		close_proc();
-		return;
-	}
-
-	ModuleInfo module_info;
-	if (proc.hProcess.module_by_name(name, &module_info))
-	{
-		// Fallback for when we can't find module by name (likely due to shuffled/invalid CR3)
-		status = process_status::FOUND_NO_ACCESS;
-
-		uint64_t found_dtb = scanPml4();
-		if (found_dtb)
+		info.dtb1 = lastCorrectDtbPhysicalAddress;
+		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
 		{
-			proc.hProcess.set_dtb(found_dtb, Address_INVALID);
-			lastCorrectDtbPhysicalAddress = found_dtb;
 			status = process_status::FOUND_READY;
-		}
-		else
-		{
-			close_proc();
 			return;
 		}
 	}
-	else
+
+	// Try standard initialization first
+	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
 	{
-		proc.baseaddr = module_info.base;
+		ModuleInfo module_info;
+		if (proc.hProcess.module_by_name(name, &module_info) == 0)
+		{
+			proc.baseaddr = module_info.base;
+			status = process_status::FOUND_READY;
+			return;
+		}
 	}
 
-	status = process_status::FOUND_READY;
+	// If standard failed or module not found (EAC protection), use PML4 scanner
+	uint64_t found_dtb = scanPml4();
+	if (found_dtb)
+	{
+		info.dtb1 = found_dtb;
+		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
+		{
+			lastCorrectDtbPhysicalAddress = found_dtb;
+			status = process_status::FOUND_READY;
+			return;
+		}
+	}
+
+	status = process_status::FOUND_NO_ACCESS;
+	printf("Error: Unable to acquire process %s with valid DTB\n", name);
 }
 
 void Memory::close_proc()
 {
 	std::lock_guard<std::mutex> l(m);
-	proc.hProcess = IntoProcessInstance<>();
-	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
+	lastCorrectDtbPhysicalAddress = 0;
+	status = process_status::NOT_FOUND;
+	proc.hProcess = IntoProcessInstance<>();
 }
 
 uint64_t Memory::ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int level)
