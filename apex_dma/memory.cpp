@@ -64,18 +64,34 @@ void Memory::check_proc()
 {
 	if (status == process_status::FOUND_READY || status == process_status::FOUND_NO_ACCESS)
 	{
-		short c;
-		Read<short>(proc.baseaddr, c);
-
-		if (c != 0x5A4D)
+		short c = 0;
+		if (proc.baseaddr && proc.hProcess.read_raw_into(proc.baseaddr, CSliceMut<uint8_t>((char *)&c, sizeof(c))) == 0)
 		{
-			status = process_status::FOUND_NO_ACCESS;
+			if (c != 0x5A4D)
+			{
+				status = process_status::FOUND_NO_ACCESS;
+			}
+			else
+			{
+				status = process_status::FOUND_READY;
+			}
 		}
 		else
 		{
-			status = process_status::FOUND_READY;
+			status = process_status::FOUND_NO_ACCESS;
 		}
 	}
+}
+
+bool Memory::ResolveDtb()
+{
+	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
+		return true;
+
+	if (bruteforceDtb(0x0, 0x100000))
+		return true;
+
+	return false;
 }
 
 bool kernel_init(Inventory *inv, const char *connector_name)
@@ -102,8 +118,77 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 	return true;
 }
 
+bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
+{
+	if (!conn) return false;
+	return conn->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+}
+
+bool Memory::IsMovedByEAC(uint64_t pml4e_addr, uint64_t pml4e)
+{
+	return (pml4e_addr & 0xff0000) == (pml4e & 0xff0000) && ((pml4e >> 48) & 0xffff) == 0;
+}
+
+uint64_t Memory::ReadCachedPML4E(uint64_t dtb, uint64_t pml4e_index)
+{
+	uint64_t pml4e_addr = dtb + 8 * pml4e_index;
+	if (pml4_cache[pml4e_index].Address == pml4e_addr && pml4_cache[pml4e_index].Value != 0)
+		return pml4_cache[pml4e_index].Value;
+
+	uint64_t pml4e = 0;
+	if (ReadPhysical(pml4e_addr, &pml4e, sizeof(pml4e)))
+	{
+		pml4_cache[pml4e_index].Address = pml4e_addr;
+		pml4_cache[pml4e_index].Value = pml4e;
+		return pml4e;
+	}
+	return 0;
+}
+
+uint64_t Memory::VTranslate(uint64_t dtb, uint64_t vaddr)
+{
+	dtb &= ~0xFFF;
+	uint64_t pageOffset = vaddr & 0xFFF;
+	uint64_t pte = (vaddr >> 12) & 0x1ff;
+	uint64_t pt = (vaddr >> 21) & 0x1ff;
+	uint64_t pd = (vaddr >> 30) & 0x1ff;
+	uint64_t pdp = (vaddr >> 39) & 0x1ff;
+
+	uint64_t pml4e_addr = dtb + 8 * pdp;
+	uint64_t pdpe = ReadCachedPML4E(dtb, pdp);
+
+	if (IsMovedByEAC(pml4e_addr, pdpe))
+		return 0;
+
+	if ((pdpe & 1) == 0)
+		return 0;
+
+	uint64_t pde = 0;
+	if (!ReadPhysical((pdpe & 0xFFFFFFFFFF000) + 8 * pd, &pde, sizeof(pde)) || (pde & 1) == 0)
+		return 0;
+
+	if (pde & 0x80) // 1GB Large Page
+		return (pde & 0xFFFFFFFFFF000) + (vaddr & 0x3FFFFFFF);
+
+	uint64_t pteAddr = 0;
+	if (!ReadPhysical((pde & 0xFFFFFFFFFF000) + 8 * pt, &pteAddr, sizeof(pteAddr)) || (pteAddr & 1) == 0)
+		return 0;
+
+	if (pteAddr & 0x80) // 2MB Large Page
+		return (pteAddr & 0xFFFFFFFFFF000) + (vaddr & 0x1FFFFF);
+
+	uint64_t finalAddr = 0;
+	if (!ReadPhysical((pteAddr & 0xFFFFFFFFFF000) + 8 * pte, &finalAddr, sizeof(finalAddr)) || (finalAddr & 1) == 0)
+		return 0;
+
+	return (finalAddr & 0xFFFFFFFFFF000) + pageOffset;
+}
+
 bool Memory::testDtbValue(const uint64_t &dtb_val)
 {
+	if (VTranslate(dtb_val, proc.baseaddr) == 0)
+		return false;
+
 	proc.hProcess.set_dtb(dtb_val, Address_INVALID);
 	check_proc();
 	if (status == process_status::FOUND_READY)
@@ -118,6 +203,8 @@ bool Memory::testDtbValue(const uint64_t &dtb_val)
 // https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
 bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPage)
 {
+	if (!proc.baseaddr) return false;
+
 	// eac cr3 always end with 0x-----XX000
 	// dtbStartPhysicalAddr should be a multiple of 0x1000
 	if ((dtbStartPhysicalAddr & 0xFFF) != 0)
@@ -194,7 +281,7 @@ void Memory::open_proc(const char *name)
 	}
 
 
-	if (lastCorrectDtbPhysicalAddress && bruteforceDtb(0x0, 0x100000))
+	if (ResolveDtb())
 	{
 		return;
 	}
@@ -231,7 +318,7 @@ void Memory::open_proc(const char *name)
 		kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
 		proc.baseaddr = *base_section_value;
 
-		if (!bruteforceDtb(0x0, 0x100000))
+		if (!ResolveDtb())
 		{
 			close_proc();
 			return;
@@ -251,6 +338,7 @@ void Memory::close_proc()
 	proc.hProcess.~IntoProcessInstance();
 	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
+	memset(pml4_cache, 0, sizeof(pml4_cache));
 }
 
 uint64_t Memory::ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int level)
