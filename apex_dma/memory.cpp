@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <vector>
 
-static std::mutex static_m;
+static std::recursive_mutex static_m;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -83,7 +83,7 @@ void Memory::check_proc()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
-	std::lock_guard<std::mutex> l(static_m);
+	std::lock_guard<std::recursive_mutex> l(static_m);
 	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
@@ -109,6 +109,10 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		return false;
 	}
 
+	// mf_inventory_create_os MOVED the cloned_conn. We must forget its container locally to avoid double-drop
+	// when 'cloned_conn' goes out of scope and its destructor is called.
+	mem_forget(cloned_conn.container);
+
 	return true;
 }
 
@@ -133,7 +137,7 @@ bool Memory::testDtbValue(const uint64_t &dtb_val)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t len)
 {
-	std::lock_guard<std::mutex> l(static_m);
+	std::lock_guard<std::recursive_mutex> l(static_m);
 	if (!conn || !conn.get()->vtbl_physicalmemory) return false;
 
 	CSliceMut<uint8_t> slice;
@@ -245,6 +249,8 @@ uint64_t Memory::TranslateVirtualToPhysical(uint64_t dtb, uint64_t virtualAddr)
 	uint64_t pd = (virtualAddr >> 30) & 0x1ff;
 	uint64_t pdp = (virtualAddr >> 39) & 0x1ff;
 
+	const uint64_t PMASK = 0x000FFFFFFFFFF000;
+
 	uint64_t pml4e_addr = dtb + 8 * pdp;
 	uint64_t pml4e = 0;
 	if (!ReadPhysical(pml4e_addr, &pml4e, sizeof(pml4e))) return 0;
@@ -254,25 +260,25 @@ uint64_t Memory::TranslateVirtualToPhysical(uint64_t dtb, uint64_t virtualAddr)
 
 	if (!(pml4e & 1)) return 0;
 
-	uint64_t pdpe_addr = (pml4e & 0xFFFFFFFFF000) + 8 * pd;
+	uint64_t pdpe_addr = (pml4e & PMASK) + 8 * pd;
 	uint64_t pdpe = 0;
 	if (!ReadPhysical(pdpe_addr, &pdpe, sizeof(pdpe)) || !(pdpe & 1)) return 0;
 
 	// 1GB Large Page
-	if (pdpe & 0x80) return (pdpe & 0xFFFFFC000000) + (virtualAddr & 0x3FFFFFFF);
+	if (pdpe & 0x80) return (pdpe & 0x000FFFFFC0000000) + (virtualAddr & 0x3FFFFFFF);
 
-	uint64_t pde_addr = (pdpe & 0xFFFFFFFFF000) + 8 * pt;
+	uint64_t pde_addr = (pdpe & PMASK) + 8 * pt;
 	uint64_t pde = 0;
 	if (!ReadPhysical(pde_addr, &pde, sizeof(pde)) || !(pde & 1)) return 0;
 
 	// 2MB Large Page
-	if (pde & 0x80) return (pde & 0xFFFFFFE00000) + (virtualAddr & 0x1FFFFF);
+	if (pde & 0x80) return (pde & 0x000FFFFFFFE00000) + (virtualAddr & 0x1FFFFF);
 
-	uint64_t pte_addr = (pde & 0xFFFFFFFFF000) + 8 * pte;
+	uint64_t pte_addr = (pde & PMASK) + 8 * pte;
 	uint64_t pte_val = 0;
 	if (!ReadPhysical(pte_addr, &pte_val, sizeof(pte_val)) || !(pte_val & 1)) return 0;
 
-	return (pte_val & 0xFFFFFFFFF000) + pageOffset;
+	return (pte_val & PMASK) + pageOffset;
 }
 
 // https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
@@ -334,7 +340,7 @@ void Memory::open_proc(const char *name)
 {
 	std::lock_guard<std::mutex> l(m);
 	{
-		std::lock_guard<std::mutex> sl(static_m);
+		std::lock_guard<std::recursive_mutex> sl(static_m);
 		if (!conn)
 		{
 			conn = std::make_unique<ConnectorInstance<>>();
@@ -359,10 +365,14 @@ void Memory::open_proc(const char *name)
 
 
 	ProcessInfo info;
-	info.name = nullptr;
-	info.path = nullptr;
-	info.command_line = nullptr;
+	memset(&info, 0, sizeof(info));
 	info.dtb2 = Address_INVALID;
+
+	if (!kernel || !kernel.get()->vtbl_os)
+	{
+		status = process_status::NOT_FOUND;
+		return;
+	}
 
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
@@ -372,10 +382,19 @@ void Memory::open_proc(const char *name)
 
 	auto base_section = std::make_unique<char[]>(8);
 	uint64_t *base_section_value = (uint64_t *)base_section.get();
-	CSliceMut<uint8_t> slice(base_section.get(), 8);
+	CSliceMut<uint8_t> slice;
+	slice.data = (uint8_t*)base_section.get();
+	slice.len = 8;
+
 	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-	kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
-	proc.baseaddr = *base_section_value;
+	if (info.address != 0 && kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice) == 0)
+	{
+		proc.baseaddr = *base_section_value;
+	}
+	else
+	{
+		proc.baseaddr = 0;
+	}
 
 	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 	{
