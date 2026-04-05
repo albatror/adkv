@@ -105,10 +105,12 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 
 bool Memory::testDtbValue(const uint64_t &dtb_val)
 {
+	if (proc.baseaddr == 0) return false;
+
 	uint64_t phys_base = TranslateVirtualToPhysical(dtb_val, proc.baseaddr);
 	if (phys_base == 0) return false;
 
-	short c;
+	short c = 0;
 	if (!ReadPhysical(phys_base, &c, sizeof(c))) return false;
 
 	if (c == 0x5A4D)
@@ -126,22 +128,11 @@ bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t len)
 {
 	if (!conn) return false;
 
-	PhysicalReadData data;
-	data._0.address = address;
-	data._0.page_type = PageType_UNKNOWN;
-	data._0.page_size_log2 = 0;
-	data._1 = Address_INVALID;
-	data._2.data = (uint8_t*)buffer;
-	data._2.len = len;
+	CSliceMut<uint8_t> slice;
+	slice.data = (uint8_t*)buffer;
+	slice.len = len;
 
-	std::vector<PhysicalReadData> vec = {data};
-	CPPIterator<std::vector<PhysicalReadData>> iter(vec);
-	PhysicalReadMemOps ops;
-	ops.inp = iter;
-	ops.out = nullptr;
-	ops.out_fail = nullptr;
-
-	return conn.get()->phys_read_raw_iter(ops) == 0;
+	return conn.get()->phys_view().read_raw_into(address, slice) == 0;
 }
 
 uint64_t Memory::scanPml4()
@@ -355,15 +346,29 @@ void Memory::open_proc(const char *name)
 	}
 
 
+	ProcessInfo info;
+	info.dtb2 = Address_INVALID;
+
+	if (kernel.get()->process_info_by_name(name, &info))
+	{
+		status = process_status::NOT_FOUND;
+		return;
+	}
+
+	auto base_section = std::make_unique<char[]>(8);
+	uint64_t *base_section_value = (uint64_t *)base_section.get();
+	CSliceMut<uint8_t> slice(base_section.get(), 8);
+	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
+	kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
+	proc.baseaddr = *base_section_value;
+
 	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 	{
 		return;
 	}
 	close_proc();
 
-	ProcessInfo info;
-	info.dtb2 = Address_INVALID;
-
+	// Re-fetch info as close_proc might have invalidated things
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
@@ -383,14 +388,6 @@ void Memory::open_proc(const char *name)
 	{
 		// Fallback for when we can't find module by name (likely due to shuffled/invalid CR3)
 		status = process_status::FOUND_NO_ACCESS;
-		auto base_section = std::make_unique<char[]>(8);
-		uint64_t *base_section_value = (uint64_t *)base_section.get();
-		CSliceMut<uint8_t> slice(base_section.get(), 8);
-		uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-
-		// Attempt to read SectionBaseAddress from EPROCESS to get baseaddr
-		kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
-		proc.baseaddr = *base_section_value;
 
 		uint64_t found_dtb = scanPml4();
 		if (found_dtb)
@@ -416,7 +413,7 @@ void Memory::open_proc(const char *name)
 void Memory::close_proc()
 {
 	std::lock_guard<std::mutex> l(m);
-	proc.hProcess.~IntoProcessInstance();
+	proc.hProcess = IntoProcessInstance<>();
 	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
 }
