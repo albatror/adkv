@@ -1,6 +1,9 @@
 #include "memory.h"
 #include <unistd.h>
 
+ConnectorInstance<> conn;
+OsInstance<> kernel;
+
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
 {
@@ -96,7 +99,7 @@ bool Memory::ResolveDtb()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
-	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
+	if (mf_inventory_create_connector(inv, connector_name, "", &conn))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -106,12 +109,13 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	kernel = std::make_unique<OsInstance<>>();
-	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
+	ConnectorInstance<> conn_clone;
+	mf_connector_clone(&conn, &conn_clone);
+
+	if (mf_inventory_create_os(inv, "win32", "", &conn_clone, &kernel))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		mf_connector_drop(conn.get());
-		kernel.reset();
+		kernel = OsInstance<>();
 		return false;
 	}
 
@@ -120,8 +124,15 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
-	if (!conn) return false;
-	return conn->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	if (kernel.vtbl_physicalmemory)
+	{
+		return kernel.phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	}
+	else if (conn.vtbl_physicalmemory)
+	{
+		return conn.phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	}
+	return false;
 }
 
 bool Memory::IsMovedByEAC(uint64_t pml4e_addr, uint64_t pml4e)
@@ -264,9 +275,8 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
-	if (!conn)
+	if (!conn.vtbl_clone)
 	{
-		conn = std::make_unique<ConnectorInstance<>>();
 		Inventory *inv = mf_inventory_scan();
 		mf_inventory_add_dir(inv, ".");
 
@@ -282,14 +292,15 @@ void Memory::open_proc(const char *name)
 			}
 		}
 
-		printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
+		printf("Kernel initialized: %p\n", kernel.container.instance.instance);
 	}
 
+	if (!kernel.vtbl_os) return;
 
 	ProcessInfo info;
 	info.dtb2 = Address_INVALID;
 
-	if (kernel.get()->process_info_by_name(name, &info))
+	if (kernel.process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
 		return;
@@ -300,13 +311,20 @@ void Memory::open_proc(const char *name)
 	uint64_t *base_section_value = (uint64_t *)base_section.get();
 	CSliceMut<uint8_t> slice(base_section.get(), 8);
 	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-	kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
-	proc.baseaddr = *base_section_value;
+	if (kernel.vtbl_memoryview)
+	{
+		kernel.read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
+		proc.baseaddr = *base_section_value;
+	}
+	else
+	{
+		proc.baseaddr = info.address;
+	}
 
 	if (ResolveDtb())
 	{
 		// If ResolveDtb succeeded, we found a DTB, now initialize hProcess
-		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
+		if (kernel.vtbl_clone && kernel.clone().into_process_by_info(info, &proc.hProcess) == 0)
 		{
 			proc.hProcess.set_dtb(lastCorrectDtbPhysicalAddress, Address_INVALID);
 			status = process_status::FOUND_READY;
@@ -316,7 +334,7 @@ void Memory::open_proc(const char *name)
 
 	close_proc();
 
-	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
+	if (kernel.vtbl_clone && kernel.clone().into_process_by_info(info, &proc.hProcess))
 	{
 		status = process_status::FOUND_NO_ACCESS;
 		printf("Error while opening process %s\n", name);
