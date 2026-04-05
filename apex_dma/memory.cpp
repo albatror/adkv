@@ -1,5 +1,6 @@
 #include "memory.h"
 #include <unistd.h>
+#include <vector>
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -104,15 +105,175 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 
 bool Memory::testDtbValue(const uint64_t &dtb_val)
 {
-	proc.hProcess.set_dtb(dtb_val, Address_INVALID);
-	check_proc();
-	if (status == process_status::FOUND_READY)
+	uint64_t phys_base = TranslateVirtualToPhysical(dtb_val, proc.baseaddr);
+	if (phys_base == 0) return false;
+
+	short c;
+	if (!ReadPhysical(phys_base, &c, sizeof(c))) return false;
+
+	if (c == 0x5A4D)
 	{
+		proc.hProcess.set_dtb(dtb_val, Address_INVALID);
 		lastCorrectDtbPhysicalAddress = dtb_val;
+		status = process_status::FOUND_READY;
 		return true;
 	}
 
 	return false;
+}
+
+bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t len)
+{
+	if (!conn) return false;
+
+	PhysicalReadData data;
+	data._0.address = address;
+	data._0.page_type = PageType_UNKNOWN;
+	data._0.page_size_log2 = 0;
+	data._1 = Address_INVALID;
+	data._2.data = (uint8_t*)buffer;
+	data._2.len = len;
+
+	std::vector<PhysicalReadData> vec = {data};
+	CPPIterator<std::vector<PhysicalReadData>> iter(vec);
+	PhysicalReadMemOps ops;
+	ops.inp = iter;
+	ops.out = nullptr;
+	ops.out_fail = nullptr;
+
+	return conn.get()->phys_read_raw_iter(ops) == 0;
+}
+
+uint64_t Memory::scanPml4()
+{
+	if (!kernel || !conn) return 0;
+
+	// Reset status for scanning
+	status = process_status::NOT_FOUND;
+
+	ProcessInfo system_info;
+	if (kernel.get()->process_info_by_pid(4, &system_info))
+	{
+		return 0;
+	}
+
+	uint64_t system_dtb = system_info.dtb1;
+	uint64_t system_pml4[512];
+	if (!ReadPhysical(system_dtb, system_pml4, sizeof(system_pml4)))
+	{
+		return 0;
+	}
+
+	// PML4 entries 256-511 are kernel space and must be an EXACT match across all processes
+	// using PID 4 (System) as the ground truth.
+	uint64_t signature[256];
+	int signature_entries = 0;
+	for (int i = 256; i < 512; i++)
+	{
+		signature[i - 256] = system_pml4[i];
+		if (system_pml4[i] != 0) signature_entries++;
+	}
+
+	if (signature_entries < 5) return 0; // Sanity check
+
+	printf("[*] Scanning physical memory for PML4 signature (%d entries)...\n", signature_entries);
+	auto start = std::chrono::high_resolution_clock::now();
+
+	// Scan physical memory in 2MB chunks for efficiency
+	const size_t scan_size = 2 * 1024 * 1024;
+	uint8_t* buffer = (uint8_t*)malloc(scan_size);
+	if (!buffer) return 0;
+
+	uint64_t found_dtb = 0;
+	// Only scan up to a reasonable physical limit to avoid hangs (e.g., 32GB)
+	uint64_t search_limit = 0x800000000; // 32GB
+	if (search_limit > MAX_PHYADDR) search_limit = MAX_PHYADDR;
+
+	for (uint64_t addr = 0; addr < search_limit; addr += scan_size)
+	{
+		if (!ReadPhysical(addr, buffer, scan_size)) continue;
+
+		for (size_t offset = 0; offset < scan_size; offset += 0x1000)
+		{
+			uint64_t* candidate_pml4 = (uint64_t*)(buffer + offset);
+
+			// Quick check: first kernel entry should match
+			if (candidate_pml4[256] != signature[0]) continue;
+
+			bool match = true;
+			for (int i = 257; i < 512; i++)
+			{
+				if (candidate_pml4[i] != signature[i - 256])
+				{
+					match = false;
+					break;
+				}
+			}
+
+			if (match)
+			{
+				uint64_t candidate_dtb = addr + offset;
+				if (testDtbValue(candidate_dtb))
+				{
+					found_dtb = candidate_dtb;
+					goto end;
+				}
+			}
+		}
+	}
+
+end:
+	free(buffer);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start);
+	printf("[+] PML4 scan %s, found DTB: 0x%lx, time: %ldms\n", found_dtb ? "success" : "failed", found_dtb, duration.count());
+	return found_dtb;
+}
+
+bool Memory::IsMovedByEAC(uint64_t pml4eAddr, uint64_t pml4eContent)
+{
+	// From UnknownCheats: https://www.unknowncheats.me/forum/4243560-post1.html
+	return (pml4eAddr & 0xff0000) == (pml4eContent & 0xff0000) && ((pml4eContent >> 48) & 0xffff) == 0;
+}
+
+uint64_t Memory::TranslateVirtualToPhysical(uint64_t dtb, uint64_t virtualAddr)
+{
+	dtb &= ~0xf;
+
+	uint64_t pageOffset = virtualAddr & 0xFFF;
+	uint64_t pte = (virtualAddr >> 12) & 0x1ff;
+	uint64_t pt = (virtualAddr >> 21) & 0x1ff;
+	uint64_t pd = (virtualAddr >> 30) & 0x1ff;
+	uint64_t pdp = (virtualAddr >> 39) & 0x1ff;
+
+	uint64_t pml4e_addr = dtb + 8 * pdp;
+	uint64_t pml4e = 0;
+	if (!ReadPhysical(pml4e_addr, &pml4e, sizeof(pml4e))) return 0;
+
+	// Shadow CR3 Check from UnknownCheats
+	if (IsMovedByEAC(pml4e_addr, pml4e)) return 0;
+
+	if (!(pml4e & 1)) return 0;
+
+	uint64_t pdpe_addr = (pml4e & 0xFFFFFFFFF000) + 8 * pd;
+	uint64_t pdpe = 0;
+	if (!ReadPhysical(pdpe_addr, &pdpe, sizeof(pdpe)) || !(pdpe & 1)) return 0;
+
+	// 1GB Large Page
+	if (pdpe & 0x80) return (pdpe & 0xFFFFFC000000) + (virtualAddr & 0x3FFFFFFF);
+
+	uint64_t pde_addr = (pdpe & 0xFFFFFFFFF000) + 8 * pt;
+	uint64_t pde = 0;
+	if (!ReadPhysical(pde_addr, &pde, sizeof(pde)) || !(pde & 1)) return 0;
+
+	// 2MB Large Page
+	if (pde & 0x80) return (pde & 0xFFFFFFE00000) + (virtualAddr & 0x1FFFFF);
+
+	uint64_t pte_addr = (pde & 0xFFFFFFFFF000) + 8 * pte;
+	uint64_t pte_val = 0;
+	if (!ReadPhysical(pte_addr, &pte_val, sizeof(pte_val)) || !(pte_val & 1)) return 0;
+
+	return (pte_val & 0xFFFFFFFFF000) + pageOffset;
 }
 
 // https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
@@ -194,7 +355,7 @@ void Memory::open_proc(const char *name)
 	}
 
 
-	if (lastCorrectDtbPhysicalAddress && bruteforceDtb(0x0, 0x100000))
+	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 	{
 		return;
 	}
@@ -206,11 +367,8 @@ void Memory::open_proc(const char *name)
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
-		//lastCorrectDtbPhysicalAddress = 0;
 		return;
 	}
-	//
-	//close_proc();
 
 	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
 	{
@@ -223,15 +381,25 @@ void Memory::open_proc(const char *name)
 	ModuleInfo module_info;
 	if (proc.hProcess.module_by_name(name, &module_info))
 	{
+		// Fallback for when we can't find module by name (likely due to shuffled/invalid CR3)
 		status = process_status::FOUND_NO_ACCESS;
 		auto base_section = std::make_unique<char[]>(8);
 		uint64_t *base_section_value = (uint64_t *)base_section.get();
 		CSliceMut<uint8_t> slice(base_section.get(), 8);
 		uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
+
+		// Attempt to read SectionBaseAddress from EPROCESS to get baseaddr
 		kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
 		proc.baseaddr = *base_section_value;
 
-		if (!bruteforceDtb(0x0, 0x100000))
+		uint64_t found_dtb = scanPml4();
+		if (found_dtb)
+		{
+			proc.hProcess.set_dtb(found_dtb, Address_INVALID);
+			lastCorrectDtbPhysicalAddress = found_dtb;
+			status = process_status::FOUND_READY;
+		}
+		else
 		{
 			close_proc();
 			return;
