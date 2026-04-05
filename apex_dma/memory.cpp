@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <vector>
 
+static std::mutex static_m;
+
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
 {
@@ -81,6 +83,7 @@ void Memory::check_proc()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
+	std::lock_guard<std::mutex> l(static_m);
 	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
 	{
 		printf("Can't create %s connector\n", connector_name);
@@ -91,10 +94,16 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
+	// Important: mf_inventory_create_os MOVES the connector, zeroing its vtables.
+	// We must clone it so the global 'conn' remains valid for physical reads.
+	ConnectorInstance<> cloned_conn;
+	mf_connector_clone(conn.get(), &cloned_conn);
+
 	kernel = std::make_unique<OsInstance<>>();
-	if (mf_inventory_create_os(inv, "win32", "", conn.get(), kernel.get()))
+	if (mf_inventory_create_os(inv, "win32", "", &cloned_conn, kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
+		mf_connector_drop(&cloned_conn);
 		mf_connector_drop(conn.get());
 		kernel.reset();
 		return false;
@@ -124,7 +133,8 @@ bool Memory::testDtbValue(const uint64_t &dtb_val)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t len)
 {
-	if (!conn) return false;
+	std::lock_guard<std::mutex> l(static_m);
+	if (!conn || !conn.get()->vtbl_physicalmemory) return false;
 
 	CSliceMut<uint8_t> slice;
 	slice.data = (uint8_t*)buffer;
@@ -323,9 +333,11 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 void Memory::open_proc(const char *name)
 {
 	std::lock_guard<std::mutex> l(m);
-	if (!conn)
 	{
-		conn = std::make_unique<ConnectorInstance<>>();
+		std::lock_guard<std::mutex> sl(static_m);
+		if (!conn)
+		{
+			conn = std::make_unique<ConnectorInstance<>>();
 		Inventory *inv = mf_inventory_scan();
 		mf_inventory_add_dir(inv, ".");
 
@@ -341,11 +353,15 @@ void Memory::open_proc(const char *name)
 			}
 		}
 
-		printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
+			printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
+		}
 	}
 
 
 	ProcessInfo info;
+	info.name = nullptr;
+	info.path = nullptr;
+	info.command_line = nullptr;
 	info.dtb2 = Address_INVALID;
 
 	if (kernel.get()->process_info_by_name(name, &info))
