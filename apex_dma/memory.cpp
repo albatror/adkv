@@ -1,5 +1,6 @@
 #include "memory.h"
 #include <unistd.h>
+#include <vector>
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -104,15 +105,164 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 
 bool Memory::testDtbValue(const uint64_t &dtb_val)
 {
-	proc.hProcess.set_dtb(dtb_val, Address_INVALID);
-	check_proc();
-	if (status == process_status::FOUND_READY)
+	if (proc.baseaddr == 0) return false;
+
+	uint64_t phys_base = TranslateVirtualToPhysical(dtb_val, proc.baseaddr);
+	if (phys_base == 0) return false;
+
+	short c = 0;
+	if (!ReadPhysical(phys_base, &c, sizeof(c))) return false;
+
+	if (c == 0x5A4D)
 	{
 		lastCorrectDtbPhysicalAddress = dtb_val;
 		return true;
 	}
 
 	return false;
+}
+
+bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t len)
+{
+	if (!conn) return false;
+
+	CSliceMut<uint8_t> slice;
+	slice.data = (uint8_t*)buffer;
+	slice.len = len;
+
+	return conn.get()->phys_view().read_raw_into(address, slice) == 0;
+}
+
+uint64_t Memory::scanPml4()
+{
+	if (!kernel || !conn) return 0;
+
+	// Reset status for scanning
+	status = process_status::NOT_FOUND;
+
+	ProcessInfo system_info;
+	if (kernel.get()->process_info_by_pid(4, &system_info))
+	{
+		return 0;
+	}
+
+	uint64_t system_dtb = system_info.dtb1;
+	uint64_t system_pml4[512];
+	if (!ReadPhysical(system_dtb, system_pml4, sizeof(system_pml4)))
+	{
+		return 0;
+	}
+
+	// PML4 entries 256-511 are kernel space and must be an EXACT match across all processes
+	// using PID 4 (System) as the ground truth.
+	uint64_t signature[256];
+	int signature_entries = 0;
+	for (int i = 256; i < 512; i++)
+	{
+		signature[i - 256] = system_pml4[i];
+		if (system_pml4[i] != 0) signature_entries++;
+	}
+
+	if (signature_entries < 5) return 0; // Sanity check
+
+	printf("[*] Scanning physical memory for PML4 signature (%d entries)...\n", signature_entries);
+	auto start = std::chrono::high_resolution_clock::now();
+
+	// Scan physical memory in 2MB chunks for efficiency
+	const size_t scan_size = 2 * 1024 * 1024;
+	uint8_t* buffer = (uint8_t*)malloc(scan_size);
+	if (!buffer) return 0;
+
+	uint64_t found_dtb = 0;
+	// Only scan up to a reasonable physical limit to avoid hangs (e.g., 32GB)
+	uint64_t search_limit = 0x800000000; // 32GB
+	if (search_limit > MAX_PHYADDR) search_limit = MAX_PHYADDR;
+
+	for (uint64_t addr = 0; addr < search_limit; addr += scan_size)
+	{
+		if (!ReadPhysical(addr, buffer, scan_size)) continue;
+
+		for (size_t offset = 0; offset < scan_size; offset += 0x1000)
+		{
+			uint64_t* candidate_pml4 = (uint64_t*)(buffer + offset);
+
+			// Quick check: first kernel entry should match
+			if (candidate_pml4[256] != signature[0]) continue;
+
+			bool match = true;
+			for (int i = 257; i < 512; i++)
+			{
+				if (candidate_pml4[i] != signature[i - 256])
+				{
+					match = false;
+					break;
+				}
+			}
+
+			if (match)
+			{
+				uint64_t candidate_dtb = addr + offset;
+				if (testDtbValue(candidate_dtb))
+				{
+					found_dtb = candidate_dtb;
+					goto end;
+				}
+			}
+		}
+	}
+
+end:
+	free(buffer);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start);
+	printf("[+] PML4 scan %s, found DTB: 0x%lx, time: %ldms\n", found_dtb ? "success" : "failed", found_dtb, duration.count());
+	return found_dtb;
+}
+
+bool Memory::IsMovedByEAC(uint64_t pml4eAddr, uint64_t pml4eContent)
+{
+	// From UnknownCheats: https://www.unknowncheats.me/forum/4243560-post1.html
+	return (pml4eAddr & 0xff0000) == (pml4eContent & 0xff0000) && ((pml4eContent >> 48) & 0xffff) == 0;
+}
+
+uint64_t Memory::TranslateVirtualToPhysical(uint64_t dtb, uint64_t virtualAddr)
+{
+	dtb &= ~0xf;
+
+	uint64_t pageOffset = virtualAddr & 0xFFF;
+	uint64_t pte = (virtualAddr >> 12) & 0x1ff;
+	uint64_t pt = (virtualAddr >> 21) & 0x1ff;
+	uint64_t pd = (virtualAddr >> 30) & 0x1ff;
+	uint64_t pdp = (virtualAddr >> 39) & 0x1ff;
+
+	uint64_t pml4e_addr = dtb + 8 * pdp;
+	uint64_t pml4e = 0;
+	if (!ReadPhysical(pml4e_addr, &pml4e, sizeof(pml4e))) return 0;
+
+	// Shadow CR3 Check from UnknownCheats
+	if (IsMovedByEAC(pml4e_addr, pml4e)) return 0;
+
+	if (!(pml4e & 1)) return 0;
+
+	uint64_t pdpe_addr = (pml4e & 0xFFFFFFFFF000) + 8 * pd;
+	uint64_t pdpe = 0;
+	if (!ReadPhysical(pdpe_addr, &pdpe, sizeof(pdpe)) || !(pdpe & 1)) return 0;
+
+	// 1GB Large Page
+	if (pdpe & 0x80) return (pdpe & 0xFFFFFC000000) + (virtualAddr & 0x3FFFFFFF);
+
+	uint64_t pde_addr = (pdpe & 0xFFFFFFFFF000) + 8 * pt;
+	uint64_t pde = 0;
+	if (!ReadPhysical(pde_addr, &pde, sizeof(pde)) || !(pde & 1)) return 0;
+
+	// 2MB Large Page
+	if (pde & 0x80) return (pde & 0xFFFFFFE00000) + (virtualAddr & 0x1FFFFF);
+
+	uint64_t pte_addr = (pde & 0xFFFFFFFFF000) + 8 * pte;
+	uint64_t pte_val = 0;
+	if (!ReadPhysical(pte_addr, &pte_val, sizeof(pte_val)) || !(pte_val & 1)) return 0;
+
+	return (pte_val & 0xFFFFFFFFF000) + pageOffset;
 }
 
 // https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
@@ -172,6 +322,7 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
+	std::lock_guard<std::mutex> l(m);
 	if (!conn)
 	{
 		conn = std::make_unique<ConnectorInstance<>>();
@@ -194,63 +345,68 @@ void Memory::open_proc(const char *name)
 	}
 
 
-	if (lastCorrectDtbPhysicalAddress && bruteforceDtb(0x0, 0x100000))
-	{
-		return;
-	}
-	close_proc();
-
 	ProcessInfo info;
 	info.dtb2 = Address_INVALID;
 
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
-		//lastCorrectDtbPhysicalAddress = 0;
-		return;
-	}
-	//
-	//close_proc();
-
-	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
-	{
-		status = process_status::FOUND_NO_ACCESS;
-		printf("Error while opening process %s\n", name);
-		close_proc();
 		return;
 	}
 
-	ModuleInfo module_info;
-	if (proc.hProcess.module_by_name(name, &module_info))
-	{
-		status = process_status::FOUND_NO_ACCESS;
-		auto base_section = std::make_unique<char[]>(8);
-		uint64_t *base_section_value = (uint64_t *)base_section.get();
-		CSliceMut<uint8_t> slice(base_section.get(), 8);
-		uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-		kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
-		proc.baseaddr = *base_section_value;
+	auto base_section = std::make_unique<char[]>(8);
+	uint64_t *base_section_value = (uint64_t *)base_section.get();
+	CSliceMut<uint8_t> slice(base_section.get(), 8);
+	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
+	kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
+	proc.baseaddr = *base_section_value;
 
-		if (!bruteforceDtb(0x0, 0x100000))
+	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
+	{
+		info.dtb1 = lastCorrectDtbPhysicalAddress;
+		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
 		{
-			close_proc();
+			status = process_status::FOUND_READY;
 			return;
 		}
 	}
-	else
+
+	// Try standard initialization first
+	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
 	{
-		proc.baseaddr = module_info.base;
+		ModuleInfo module_info;
+		if (proc.hProcess.module_by_name(name, &module_info) == 0)
+		{
+			proc.baseaddr = module_info.base;
+			status = process_status::FOUND_READY;
+			return;
+		}
 	}
 
-	status = process_status::FOUND_READY;
+	// If standard failed or module not found (EAC protection), use PML4 scanner
+	uint64_t found_dtb = scanPml4();
+	if (found_dtb)
+	{
+		info.dtb1 = found_dtb;
+		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
+		{
+			lastCorrectDtbPhysicalAddress = found_dtb;
+			status = process_status::FOUND_READY;
+			return;
+		}
+	}
+
+	status = process_status::FOUND_NO_ACCESS;
+	printf("Error: Unable to acquire process %s with valid DTB\n", name);
 }
 
 void Memory::close_proc()
 {
 	std::lock_guard<std::mutex> l(m);
-	proc.hProcess.~IntoProcessInstance();
-	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
+	lastCorrectDtbPhysicalAddress = 0;
+	status = process_status::NOT_FOUND;
+	proc.hProcess = IntoProcessInstance<>();
 }
 
 uint64_t Memory::ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int level)
