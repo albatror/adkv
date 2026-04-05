@@ -141,7 +141,7 @@ void StuffBotLoop()
                             int weaponId = LPlayer.getCurrentWeaponId();
                             weaponName = get_weapon_name(weaponId);
                         }
-                        printf("[TRIGGERBOT] Shooting at entity %d (dist: %.2f, fov: %.2f) with weapon %s\n", i, dist / 40.0f, fov, weaponName.c_str());
+                        //printf("[TRIGGERBOT] Shooting at entity %d (dist: %.2f, fov: %.2f) with weapon %s\n", i, dist / 40.0f, fov, weaponName.c_str());
                         TriggerBotRun();
                         last_crosshair_times[centity] = now_crosshair_target_time;
                         break;
