@@ -72,6 +72,9 @@ private:
 	DTBCache pml4_cache[512];
 
 public:
+	Memory() {
+		memset(pml4_cache, 0, sizeof(pml4_cache));
+	}
 	~Memory() = default;
 
 	uint64_t get_proc_baseaddr();

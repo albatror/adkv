@@ -65,7 +65,7 @@ void Memory::check_proc()
 	if (status == process_status::FOUND_READY || status == process_status::FOUND_NO_ACCESS)
 	{
 		short c = 0;
-		if (proc.baseaddr && proc.hProcess.read_raw_into(proc.baseaddr, CSliceMut<uint8_t>((char *)&c, sizeof(c))) == 0)
+		if (proc.baseaddr && proc.hProcess.vtbl_memoryview && proc.hProcess.read_raw_into(proc.baseaddr, CSliceMut<uint8_t>((char *)&c, sizeof(c))) == 0)
 		{
 			if (c != 0x5A4D)
 			{
@@ -186,18 +186,23 @@ uint64_t Memory::VTranslate(uint64_t dtb, uint64_t vaddr)
 
 bool Memory::testDtbValue(const uint64_t &dtb_val)
 {
-	if (VTranslate(dtb_val, proc.baseaddr) == 0)
+	if (!proc.baseaddr) return false;
+
+	uint64_t phys_base = VTranslate(dtb_val, proc.baseaddr);
+	if (phys_base == 0)
 		return false;
 
-	proc.hProcess.set_dtb(dtb_val, Address_INVALID);
-	check_proc();
-	if (status == process_status::FOUND_READY)
-	{
-		lastCorrectDtbPhysicalAddress = dtb_val;
-		return true;
-	}
+	short c = 0;
+	if (!ReadPhysical(phys_base, &c, sizeof(c)) || c != 0x5A4D)
+		return false;
 
-	return false;
+	lastCorrectDtbPhysicalAddress = dtb_val;
+	if (proc.hProcess.vtbl_process)
+	{
+		proc.hProcess.set_dtb(dtb_val, Address_INVALID);
+		status = process_status::FOUND_READY;
+	}
+	return true;
 }
 
 // https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
@@ -281,23 +286,35 @@ void Memory::open_proc(const char *name)
 	}
 
 
-	if (ResolveDtb())
-	{
-		return;
-	}
-	close_proc();
-
 	ProcessInfo info;
 	info.dtb2 = Address_INVALID;
 
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
 		status = process_status::NOT_FOUND;
-		//lastCorrectDtbPhysicalAddress = 0;
 		return;
 	}
-	//
-	//close_proc();
+
+	// Read base address first using OsInstance
+	auto base_section = std::make_unique<char[]>(8);
+	uint64_t *base_section_value = (uint64_t *)base_section.get();
+	CSliceMut<uint8_t> slice(base_section.get(), 8);
+	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
+	kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
+	proc.baseaddr = *base_section_value;
+
+	if (ResolveDtb())
+	{
+		// If ResolveDtb succeeded, we found a DTB, now initialize hProcess
+		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
+		{
+			proc.hProcess.set_dtb(lastCorrectDtbPhysicalAddress, Address_INVALID);
+			status = process_status::FOUND_READY;
+			return;
+		}
+	}
+
+	close_proc();
 
 	if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess))
 	{
@@ -307,17 +324,13 @@ void Memory::open_proc(const char *name)
 		return;
 	}
 
+	proc.baseaddr = info.address; // Fallback or re-initialize
+
 	ModuleInfo module_info;
 	if (proc.hProcess.module_by_name(name, &module_info))
 	{
-		status = process_status::FOUND_NO_ACCESS;
-		auto base_section = std::make_unique<char[]>(8);
-		uint64_t *base_section_value = (uint64_t *)base_section.get();
-		CSliceMut<uint8_t> slice(base_section.get(), 8);
-		uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-		kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
+		// If module lookup fails, use the EPROCESS section base address we read earlier
 		proc.baseaddr = *base_section_value;
-
 		if (!ResolveDtb())
 		{
 			close_proc();
@@ -335,7 +348,7 @@ void Memory::open_proc(const char *name)
 void Memory::close_proc()
 {
 	std::lock_guard<std::mutex> l(m);
-	proc.hProcess.~IntoProcessInstance();
+	proc.hProcess = IntoProcessInstance<>();
 	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
 	memset(pml4_cache, 0, sizeof(pml4_cache));
