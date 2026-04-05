@@ -17,6 +17,7 @@ typedef WORD *PWORD;
 
 extern ConnectorInstance<> conn;
 extern OsInstance<> kernel;
+extern Inventory *inventory;
 
 // set MAX_PHYADDR to a reasonable value, larger values will take more time to traverse.
 constexpr uint64_t MAX_PHYADDR = 0xFFFFFFFFF;

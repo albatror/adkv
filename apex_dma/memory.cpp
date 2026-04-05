@@ -3,6 +3,7 @@
 
 ConnectorInstance<> conn;
 OsInstance<> kernel;
+Inventory *inventory = nullptr;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -126,11 +127,16 @@ bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
 	if (kernel.vtbl_physicalmemory)
 	{
-		return kernel.phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+		MemoryViewBase<> view = kernel.phys_view();
+		if (view.vtbl)
+			return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
 	}
-	else if (conn.vtbl_physicalmemory)
+
+	if (conn.vtbl_physicalmemory)
 	{
-		return conn.phys_view().read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+		MemoryViewBase<> view = conn.phys_view();
+		if (view.vtbl)
+			return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
 	}
 	return false;
 }
@@ -175,24 +181,24 @@ uint64_t Memory::VTranslate(uint64_t dtb, uint64_t vaddr)
 		return 0;
 
 	uint64_t pde = 0;
-	if (!ReadPhysical((pdpe & 0xFFFFFFFFFF000) + 8 * pd, &pde, sizeof(pde)) || (pde & 1) == 0)
+	if (!ReadPhysical((pdpe & 0x000ffffffffff000) + 8 * pd, &pde, sizeof(pde)) || (pde & 1) == 0)
 		return 0;
 
 	if (pde & 0x80) // 1GB Large Page
-		return (pde & 0xFFFFFFFFFF000) + (vaddr & 0x3FFFFFFF);
+		return (pde & 0x000fffffc0000000) + (vaddr & 0x3FFFFFFF);
 
 	uint64_t pteAddr = 0;
-	if (!ReadPhysical((pde & 0xFFFFFFFFFF000) + 8 * pt, &pteAddr, sizeof(pteAddr)) || (pteAddr & 1) == 0)
+	if (!ReadPhysical((pde & 0x000ffffffffff000) + 8 * pt, &pteAddr, sizeof(pteAddr)) || (pteAddr & 1) == 0)
 		return 0;
 
 	if (pteAddr & 0x80) // 2MB Large Page
-		return (pteAddr & 0xFFFFFFFFFF000) + (vaddr & 0x1FFFFF);
+		return (pteAddr & 0x000fffffffe00000) + (vaddr & 0x1FFFFF);
 
 	uint64_t finalAddr = 0;
-	if (!ReadPhysical((pteAddr & 0xFFFFFFFFFF000) + 8 * pte, &finalAddr, sizeof(finalAddr)) || (finalAddr & 1) == 0)
+	if (!ReadPhysical((pteAddr & 0x000ffffffffff000) + 8 * pte, &finalAddr, sizeof(finalAddr)) || (finalAddr & 1) == 0)
 		return 0;
 
-	return (finalAddr & 0xFFFFFFFFFF000) + pageOffset;
+	return (finalAddr & 0x000ffffffffff000) + pageOffset;
 }
 
 bool Memory::testDtbValue(const uint64_t &dtb_val)
@@ -277,44 +283,54 @@ void Memory::open_proc(const char *name)
 {
 	if (!conn.vtbl_clone)
 	{
-		Inventory *inv = mf_inventory_scan();
-		mf_inventory_add_dir(inv, ".");
+		if (!inventory)
+		{
+			inventory = mf_inventory_scan();
+			mf_inventory_add_dir(inventory, ".");
+		}
 
 		printf("Init with kvm connector...\n");
-		if (!kernel_init(inv, "kvm"))
+		if (!kernel_init(inventory, "kvm"))
 		{
-		printf("Init with qemu connector...\n");
-		if (!kernel_init(inv, "qemu"))
+			printf("Init with qemu connector...\n");
+			if (!kernel_init(inventory, "qemu"))
 			{
 				printf("Quitting\n");
-				mf_inventory_free(inv);
 				exit(1);
 			}
 		}
 
-		printf("Kernel initialized: %p\n", kernel.container.instance.instance);
+		if (kernel.vtbl_os)
+			printf("Kernel initialized: %p\n", kernel.container.instance.instance);
+		else
+			printf("Kernel initialization failed (no vtbl)\n");
 	}
 
 	if (!kernel.vtbl_os) return;
 
+	printf("Opening process %s...\n", name);
 	ProcessInfo info;
+	memset(&info, 0, sizeof(info));
 	info.dtb2 = Address_INVALID;
 
 	if (kernel.process_info_by_name(name, &info))
 	{
+		printf("Process %s not found\n", name);
 		status = process_status::NOT_FOUND;
 		return;
 	}
 
+	printf("Process found: pid=%d, addr=%lx\n", info.pid, info.address);
+
 	// Read base address first using OsInstance
-	auto base_section = std::make_unique<char[]>(8);
-	uint64_t *base_section_value = (uint64_t *)base_section.get();
-	CSliceMut<uint8_t> slice(base_section.get(), 8);
+	uint64_t base_section_value = 0;
+	CSliceMut<uint8_t> slice((char*)&base_section_value, 8);
 	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
 	if (kernel.vtbl_memoryview)
 	{
 		kernel.read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice);
-		proc.baseaddr = *base_section_value;
+		proc.baseaddr = base_section_value;
+		printf("Section base address: %lx\n", proc.baseaddr);
 	}
 	else
 	{
@@ -323,41 +339,44 @@ void Memory::open_proc(const char *name)
 
 	if (ResolveDtb())
 	{
+		printf("DTB resolved: %lx\n", lastCorrectDtbPhysicalAddress);
 		// If ResolveDtb succeeded, we found a DTB, now initialize hProcess
 		if (kernel.vtbl_clone && kernel.clone().into_process_by_info(info, &proc.hProcess) == 0)
 		{
 			proc.hProcess.set_dtb(lastCorrectDtbPhysicalAddress, Address_INVALID);
 			status = process_status::FOUND_READY;
+			printf("Process handle initialized with DTB\n");
 			return;
 		}
 	}
 
+	printf("Falling back to full handle acquisition...\n");
 	close_proc();
 
-	if (kernel.vtbl_clone && kernel.clone().into_process_by_info(info, &proc.hProcess))
+	if (!kernel.vtbl_clone || kernel.clone().into_process_by_info(info, &proc.hProcess) != 0)
 	{
 		status = process_status::FOUND_NO_ACCESS;
-		printf("Error while opening process %s\n", name);
-		close_proc();
+		printf("Error while opening process %s (clone failed)\n", name);
 		return;
 	}
 
 	proc.baseaddr = info.address; // Fallback or re-initialize
 
 	ModuleInfo module_info;
-	if (proc.hProcess.module_by_name(name, &module_info))
+	memset(&module_info, 0, sizeof(module_info));
+	if (proc.hProcess.vtbl_process && proc.hProcess.module_by_name(name, &module_info) == 0)
+	{
+		proc.baseaddr = module_info.base;
+	}
+	else
 	{
 		// If module lookup fails, use the EPROCESS section base address we read earlier
-		proc.baseaddr = *base_section_value;
+		proc.baseaddr = base_section_value;
 		if (!ResolveDtb())
 		{
 			close_proc();
 			return;
 		}
-	}
-	else
-	{
-		proc.baseaddr = module_info.base;
 	}
 
 	status = process_status::FOUND_READY;
