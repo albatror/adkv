@@ -79,6 +79,10 @@ int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool silent_aim = false;
+float silent_aim_fov = 20.0f;
+bool silent_aim_fov_circle = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -1564,6 +1568,29 @@ while (vars_t)
 		if (max_smooth_addr) client_mem.Read<float>(max_smooth_addr, max_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
+
+        uint64_t silent_aim_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 62, silent_aim_addr);
+        if (silent_aim_addr) client_mem.Read<bool>(silent_aim_addr, silent_aim);
+
+        uint64_t silent_aim_fov_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, silent_aim_fov_addr);
+        if (silent_aim_fov_addr) client_mem.Read<float>(silent_aim_fov_addr, silent_aim_fov);
+
+        uint64_t silent_aim_fov_circle_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, silent_aim_fov_circle_addr);
+        if (silent_aim_fov_circle_addr) client_mem.Read<bool>(silent_aim_fov_circle_addr, silent_aim_fov_circle);
+
+        uint64_t cot_fov_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, cot_fov_addr);
+        if (cot_fov_addr) {
+            float cot_fov = 0;
+            uint64_t view_render = 0;
+            if (apex_mem.Read<uint64_t>(g_Base + OFFSET_RENDER, view_render) && view_render != 0) {
+                apex_mem.Read<float>(view_render + 0xD0, cot_fov);
+            }
+            client_mem.Write<float>(cot_fov_addr, cot_fov);
+        }
 
         if (esp && next)
         {

@@ -38,6 +38,13 @@ double Math::GetFov(const QAngle& viewAngle, const QAngle& aimAngle)
 	return sqrt(pow(delta.x, 2.0f) + pow(delta.y, 2.0f));
 }
 
+float Math::CalcFOV(const QAngle& src, const QAngle& dst)
+{
+	float dx = DEG2RAD(dst.x - src.x);
+	float dy = DEG2RAD(dst.y - src.y);
+	return RAD2DEG(acos(cos(dx) * cos(dy)));
+}
+
 double Math::DotProduct(const Vector& v1, const float* v2)
 {
 	return v1.x * v2[0] + v1.y * v2[1] + v1.z * v2[2];

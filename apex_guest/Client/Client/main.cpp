@@ -49,6 +49,10 @@ int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool silent_aim = false;
+float silent_aim_fov = 20.0f;
+float cot_fov = 0.0f;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -522,7 +526,11 @@ int main(int argc, char** argv)
 	add[59] = (uintptr_t)&max_max_fov;
 	add[60] = (uintptr_t)&min_smooth;
 	add[61] = (uintptr_t)&max_smooth;
+	add[62] = (uintptr_t)&silent_aim;
 	add[63] = (uintptr_t)&v.skeleton_thickness;
+	add[34] = (uintptr_t)&silent_aim_fov;
+	add[35] = (uintptr_t)&v.silent_aim_fov_circle;
+	add[36] = (uintptr_t)&cot_fov;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -700,7 +708,7 @@ int main(int argc, char** argv)
 			aiming = false;
 		}
 
-		if (triggerbot && IsKeyDown(VK_LSHIFT))
+		if ((triggerbot || silent_aim) && IsKeyDown(VK_LSHIFT))
 		{
 			triggerbot_aiming = true;
 		}

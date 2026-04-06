@@ -31,6 +31,10 @@ extern bool firing_range;
 extern bool triggerbot;
 extern float triggerbot_fov;
 
+extern bool silent_aim;
+extern float silent_aim_fov;
+extern float cot_fov;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -201,6 +205,8 @@ void Overlay::RenderMenu()
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
+			ImGui::Checkbox(XorStr("Silent Aim"), &silent_aim);
+			ImGui::SliderFloat(XorStr("Silent Aim FOV"), &silent_aim_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::EndTabItem();
 		}
@@ -315,6 +321,7 @@ void Overlay::RenderMenu()
 			}
 
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
+			ImGui::Checkbox(XorStr("Silent Aim Circle fov"), &v.silent_aim_fov_circle);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -557,6 +564,19 @@ DWORD Overlay::CreateOverlay()
 			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (v.silent_aim_fov_circle)
+		{
+			float radius = silent_aim_fov;
+			if (cot_fov > 0.0f) {
+				float half_w = (float)getWidth() * 0.5f;
+				radius = half_w * tanf(silent_aim_fov * (3.14159265f / 180.0f)) / cot_fov;
+			}
+
+			ImGui::Begin("##silentcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), radius, IM_COL32(0, 255, 255, 255), 100, 1.0f);
 			ImGui::End();
 		}
 		RenderEsp();

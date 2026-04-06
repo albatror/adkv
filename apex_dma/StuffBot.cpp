@@ -26,7 +26,7 @@ bool stuff_t = false;
 void TriggerBotRun()
 {
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 }
 
@@ -152,7 +152,7 @@ void StuffBotLoop()
                             continue;
                         }
 
-                        float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
+                        float fov = Math::CalcFOV(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
 
                         bool can_shoot = false;
                         float dist = LPlayer.getPosition().DistTo(Target.getPosition());
@@ -179,7 +179,7 @@ void StuffBotLoop()
 
                                 if (BulletPredict(Ctx)) {
                                     QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
-                                    float predicted_fov = Math::GetFov(LPlayer.GetViewAngles(), PredictedAngles);
+                                    float predicted_fov = Math::CalcFOV(LPlayer.GetViewAngles(), PredictedAngles);
                                     if (predicted_fov <= triggerbot_fov) {
                                         can_shoot = true;
                                     }
@@ -204,11 +204,12 @@ void StuffBotLoop()
                 Math::NormalizeAngles(silent_angles);
                 LPlayer.SetViewAngles(silent_angles);
                 if (triggerbot) {
-                    TriggerBotRun();
+                    // Optimized trigger for silent aim to minimize angle overwrite duration
+                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
                 }
-                // Silent correction: Write back old angles in the same frame/as soon as possible
-                // This might flick slightly if not handled by UserCmd manipulation,
-                // but for external DMA this is the standard approach for "silent" behavior.
+                // Silent correction: Write back old angles as fast as possible
                 LPlayer.SetViewAngles(OldAngles);
             }
         }

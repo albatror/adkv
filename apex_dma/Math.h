@@ -26,6 +26,7 @@ namespace Math
 {
 	void NormalizeAngles(QAngle& angle);
 	double GetFov(const QAngle& viewAngle, const QAngle& aimAngle);
+	float CalcFOV(const QAngle& src, const QAngle& dst);
 	double DotProduct(const Vector& v1, const float* v2);
 	QAngle CalcAngle(const Vector& src, const Vector& dst);
 	float SmoothStep(float edge0, float edge1, float x);

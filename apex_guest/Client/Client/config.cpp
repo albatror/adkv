@@ -45,10 +45,12 @@ extern float max_smooth;
 extern float min_cfsize;
 extern float max_cfsize;
 extern bool triggerbot;
+extern bool silent_aim;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
 extern float triggerbot_fov;
+extern float silent_aim_fov;
 extern bool fov;
 extern float cfsize;
 extern visuals v;
@@ -117,11 +119,14 @@ void SaveConfig(const std::string& filename) {
     file << "min_cfsize " << min_cfsize << "\n";
     file << "max_cfsize " << max_cfsize << "\n";
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
+    file << "silent_aim " << std::boolalpha << silent_aim << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
+    file << "silent_aim_fov " << silent_aim_fov << "\n";
+    file << "silent_aim_fov_circle " << std::boolalpha << v.silent_aim_fov_circle << "\n";
     file << "fov " << std::boolalpha << fov << "\n";
     file << "cfsize " << cfsize << "\n";
 
@@ -188,11 +193,14 @@ void LoadConfig(const std::string& filename) {
         else if (key == "min_cfsize") ss >> min_cfsize;
         else if (key == "max_cfsize") ss >> max_cfsize;
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
+        else if (key == "silent_aim") ss >> std::boolalpha >> silent_aim;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
+        else if (key == "silent_aim_fov") ss >> silent_aim_fov;
+        else if (key == "silent_aim_fov_circle") ss >> std::boolalpha >> v.silent_aim_fov_circle;
         else if (key == "fov") ss >> std::boolalpha >> fov;
         else if (key == "cfsize") ss >> cfsize;
     }
