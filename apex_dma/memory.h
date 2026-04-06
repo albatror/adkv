@@ -92,8 +92,6 @@ public:
 
 	uint64_t ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int level);
 
-	bool bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPage);
-
 	bool testDtbValue(const uint64_t &dtb_val);
 
 	bool ReadPhysical(uint64_t address, void* buffer, size_t len);

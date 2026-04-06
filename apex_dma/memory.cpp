@@ -199,19 +199,32 @@ uint64_t Memory::scanPml4()
 	if (!buffer) return 0;
 
 	uint64_t found_dtb = 0;
-	// Only scan up to a reasonable physical limit to avoid hangs (e.g., 32GB)
-	uint64_t search_limit = 0x800000000; // 32GB
+	// Use 64GB as the limit for modern systems with high RAM or memory holes
+	uint64_t search_limit = 0x1000000000; // 64GB
 	if (search_limit > MAX_PHYADDR) search_limit = MAX_PHYADDR;
 
 	const uint64_t MASK = 0x000FFFFFFFFFF001; // PFN + Present bit
 
 	for (uint64_t addr = 0; addr < search_limit; addr += scan_size)
 	{
-		if (!ReadPhysical(addr, buffer, scan_size)) continue;
+		bool block_read_success = ReadPhysical(addr, buffer, scan_size);
 
 		for (size_t offset = 0; offset < scan_size; offset += 0x1000)
 		{
-			uint64_t* candidate_pml4 = (uint64_t*)(buffer + offset);
+			uint64_t candidate_dtb = addr + offset;
+			uint64_t* candidate_pml4;
+			uint64_t local_page[512];
+
+			if (block_read_success)
+			{
+				candidate_pml4 = (uint64_t*)(buffer + offset);
+			}
+			else
+			{
+				// Block read failed, likely due to a gap. Try reading just this page.
+				if (!ReadPhysical(candidate_dtb, local_page, sizeof(local_page))) continue;
+				candidate_pml4 = local_page;
+			}
 
 			// Quick check: first non-zero kernel entry should match (masking volatile flags)
 			if ((candidate_pml4[256 + first_entry_idx] & MASK) != (signature[first_entry_idx] & MASK)) continue;
@@ -226,9 +239,9 @@ uint64_t Memory::scanPml4()
 				}
 			}
 
-			if (current_matches >= (signature_entries - 1))
+			// Require at least 90% match for robustness
+			if (current_matches >= (signature_entries * 9 / 10))
 			{
-				uint64_t candidate_dtb = addr + offset;
 				if (testDtbValue(candidate_dtb))
 				{
 					found_dtb = candidate_dtb;
@@ -294,60 +307,6 @@ uint64_t Memory::TranslateVirtualToPhysical(uint64_t dtb, uint64_t virtualAddr)
 	return (pte_val & PMASK) + pageOffset;
 }
 
-// https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
-bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPage)
-{
-	// eac cr3 always end with 0x-----XX000
-	// dtbStartPhysicalAddr should be a multiple of 0x1000
-	if ((dtbStartPhysicalAddr & 0xFFF) != 0)
-		return false;
-	if (dtbStartPhysicalAddr > MAX_PHYADDR)
-		return false;
-
-	dtbStartPhysicalAddr -= dtbStartPhysicalAddr % stepPage;
-	dtbStartPhysicalAddr += lastCorrectDtbPhysicalAddress % stepPage;
-
-	auto start = std::chrono::high_resolution_clock::now();
-	bool result = false;
-	uint64_t furtherDistance = GetFurtherDistance(dtbStartPhysicalAddr, 0x0, MAX_PHYADDR);
-	size_t maxStep = furtherDistance / stepPage;
-	uint64_t guessDtbAddr = 0;
-
-	for (size_t step = 0; step < maxStep; step++)
-	{
-		// bruteforce dtb from middle
-		guessDtbAddr = dtbStartPhysicalAddr + step * stepPage;
-		if (guessDtbAddr < MAX_PHYADDR)
-		{
-			if (testDtbValue(guessDtbAddr))
-			{
-				result = true;
-				break;
-			}
-		}
-		// dont forget the other side
-		if (dtbStartPhysicalAddr > step * stepPage)
-		{
-			guessDtbAddr = dtbStartPhysicalAddr - step * stepPage;
-			if (testDtbValue(guessDtbAddr))
-			{
-				result = true;
-				break;
-			}
-		}
-	}
-
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	printf("[+] bruteforce dtb %s to find dtb:0x%lx, time:%ldms\n", result ? "success" : "failed", result ? guessDtbAddr : 0x0, duration.count());
-
-	// In case we cannot get the dtb through this shortcut method.
-	if (result == false && stepPage != 0x1000)
-	{
-		return bruteforceDtb(dtbStartPhysicalAddr, 0x1000);
-	}
-	return result;
-}
 
 void Memory::open_proc(const char *name)
 {
