@@ -20,6 +20,8 @@ extern OsInstance<> kernel;
 extern Inventory *inventory;
 extern std::recursive_mutex global_mem_mutex;
 
+void GracefulExit();
+
 // set MAX_PHYADDR to a reasonable value, larger values will take more time to traverse.
 constexpr uint64_t MAX_PHYADDR = 0xFFFFFFFFF;
 
@@ -69,7 +71,6 @@ class Memory
 private:
 	Process proc;
 	process_status status = process_status::NOT_FOUND;
-	std::mutex m;
 	uint64_t lastCorrectDtbPhysicalAddress = 0x0;
 	DTBCache pml4_cache[512];
 
@@ -101,6 +102,10 @@ public:
 	template <typename T>
 	bool WriteArray(uint64_t address, const T value[], size_t len);
 
+	bool ReadPhysical(uint64_t address, void* buffer, size_t size);
+
+	bool WritePhysical(uint64_t address, const void* buffer, size_t size);
+
 	bool ResolveDtb();
 
 	uint64_t ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int level);
@@ -116,19 +121,22 @@ public:
 	bool IsMovedByEAC(uint64_t pml4e_addr, uint64_t pml4e);
 
 	uint64_t ReadCachedPML4E(uint64_t dtb, uint64_t pml4e_index);
-
-	bool ReadPhysical(uint64_t address, void* buffer, size_t size);
 };
 
 template <typename T>
 inline bool Memory::Read(uint64_t address, T &out)
 {
 	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
-	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
-	if (proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0)
+	if (!proc.baseaddr) return false;
+	uint64_t phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+	if (phys_addr && ReadPhysical(phys_addr, &out, sizeof(T)))
 		return true;
-	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
-		return proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0;
+	if (ResolveDtb())
+	{
+		phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+		if (phys_addr && ReadPhysical(phys_addr, &out, sizeof(T)))
+			return true;
+	}
 	return false;
 }
 
@@ -136,11 +144,17 @@ template <typename T>
 inline bool Memory::ReadArray(uint64_t address, T out[], size_t len)
 {
 	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
-	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
-	if (proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)out, sizeof(T) * len)) == 0)
+	if (!proc.baseaddr) return false;
+	size_t size = sizeof(T) * len;
+	uint64_t phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+	if (phys_addr && ReadPhysical(phys_addr, out, size))
 		return true;
-	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
-		return proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)out, sizeof(T) * len)) == 0;
+	if (ResolveDtb())
+	{
+		phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+		if (phys_addr && ReadPhysical(phys_addr, out, size))
+			return true;
+	}
 	return false;
 }
 
@@ -148,11 +162,16 @@ template <typename T>
 inline bool Memory::Write(uint64_t address, const T &value)
 {
 	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
-	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
-	if (proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0)
+	if (!proc.baseaddr) return false;
+	uint64_t phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+	if (phys_addr && WritePhysical(phys_addr, &value, sizeof(T)))
 		return true;
-	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
-		return proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0;
+	if (ResolveDtb())
+	{
+		phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+		if (phys_addr && WritePhysical(phys_addr, &value, sizeof(T)))
+			return true;
+	}
 	return false;
 }
 
@@ -160,10 +179,16 @@ template <typename T>
 inline bool Memory::WriteArray(uint64_t address, const T value[], size_t len)
 {
 	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
-	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
-	if (proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)value, sizeof(T) * len)) == 0)
+	if (!proc.baseaddr) return false;
+	size_t size = sizeof(T) * len;
+	uint64_t phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+	if (phys_addr && WritePhysical(phys_addr, value, size))
 		return true;
-	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
-		return proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)value, sizeof(T) * len)) == 0;
+	if (ResolveDtb())
+	{
+		phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, address);
+		if (phys_addr && WritePhysical(phys_addr, value, size))
+			return true;
+	}
 	return false;
 }

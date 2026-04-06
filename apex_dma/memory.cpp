@@ -71,21 +71,16 @@ void Memory::check_proc()
 	if (status == process_status::FOUND_READY || status == process_status::FOUND_NO_ACCESS)
 	{
 		short c = 0;
-		if (proc.baseaddr && proc.hProcess.vtbl_memoryview && proc.hProcess.read_raw_into(proc.baseaddr, CSliceMut<uint8_t>((char *)&c, sizeof(c))) == 0)
+		if (proc.baseaddr)
 		{
-			if (c != 0x5A4D)
-			{
-				status = process_status::FOUND_NO_ACCESS;
-			}
-			else
+			uint64_t phys_addr = VTranslate(lastCorrectDtbPhysicalAddress, proc.baseaddr);
+			if (phys_addr && ReadPhysical(phys_addr, &c, sizeof(c)) && c == 0x5A4D)
 			{
 				status = process_status::FOUND_READY;
+				return;
 			}
 		}
-		else
-		{
-			status = process_status::FOUND_NO_ACCESS;
-		}
+		status = process_status::FOUND_NO_ACCESS;
 	}
 }
 
@@ -95,8 +90,33 @@ bool Memory::ResolveDtb()
 	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 		return true;
 
+	if (!proc.baseaddr) return false;
+
+	// The 1MB step heuristic: EAC's hidden DTBs often share the same lower 20 bits
+	// as the original system-assigned DTB.
 	if (bruteforceDtb(0x0, 0x100000))
 		return true;
+
+	// Fallback to slower 4KB step PML4 scan if 1MB step fails
+	uint64_t vaddr = proc.baseaddr;
+	uint64_t pdp = (vaddr >> 39) & 0x1ff;
+
+	for (uint64_t addr = 0x0; addr < MAX_PHYADDR; addr += 0x1000)
+	{
+		uint64_t pml4e = 0;
+		uint64_t pml4e_addr = addr + 8 * pdp;
+		if (ReadPhysical(pml4e_addr, &pml4e, sizeof(pml4e)))
+		{
+			if (pml4e != 0 && (pml4e & 1) != 0 && (pml4e & 0x000ffffffffff000) < MAX_PHYADDR)
+			{
+				if (!IsMovedByEAC(pml4e_addr, pml4e))
+				{
+					if (testDtbValue(addr))
+						return true;
+				}
+			}
+		}
+	}
 
 	return false;
 }
@@ -142,6 +162,25 @@ bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 		MemoryViewBase<> view = conn.phys_view();
 		if (view.vtbl)
 			return view.read_raw_into(address, CSliceMut<uint8_t>((char*)buffer, size)) == 0;
+	}
+	return false;
+}
+
+bool Memory::WritePhysical(uint64_t address, const void* buffer, size_t size)
+{
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
+	if (kernel.vtbl_physicalmemory)
+	{
+		MemoryViewBase<> view = kernel.phys_view();
+		if (view.vtbl)
+			return view.write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
+	}
+
+	if (conn.vtbl_physicalmemory)
+	{
+		MemoryViewBase<> view = conn.phys_view();
+		if (view.vtbl)
+			return view.write_raw(address, CSliceRef<uint8_t>((const char*)buffer, size)) == 0;
 	}
 	return false;
 }
@@ -216,15 +255,24 @@ bool Memory::testDtbValue(const uint64_t &dtb_val)
 	if (phys_base == 0)
 		return false;
 
+	// Verify MZ header
 	short c = 0;
 	if (!ReadPhysical(phys_base, &c, sizeof(c)) || c != 0x5A4D)
+		return false;
+
+	// Verify PE header to avoid false positives
+	uint32_t pe_offset = 0;
+	if (!ReadPhysical(phys_base + 0x3C, &pe_offset, sizeof(pe_offset)) || pe_offset > 0x1000)
+		return false;
+
+	uint16_t pe_header = 0;
+	if (!ReadPhysical(phys_base + pe_offset, &pe_header, sizeof(pe_header)) || pe_header != 0x4550)
 		return false;
 
 	lastCorrectDtbPhysicalAddress = dtb_val;
 	if (proc.hProcess.vtbl_process)
 	{
 		proc.hProcess.set_dtb(dtb_val, Address_INVALID);
-		status = process_status::FOUND_READY;
 	}
 	return true;
 }
@@ -329,7 +377,7 @@ void Memory::open_proc(const char *name)
 		return;
 	}
 
-	printf("Process found: pid=%d, addr=%lx\n", info.pid, info.address);
+	printf("Process found: pid=%d, addr=%lx, dtb=%lx\n", info.pid, info.address, info.dtb1);
 
 	// Read base address first using OsInstance
 	uint64_t base_section_value = 0;
@@ -344,6 +392,12 @@ void Memory::open_proc(const char *name)
 	else
 	{
 		proc.baseaddr = info.address;
+	}
+
+	// Try the DTB from info first
+	if (info.dtb1 != 0 && testDtbValue(info.dtb1))
+	{
+		lastCorrectDtbPhysicalAddress = info.dtb1;
 	}
 
 	if (ResolveDtb())
@@ -404,6 +458,11 @@ void Memory::close_proc()
 	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;
 	memset(pml4_cache, 0, sizeof(pml4_cache));
+}
+
+void GracefulExit()
+{
+	_exit(0);
 }
 
 uint64_t Memory::ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int level)
