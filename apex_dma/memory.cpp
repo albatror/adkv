@@ -4,6 +4,7 @@
 ConnectorInstance<> conn;
 OsInstance<> kernel;
 Inventory *inventory = nullptr;
+std::recursive_mutex global_mem_mutex;
 
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
@@ -66,6 +67,7 @@ process_status Memory::get_proc_status()
 
 void Memory::check_proc()
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (status == process_status::FOUND_READY || status == process_status::FOUND_NO_ACCESS)
 	{
 		short c = 0;
@@ -89,6 +91,7 @@ void Memory::check_proc()
 
 bool Memory::ResolveDtb()
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 		return true;
 
@@ -100,6 +103,7 @@ bool Memory::ResolveDtb()
 
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (mf_inventory_create_connector(inv, connector_name, "", &conn))
 	{
 		printf("Can't create %s connector\n", connector_name);
@@ -125,6 +129,7 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 
 bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t size)
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (kernel.vtbl_physicalmemory)
 	{
 		MemoryViewBase<> view = kernel.phys_view();
@@ -148,6 +153,7 @@ bool Memory::IsMovedByEAC(uint64_t pml4e_addr, uint64_t pml4e)
 
 uint64_t Memory::ReadCachedPML4E(uint64_t dtb, uint64_t pml4e_index)
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	uint64_t pml4e_addr = dtb + 8 * pml4e_index;
 	if (pml4_cache[pml4e_index].Address == pml4e_addr && pml4_cache[pml4e_index].Value != 0)
 		return pml4_cache[pml4e_index].Value;
@@ -203,6 +209,7 @@ uint64_t Memory::VTranslate(uint64_t dtb, uint64_t vaddr)
 
 bool Memory::testDtbValue(const uint64_t &dtb_val)
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (!proc.baseaddr) return false;
 
 	uint64_t phys_base = VTranslate(dtb_val, proc.baseaddr);
@@ -225,6 +232,7 @@ bool Memory::testDtbValue(const uint64_t &dtb_val)
 // https://www.unknowncheats.me/forum/apex-legends/670570-quick-obtain-cr3-check.html
 bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPage)
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (!proc.baseaddr) return false;
 
 	// eac cr3 always end with 0x-----XX000
@@ -281,6 +289,7 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	if (!conn.vtbl_clone)
 	{
 		if (!inventory)
@@ -359,6 +368,12 @@ void Memory::open_proc(const char *name)
 		printf("Error while opening process %s (clone failed)\n", name);
 		return;
 	}
+	else
+	{
+		// Successfully initialized hProcess, ensure it has the system DTB or found DTB
+		if (lastCorrectDtbPhysicalAddress)
+			proc.hProcess.set_dtb(lastCorrectDtbPhysicalAddress, Address_INVALID);
+	}
 
 	proc.baseaddr = info.address; // Fallback or re-initialize
 
@@ -384,7 +399,7 @@ void Memory::open_proc(const char *name)
 
 void Memory::close_proc()
 {
-	std::lock_guard<std::mutex> l(m);
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
 	proc.hProcess = IntoProcessInstance<>();
 	lastCorrectDtbPhysicalAddress = 0;
 	proc.baseaddr = 0;

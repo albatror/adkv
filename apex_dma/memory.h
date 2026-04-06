@@ -18,6 +18,7 @@ typedef WORD *PWORD;
 extern ConnectorInstance<> conn;
 extern OsInstance<> kernel;
 extern Inventory *inventory;
+extern std::recursive_mutex global_mem_mutex;
 
 // set MAX_PHYADDR to a reasonable value, larger values will take more time to traverse.
 constexpr uint64_t MAX_PHYADDR = 0xFFFFFFFFF;
@@ -122,11 +123,11 @@ public:
 template <typename T>
 inline bool Memory::Read(uint64_t address, T &out)
 {
-	std::lock_guard<std::mutex> l(m);
-	if (!proc.baseaddr) return false;
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
+	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
 	if (proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0)
 		return true;
-	if (ResolveDtb())
+	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
 		return proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0;
 	return false;
 }
@@ -134,11 +135,11 @@ inline bool Memory::Read(uint64_t address, T &out)
 template <typename T>
 inline bool Memory::ReadArray(uint64_t address, T out[], size_t len)
 {
-	std::lock_guard<std::mutex> l(m);
-	if (!proc.baseaddr) return false;
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
+	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
 	if (proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)out, sizeof(T) * len)) == 0)
 		return true;
-	if (ResolveDtb())
+	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
 		return proc.hProcess.read_raw_into(address, CSliceMut<uint8_t>((char *)out, sizeof(T) * len)) == 0;
 	return false;
 }
@@ -146,11 +147,11 @@ inline bool Memory::ReadArray(uint64_t address, T out[], size_t len)
 template <typename T>
 inline bool Memory::Write(uint64_t address, const T &value)
 {
-	std::lock_guard<std::mutex> l(m);
-	if (!proc.baseaddr) return false;
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
+	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
 	if (proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0)
 		return true;
-	if (ResolveDtb())
+	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
 		return proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0;
 	return false;
 }
@@ -158,11 +159,11 @@ inline bool Memory::Write(uint64_t address, const T &value)
 template <typename T>
 inline bool Memory::WriteArray(uint64_t address, const T value[], size_t len)
 {
-	std::lock_guard<std::mutex> l(m);
-	if (!proc.baseaddr) return false;
+	std::lock_guard<std::recursive_mutex> l(global_mem_mutex);
+	if (!proc.baseaddr || !proc.hProcess.vtbl_memoryview) return false;
 	if (proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)value, sizeof(T) * len)) == 0)
 		return true;
-	if (ResolveDtb())
+	if (ResolveDtb() && proc.hProcess.vtbl_memoryview)
 		return proc.hProcess.write_raw(address, CSliceRef<uint8_t>((char *)value, sizeof(T) * len)) == 0;
 	return false;
 }
