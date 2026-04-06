@@ -1,6 +1,7 @@
 #include "memory.h"
 #include <unistd.h>
 #include <vector>
+#include <cstring>
 
 static std::recursive_mutex static_m;
 
@@ -84,7 +85,9 @@ void Memory::check_proc()
 bool kernel_init(Inventory *inv, const char *connector_name)
 {
 	std::lock_guard<std::recursive_mutex> l(static_m);
-	if (mf_inventory_create_connector(inv, connector_name, "", conn.get()))
+
+	ConnectorInstance<> temp_conn;
+	if (mf_inventory_create_connector(inv, connector_name, "", &temp_conn))
 	{
 		printf("Can't create %s connector\n", connector_name);
 		return false;
@@ -94,24 +97,25 @@ bool kernel_init(Inventory *inv, const char *connector_name)
 		printf("%s connector created\n", connector_name);
 	}
 
-	// Important: mf_inventory_create_os MOVES the connector, zeroing its vtables.
-	// We must clone it so the global 'conn' remains valid for physical reads.
-	ConnectorInstance<> cloned_conn;
-	mf_connector_clone(conn.get(), &cloned_conn);
+	// Clone the temporary connector into our static global 'conn'
+	conn = std::make_unique<ConnectorInstance<>>();
+	mf_connector_clone(&temp_conn, conn.get());
 
 	kernel = std::make_unique<OsInstance<>>();
-	if (mf_inventory_create_os(inv, "win32", "", &cloned_conn, kernel.get()))
+	// Important: mf_inventory_create_os MOVES the temp_conn, zeroing its vtables.
+	if (mf_inventory_create_os(inv, "win32", "", &temp_conn, kernel.get()))
 	{
 		printf("Unable to initialize kernel using %s connector\n", connector_name);
-		mf_connector_drop(&cloned_conn);
+		mf_connector_drop(&temp_conn);
 		mf_connector_drop(conn.get());
 		kernel.reset();
+		conn.reset();
 		return false;
 	}
 
-	// mf_inventory_create_os MOVED the cloned_conn. We must forget its container locally to avoid double-drop
-	// when 'cloned_conn' goes out of scope and its destructor is called.
-	mem_forget(cloned_conn.container);
+	// mf_inventory_create_os MOVED the temp_conn. We must forget its container locally to avoid double-drop
+	// when 'temp_conn' goes out of scope and its destructor is called.
+	mem_forget(temp_conn.container);
 
 	return true;
 }
@@ -140,6 +144,8 @@ bool Memory::ReadPhysical(uint64_t address, void* buffer, size_t len)
 	std::lock_guard<std::recursive_mutex> l(static_m);
 	if (!conn || !conn.get()->vtbl_physicalmemory) return false;
 
+	if (address + len > MAX_PHYADDR) return false;
+
 	CSliceMut<uint8_t> slice;
 	slice.data = (uint8_t*)buffer;
 	slice.len = len;
@@ -167,19 +173,24 @@ uint64_t Memory::scanPml4()
 		return 0;
 	}
 
-	// PML4 entries 256-511 are kernel space and must be an EXACT match across all processes
+	// PML4 entries 256-511 are kernel space and must be a near-exact match across all processes
 	// using PID 4 (System) as the ground truth.
 	uint64_t signature[256];
 	int signature_entries = 0;
+	int first_entry_idx = -1;
 	for (int i = 256; i < 512; i++)
 	{
 		signature[i - 256] = system_pml4[i];
-		if (system_pml4[i] != 0) signature_entries++;
+		if (system_pml4[i] != 0)
+		{
+			signature_entries++;
+			if (first_entry_idx == -1) first_entry_idx = i - 256;
+		}
 	}
 
-	if (signature_entries < 5) return 0; // Sanity check
+	if (signature_entries < 3 || first_entry_idx == -1) return 0; // Sanity check
 
-	printf("[*] Scanning physical memory for PML4 signature (%d entries)...\n", signature_entries);
+	printf("[*] Scanning physical memory for PML4 signature (%d entries, first at index %d)...\n", signature_entries, 256 + first_entry_idx);
 	auto start = std::chrono::high_resolution_clock::now();
 
 	// Scan physical memory in 2MB chunks for efficiency
@@ -192,6 +203,8 @@ uint64_t Memory::scanPml4()
 	uint64_t search_limit = 0x800000000; // 32GB
 	if (search_limit > MAX_PHYADDR) search_limit = MAX_PHYADDR;
 
+	const uint64_t MASK = 0x000FFFFFFFFFF001; // PFN + Present bit
+
 	for (uint64_t addr = 0; addr < search_limit; addr += scan_size)
 	{
 		if (!ReadPhysical(addr, buffer, scan_size)) continue;
@@ -200,20 +213,20 @@ uint64_t Memory::scanPml4()
 		{
 			uint64_t* candidate_pml4 = (uint64_t*)(buffer + offset);
 
-			// Quick check: first kernel entry should match
-			if (candidate_pml4[256] != signature[0]) continue;
+			// Quick check: first non-zero kernel entry should match (masking volatile flags)
+			if ((candidate_pml4[256 + first_entry_idx] & MASK) != (signature[first_entry_idx] & MASK)) continue;
 
-			bool match = true;
-			for (int i = 257; i < 512; i++)
+			int current_matches = 0;
+			for (int i = 256; i < 512; i++)
 			{
-				if (candidate_pml4[i] != signature[i - 256])
+				if (signature[i - 256] == 0) continue;
+				if ((candidate_pml4[i] & MASK) == (signature[i - 256] & MASK))
 				{
-					match = false;
-					break;
+					current_matches++;
 				}
 			}
 
-			if (match)
+			if (current_matches >= (signature_entries - 1))
 			{
 				uint64_t candidate_dtb = addr + offset;
 				if (testDtbValue(candidate_dtb))
@@ -338,20 +351,19 @@ bool Memory::bruteforceDtb(uint64_t dtbStartPhysicalAddr, const uint64_t stepPag
 
 void Memory::open_proc(const char *name)
 {
-	std::lock_guard<std::mutex> l(m);
+	std::lock_guard<std::recursive_mutex> l(static_m);
+	if (!conn)
 	{
-		std::lock_guard<std::recursive_mutex> sl(static_m);
-		if (!conn)
-		{
-			conn = std::make_unique<ConnectorInstance<>>();
+		printf("[*] Opening connector...\n");
+		conn = std::make_unique<ConnectorInstance<>>();
 		Inventory *inv = mf_inventory_scan();
 		mf_inventory_add_dir(inv, ".");
 
 		printf("Init with kvm connector...\n");
 		if (!kernel_init(inv, "kvm"))
 		{
-		printf("Init with qemu connector...\n");
-		if (!kernel_init(inv, "qemu"))
+			printf("[*] KVM failed, trying QEMU...\n");
+			if (!kernel_init(inv, "qemu"))
 			{
 				printf("Quitting\n");
 				mf_inventory_free(inv);
@@ -359,8 +371,7 @@ void Memory::open_proc(const char *name)
 			}
 		}
 
-			printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
-		}
+		printf("Kernel initialized: %p\n", kernel.get()->container.instance.instance);
 	}
 
 
@@ -376,6 +387,7 @@ void Memory::open_proc(const char *name)
 
 	if (kernel.get()->process_info_by_name(name, &info))
 	{
+		printf("[-] Process %s not found\n", name);
 		status = process_status::NOT_FOUND;
 		return;
 	}
@@ -387,7 +399,7 @@ void Memory::open_proc(const char *name)
 	slice.len = 8;
 
 	uint32_t EPROCESS_SectionBaseAddress_off = 0x520; // win10 >= 20H1
-	if (info.address != 0 && kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice) == 0)
+	if (info.address != 0 && kernel && kernel.get()->vtbl_memoryview && kernel.get()->read_raw_into(info.address + EPROCESS_SectionBaseAddress_off, slice) == 0)
 	{
 		proc.baseaddr = *base_section_value;
 	}
@@ -398,6 +410,7 @@ void Memory::open_proc(const char *name)
 
 	if (lastCorrectDtbPhysicalAddress && testDtbValue(lastCorrectDtbPhysicalAddress))
 	{
+		printf("[+] Using last correct DTB: 0x%lx\n", lastCorrectDtbPhysicalAddress);
 		info.dtb1 = lastCorrectDtbPhysicalAddress;
 		if (kernel.get()->clone().into_process_by_info(info, &proc.hProcess) == 0)
 		{
@@ -437,7 +450,7 @@ void Memory::open_proc(const char *name)
 
 void Memory::close_proc()
 {
-	std::lock_guard<std::mutex> l(m);
+	std::lock_guard<std::recursive_mutex> l(static_m);
 	proc.baseaddr = 0;
 	lastCorrectDtbPhysicalAddress = 0;
 	status = process_status::NOT_FOUND;

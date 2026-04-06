@@ -1749,12 +1749,17 @@ int main(int argc, char *argv[])
 				stuff_t = false;
 				g_Base = 0;
 
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				itemglow_thr.~thread();
-				stuffbot_thr.~thread();
+				if (aimbot_thr.joinable()) aimbot_thr.detach();
+				if (esp_thr.joinable()) esp_thr.detach();
+				if (actions_thr.joinable()) actions_thr.detach();
+				if (itemglow_thr.joinable()) itemglow_thr.detach();
+				if (stuffbot_thr.joinable()) stuffbot_thr.detach();
 
+				aimbot_thr = std::thread();
+				esp_thr = std::thread();
+				actions_thr = std::thread();
+				itemglow_thr = std::thread();
+				stuffbot_thr = std::thread();
 			}
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1801,7 +1806,8 @@ int main(int argc, char *argv[])
 				vars_t = false;
 				c_Base = 0;
 
-				vars_thr.~thread();
+				if (vars_thr.joinable()) vars_thr.detach();
+				vars_thr = std::thread();
 			}
 			
 			std::this_thread::sleep_for(std::chrono::seconds(1));
