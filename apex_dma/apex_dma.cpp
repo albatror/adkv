@@ -278,7 +278,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 	if (aassist) {
-		if (180.0f > active_fov) active_fov = 180.0f; // AAssist should scan everything
+		if (15.0f > active_fov) active_fov = 15.0f; // AAssist should scan a bit more than usual
 	}
 
 	if (aimentity != 0 && lock)
@@ -1071,17 +1071,26 @@ static void AimbotLoop()
 				if (aassist && aassist_aiming)
 				{
 					float fov = CalculateFov(LPlayer, Target);
-					if (fov > max_fov)
+					if (fov > 15.0f)
 					{
 						continue;
 					}
 					// AAssist specific smoothing logic
-					float delta = fov; // Simplified delta as CalculateFov returns fov
-					// speed = logf(aim_strength + delta / (fov_scale * fov_scale) * aim_strength) * aim_strength + aim_strength;
-					// Here we use smoothing as a base and adapt it
+					// In CalculateBestBoneAim, the angles are: SmoothedAngles = ViewAngles + Delta/smoothing
+					// So a higher smoothing value = slower aim.
+					// We want current_smooth to be a divisor.
 					float aim_strength = 2.0f;
-					current_smooth = 1.0f / (logf(aim_strength + delta * aim_strength) * aim_strength + aim_strength);
-					if (current_smooth < 1.0f) current_smooth = 1.0f; // Ensure at least 1.0
+					float speed = (logf(aim_strength + fov * aim_strength) * aim_strength + aim_strength);
+					// If speed is e.g. 5, then Delta * 5 would snap. But we divide by smoothing.
+					// So current_smooth should be 1.0f/speed? No, because it's used as ViewAngles + Delta/smoothing.
+					// The reference uses: angles = delta_angles * speed * delta_time; core::local_player.set_angles(current_angles + angles);
+					// Our Game.cpp uses: QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
+
+					// To match 'Delta * speed * delta_time', we need 'Delta / smoothing' to be 'Delta * speed * 0.01' (approx delta_time)
+					// So 1/smoothing = speed * 0.01  => smoothing = 1 / (speed * 0.01) = 100 / speed
+
+					current_smooth = 100.0f / speed;
+					if (current_smooth < 1.0f) current_smooth = 1.0f;
 				}
 				else
 				{
@@ -1093,7 +1102,10 @@ static void AimbotLoop()
 
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				float active_max_fov = max_fov;
+				if (aassist && aassist_aiming) active_max_fov = 15.0f;
+
+				if (fov > active_max_fov)
 				{
 					if (!shooting) {
 						lock = false;
