@@ -81,6 +81,8 @@ float triggerbot_fov = 10.0f;
 
 bool aassist = false;
 bool aassist_aiming = false;
+float aassist_fov = 15.0f;
+float aassist_dist = 75.0f * 40.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -278,7 +280,8 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 	if (aassist) {
-		if (15.0f > active_fov) active_fov = 15.0f; // AAssist should scan a bit more than usual
+		if (aassist_fov > active_fov) active_fov = aassist_fov;
+		if (aassist_dist > active_dist) active_dist = aassist_dist;
 	}
 
 	if (aimentity != 0 && lock)
@@ -287,7 +290,14 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else if (aim == 2 || (aassist && aassist_aiming))
 	{
-		if (visible && fov <= active_fov && dist <= active_dist)
+		float current_max_fov = active_fov;
+		float current_max_dist = active_dist;
+		if (aassist && aassist_aiming) {
+			current_max_fov = aassist_fov;
+			current_max_dist = aassist_dist;
+		}
+
+		if (visible && fov <= current_max_fov && dist <= current_max_dist)
 		{
 			if (fov < max)
 			{
@@ -1071,7 +1081,7 @@ static void AimbotLoop()
 				if (aassist && aassist_aiming)
 				{
 					float fov = CalculateFov(LPlayer, Target);
-					if (fov > 15.0f)
+					if (fov > aassist_fov)
 					{
 						continue;
 					}
@@ -1081,16 +1091,13 @@ static void AimbotLoop()
 					// We want current_smooth to be a divisor.
 					float aim_strength = 2.0f;
 					float speed = (logf(aim_strength + fov * aim_strength) * aim_strength + aim_strength);
-					// If speed is e.g. 5, then Delta * 5 would snap. But we divide by smoothing.
-					// So current_smooth should be 1.0f/speed? No, because it's used as ViewAngles + Delta/smoothing.
-					// The reference uses: angles = delta_angles * speed * delta_time; core::local_player.set_angles(current_angles + angles);
-					// Our Game.cpp uses: QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
 
 					// To match 'Delta * speed * delta_time', we need 'Delta / smoothing' to be 'Delta * speed * 0.01' (approx delta_time)
 					// So 1/smoothing = speed * 0.01  => smoothing = 1 / (speed * 0.01) = 100 / speed
 
-					current_smooth = 100.0f / speed;
-					if (current_smooth < 1.0f) current_smooth = 1.0f;
+					// Increasing the divisor to 1000.0f to make it much slower and smoother to avoid shaking
+					current_smooth = 1000.0f / speed;
+					if (current_smooth < 10.0f) current_smooth = 10.0f;
 				}
 				else
 				{
@@ -1103,7 +1110,7 @@ static void AimbotLoop()
 
 				float fov = CalculateFov(LPlayer, Target);
 				float active_max_fov = max_fov;
-				if (aassist && aassist_aiming) active_max_fov = 15.0f;
+				if (aassist && aassist_aiming) active_max_fov = aassist_fov;
 
 				if (fov > active_max_fov)
 				{
@@ -1347,6 +1354,12 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, aassist_aiming_a
   printf("Read failed!\n");
 }
 
+uint64_t aassist_fov_addr = 0;
+printf("Reading aassist_fov address: %lx\n", add_addr + sizeof(uint64_t) * 36);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, aassist_fov_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t triggerbot_addr = 0;
 printf("Reading triggerbot address: %lx\n", add_addr + sizeof(uint64_t) * 37);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr)) {
@@ -1378,6 +1391,16 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, walljump_addr)) 
 }
 
 uint64_t superkey_addr = 0;
+printf("Reading superkey address: %lx\n", add_addr + sizeof(uint64_t) * 43);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t aassist_dist_addr = 0;
+printf("Reading aassist_dist address: %lx\n", add_addr + sizeof(uint64_t) * 44);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, aassist_dist_addr)) {
+  printf("Read failed!\n");
+}
 printf("Reading superkey address: %lx\n", add_addr + sizeof(uint64_t) * 43);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr)) {
   printf("Read failed!\n");
@@ -1598,6 +1621,8 @@ while (vars_t)
 
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+        if (aassist_fov_addr) client_mem.Read<float>(aassist_fov_addr, aassist_fov);
+        if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
 
         if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
 

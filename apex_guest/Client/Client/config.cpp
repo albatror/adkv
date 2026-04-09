@@ -46,6 +46,8 @@ extern float min_cfsize;
 extern float max_cfsize;
 extern bool triggerbot;
 extern bool aassist;
+extern float aassist_fov;
+extern float aassist_dist;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -119,6 +121,8 @@ void SaveConfig(const std::string& filename) {
     file << "max_cfsize " << max_cfsize << "\n";
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
     file << "aassist " << std::boolalpha << aassist << "\n";
+    file << "aassist_fov " << aassist_fov << "\n";
+    file << "aassist_dist " << aassist_dist << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
@@ -191,6 +195,8 @@ void LoadConfig(const std::string& filename) {
         else if (key == "max_cfsize") ss >> max_cfsize;
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
         else if (key == "aassist") ss >> std::boolalpha >> aassist;
+        else if (key == "aassist_fov") ss >> aassist_fov;
+        else if (key == "aassist_dist") ss >> aassist_dist;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;

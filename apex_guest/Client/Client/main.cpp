@@ -51,6 +51,8 @@ float triggerbot_fov = 10.0f;
 
 bool aassist = false;
 bool aassist_aiming = false;
+float aassist_fov = 15.0f;
+float aassist_dist = 75.0f * 40.0f;
 
 bool superglide = false;
 bool bhop = false;
@@ -509,6 +511,7 @@ int main(int argc, char** argv)
 	add[33] = (uintptr_t)&screen_height;
 	add[34] = (uintptr_t)&aassist;
 	add[35] = (uintptr_t)&aassist_aiming;
+	add[36] = (uintptr_t)&aassist_fov;
 	add[37] = (uintptr_t)&triggerbot;
 	add[38] = (uintptr_t)&triggerbot_key;
 	add[39] = (uintptr_t)&triggerbot_aiming;
@@ -516,6 +519,7 @@ int main(int argc, char** argv)
 	add[41] = (uintptr_t)&bhop;
 	add[42] = (uintptr_t)&walljump;
 	add[43] = (uintptr_t)&SuperKey;
+	add[44] = (uintptr_t)&aassist_dist;
 	add[46] = (uintptr_t)&triggerbot_fov;
 	add[47] = (uintptr_t)&lock_target;
 	add[48] = (uintptr_t)&player_glow;

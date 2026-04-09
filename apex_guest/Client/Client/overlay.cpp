@@ -32,6 +32,8 @@ extern bool triggerbot;
 extern float triggerbot_fov;
 
 extern bool aassist;
+extern float aassist_fov;
+extern float aassist_dist;
 
 extern bool superglide;
 extern bool bhop;
@@ -205,6 +207,10 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 			ImGui::Separator();
 			ImGui::Checkbox(XorStr("AAssist (LSHIFT)"), &aassist);
+			ImGui::SliderFloat(XorStr("AAssist FOV"), &aassist_fov, 1.0f, 180.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("AAssist Dist"), &aassist_dist, 10.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(aassist_dist / 40));
 
 			ImGui::EndTabItem();
 		}
