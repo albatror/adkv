@@ -8,3 +8,6 @@
 
 #include "math.h"
 #include "overlay.h"
+
+extern bool aassist;
+extern bool aassist_aiming;

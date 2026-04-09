@@ -49,6 +49,9 @@ int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool aassist = false;
+bool aassist_aiming = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -504,6 +507,8 @@ int main(int argc, char** argv)
 	add[31] = (uintptr_t)&v.skeleton;
 	add[32] = (uintptr_t)&screen_width;
 	add[33] = (uintptr_t)&screen_height;
+	add[34] = (uintptr_t)&aassist;
+	add[35] = (uintptr_t)&aassist_aiming;
 	add[37] = (uintptr_t)&triggerbot;
 	add[38] = (uintptr_t)&triggerbot_key;
 	add[39] = (uintptr_t)&triggerbot_aiming;
@@ -700,13 +705,15 @@ int main(int argc, char** argv)
 			aiming = false;
 		}
 
-		if (triggerbot && IsKeyDown(VK_LSHIFT))
+		if (IsKeyDown(VK_LSHIFT))
 		{
-			triggerbot_aiming = true;
+			if (triggerbot) triggerbot_aiming = true;
+			if (aassist) aassist_aiming = true;
 		}
 		else
 		{
 			triggerbot_aiming = false;
+			aassist_aiming = false;
 		}
 
 		shooting = IsKeyDown(VK_LBUTTON);

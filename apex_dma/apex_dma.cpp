@@ -79,6 +79,9 @@ int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
 
+bool aassist = false;
+bool aassist_aiming = false;
+
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
@@ -274,12 +277,15 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	if (triggerbot) {
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
+	if (aassist) {
+		if (180.0f > active_fov) active_fov = 180.0f; // AAssist should scan everything
+	}
 
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || (aassist && aassist_aiming))
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
@@ -1028,9 +1034,9 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || (aassist && aassist_aiming))
 			{
-				if (aimentity == 0 || !aiming)
+				if (aimentity == 0 || (!aiming && !aassist_aiming))
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -1061,9 +1067,28 @@ static void AimbotLoop()
 				}
 
 				float current_smooth = smooth;
-				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-				if (elapsed < 500) {
-					current_smooth = smooth * 2.0f;
+
+				if (aassist && aassist_aiming)
+				{
+					float fov = CalculateFov(LPlayer, Target);
+					if (fov > max_fov)
+					{
+						continue;
+					}
+					// AAssist specific smoothing logic
+					float delta = fov; // Simplified delta as CalculateFov returns fov
+					// speed = logf(aim_strength + delta / (fov_scale * fov_scale) * aim_strength) * aim_strength + aim_strength;
+					// Here we use smoothing as a base and adapt it
+					float aim_strength = 2.0f;
+					current_smooth = 1.0f / (logf(aim_strength + delta * aim_strength) * aim_strength + aim_strength);
+					if (current_smooth < 1.0f) current_smooth = 1.0f; // Ensure at least 1.0
+				}
+				else
+				{
+					auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
+					if (elapsed < 500) {
+						current_smooth = smooth * 2.0f;
+					}
 				}
 
 
@@ -1295,6 +1320,18 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 32, screen_width_add
 uint64_t screen_height_addr = 0;
 printf("Reading screen_height address: %lx\n", add_addr + sizeof(uint64_t) * 33);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t aassist_addr = 0;
+printf("Reading aassist address: %lx\n", add_addr + sizeof(uint64_t) * 34);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, aassist_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t aassist_aiming_addr = 0;
+printf("Reading aassist_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 35);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, aassist_aiming_addr)) {
   printf("Read failed!\n");
 }
 
@@ -1546,6 +1583,9 @@ while (vars_t)
         if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
 
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
+
+        if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
+        if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
 
         if (aim_dist_addr) client_mem.Read<float>(aim_dist_addr, aim_dist);
 
