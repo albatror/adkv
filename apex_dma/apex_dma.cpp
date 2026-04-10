@@ -23,12 +23,18 @@
 Memory apex_mem;
 Memory client_mem;
 
+enum class Rank : int {
+	Low = -1,
+	Normal = 0
+};
+
 bool firing_range = false;
 bool active = true;
 uintptr_t aimentity = 0;
 uintptr_t tmp_aimentity = 0;
 uintptr_t lastaimentity = 0;
 float max = 999.0f;
+Rank best_rank = Rank::Low;
 float max_dist = 200.0f * 40.0f;
 float aim_dist = 200.0f * 40.0f;
 int team_player = 0;
@@ -275,36 +281,36 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
 
+	Rank rank = Rank::Normal;
+	if (!firing_range && target.isKnocked())
+		rank = Rank::Low;
+
+	float priority = fov + logf(fmaxf(dist, 1.0f));
+
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else
 	{
-		if (visible && fov <= active_fov && dist <= active_dist)
+		bool can_target = (fov <= active_fov && dist <= active_dist);
+		if (aim == 2 && !visible)
+			can_target = false;
+
+		if (can_target)
 		{
-			if (fov < max)
+			if (rank > best_rank || (rank == best_rank && priority < max))
 			{
-				max = fov;
+				max = priority;
+				best_rank = rank;
 				tmp_aimentity = target.ptr;
 			}
 		}
 		else
 		{
-			if (aimentity == target.ptr && !shooting)
+			if (aimentity == target.ptr && !shooting && aim == 2)
 			{
 				aimentity = tmp_aimentity = lastaimentity = 0;
-			}
-		}
-	}
-	else
-	{
-		if (fov <= active_fov && dist <= active_dist)
-		{
-			if (fov < max)
-			{
-				max = fov;
-				tmp_aimentity = target.ptr;
 			}
 		}
 	}
@@ -603,6 +609,7 @@ if (bhop && SuperKey) {
 			}
 
 			max = 999.0f;
+			best_rank = Rank::Low;
 			tmp_aimentity = 0;
 			is_aimentity_visible = false;
 
@@ -1000,6 +1007,9 @@ static void AimbotLoop()
 {
 	static uintptr_t last_locked_entity = 0;
 	static std::chrono::steady_clock::time_point lock_start_time;
+	static std::chrono::steady_clock::time_point target_react_time;
+	static PidController pidx, pidy;
+	static PidConfig pid_config = { 1.5f, 10.0f, 0.0f, 0.9f };
 
 	// Zoom tracking
 	static auto zoomStartTime = std::chrono::steady_clock::now();
@@ -1035,6 +1045,8 @@ static void AimbotLoop()
 					lock = false;
 					lastaimentity = 0;
 					last_locked_entity = 0;
+					pidx.reset();
+					pidy.reset();
 					continue;
 				}
 
@@ -1045,6 +1057,8 @@ static void AimbotLoop()
 					lastaimentity = 0;
 					last_locked_entity = 0;
 					aimentity = 0;
+					pidx.reset();
+					pidy.reset();
 					continue;
 				}
 
@@ -1058,23 +1072,49 @@ static void AimbotLoop()
 				if (aimentity != last_locked_entity) {
 					last_locked_entity = aimentity;
 					lock_start_time = std::chrono::steady_clock::now();
+					target_react_time = std::chrono::steady_clock::now();
+					pidx.reset();
+					pidy.reset();
 				}
 
-				float current_smooth = smooth;
-				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-				if (elapsed < 500) {
-					current_smooth = smooth * 2.0f;
-				}
+				// Aim modulation
+				float strength = 1.0f;
+				float aim_react = 0.10f;
+				float aim_ramp = 0.3f;
 
+				auto now = std::chrono::steady_clock::now();
+				if (aim_react > 0.0f) {
+					float react = std::chrono::duration<float>(now - target_react_time).count() / aim_react;
+					react = Math::SmoothStep(0.0f, 1.0f, react);
+					strength = fminf(strength, react);
+				}
+				if (aim_ramp > 0.0f) {
+					float ramp = std::chrono::duration<float>(now - lock_start_time).count() / aim_ramp;
+					ramp = Math::SmoothStep(0.0f, 1.0f, ramp);
+					strength = fminf(strength, ramp);
+				}
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				float active_max_fov = max_fov;
+
+				WeaponXEntity curweap = WeaponXEntity();
+				curweap.update(LPlayer.ptr);
+				float zoom_fov = curweap.get_zoom_fov();
+				float fov_scale = 1.0f;
+				if (isZooming && zoom_fov > 1.0f && zoom_fov <= 90.0f) {
+					fov_scale = tanf(DEG2RAD(zoom_fov) * (90.0f / 70.0f / 2.0f));
+					active_max_fov *= fov_scale;
+				}
+
+				if (fov > active_max_fov)
 				{
 					if (!shooting) {
 						lock = false;
 						lastaimentity = 0;
 						last_locked_entity = 0;
 						aimentity = 0;
+						pidx.reset();
+						pidy.reset();
 					}
 					continue;
 				}
@@ -1084,13 +1124,41 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
-				if (Angles.x == 0 && Angles.y == 0)
+				// Calculate the best angle using the interpolation logic
+				QAngle target_angle = CalculateBestBoneAim(LPlayer, aimentity, active_max_fov, 1.0f); // smooth=1.0 to get raw target
+				if (target_angle.x == 0 && target_angle.y == 0)
 				{
 					continue;
 				}
 
-				LPlayer.SetViewAngles(Angles);
+				QAngle ViewAngles = LPlayer.GetViewAngles();
+				QAngle SwayAngles = LPlayer.GetSwayAngles();
+
+				QAngle current_angles = ViewAngles;
+				if (aim_no_recoil) {
+					current_angles = ViewAngles + (SwayAngles - ViewAngles);
+				}
+				Math::NormalizeAngles(current_angles);
+
+				float yaw_err = target_angle.y - current_angles.y;
+				while (yaw_err > 180.0f) yaw_err -= 360.0f;
+				while (yaw_err <= -180.0f) yaw_err += 360.0f;
+				float pitch_err = target_angle.x - current_angles.x;
+
+				// Modulation
+				float mod_strength = strength * fov_scale; // strength is multiplied by fov_scale to reduce sensitivity when zoomed
+				yaw_err *= mod_strength;
+				pitch_err *= mod_strength * 0.5f; // match aim_pitch = 0.5
+
+				float dt = 1.0f / 144.0f; // Assume 144Hz as in apexdream
+				float dyaw = pidx.step(yaw_err, dt, pid_config);
+				float dpitch = pidy.step(pitch_err, dt, pid_config);
+
+				QAngle new_angles = ViewAngles;
+				new_angles.y += dyaw;
+				new_angles.x += dpitch;
+
+				LPlayer.SetViewAngles(new_angles);
 			}
 		}
 	}

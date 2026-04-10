@@ -530,12 +530,9 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	}
 	
 	Vector LocalCamera = from.GetCamPos();
-	//
-	float distanceToTarget;
-	//
-	Vector TargetBonePosition = target.getBonePositionByHitbox(bone);
-	QAngle CalculatedAngles = QAngle(0, 0, 0);
-	
+	QAngle ViewAngles = from.GetViewAngles();
+	QAngle SwayAngles = from.GetSwayAngles();
+
 	WeaponXEntity curweap = WeaponXEntity();
 	curweap.update(from.ptr);
 	float BulletSpeed = curweap.get_projectile_speed();
@@ -547,64 +544,53 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 		max_fov *= zoom_fov/90.0f;
 	}
 
-  // Find best bone
-  if (bone_auto) {
-    float NearestBoneDistance = FLT_MAX;
-    for (int i = 0; i < 4; i++) {
-      Vector currentBonePosition = target.getBonePositionByHitbox(i);
-      float DistanceFromCrosshair =
-          (currentBonePosition - LocalCamera).Length();
-      if (DistanceFromCrosshair < NearestBoneDistance) {
-        TargetBonePosition = currentBonePosition;
-        distanceToTarget = DistanceFromCrosshair;
-        NearestBoneDistance = DistanceFromCrosshair;
-      }
-    }
-  } else {
-    TargetBonePosition = target.getBonePositionByHitbox(bone);
-    distanceToTarget = (TargetBonePosition - LocalCamera).Length();
-  }
-	/*
-	//simple aim prediction
-	if (BulletSpeed > 1.f)
-	{
-		Vector LocalBonePosition = from.getBonePosition(bone);
-		float VerticalTime = TargetBonePosition.DistTo(LocalBonePosition) / BulletSpeed;
-		TargetBonePosition.z += (BulletGrav * 0.5f) * (VerticalTime * VerticalTime);
+	Vector HeadPos = target.getBonePositionByHitbox(0);
+	Vector BodyPos = target.getBonePositionByHitbox(2); // UpperChest
 
-		float HorizontalTime = TargetBonePosition.DistTo(LocalBonePosition) / BulletSpeed;
-		TargetBonePosition += (target.getAbsVelocity() * HorizontalTime);
+	auto solve_bone = [&](Vector target_pos, float& out_time) -> QAngle {
+		if (BulletSpeed > 1.f) {
+			PredictCtx Ctx;
+			Ctx.StartPos = LocalCamera;
+			Ctx.TargetPos = target_pos;
+			Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
+			Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
+			Ctx.TargetVel = target.getAbsVelocity();
+
+			if (BulletPredict(Ctx)) {
+				out_time = 0; // Not used currently
+				return QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
+			}
+		}
+		out_time = 0;
+		return Math::CalcAngle(LocalCamera, target_pos);
+	};
+
+	float time1, time2;
+	QAngle angle1 = solve_bone(HeadPos, time1);
+	QAngle angle2 = solve_bone(BodyPos, time2);
+
+	if (angle1.x > angle2.x) { // angle1 is Head (higher, more negative), angle2 is Body (lower, more positive)
+		std::swap(angle1, angle2);
 	}
-	*/
-	
-	//more accurate prediction
-	if (BulletSpeed > 1.f)
-	{
-		PredictCtx Ctx;
-		Ctx.StartPos = LocalCamera;
-		Ctx.TargetPos = TargetBonePosition; 
-		Ctx.BulletSpeed = BulletSpeed - (BulletSpeed*0.08);
-		Ctx.BulletGravity = BulletGrav + (BulletGrav*0.05);
-		Ctx.TargetVel = target.getAbsVelocity();
 
-		if (BulletPredict(Ctx))
-			CalculatedAngles = QAngle{Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f};
-    }
+	QAngle current_cam_angles = ViewAngles + (SwayAngles - ViewAngles);
+	Math::NormalizeAngles(current_cam_angles);
 
-	if (CalculatedAngles == QAngle(0, 0, 0))
-    	CalculatedAngles = Math::CalcAngle(LocalCamera, TargetBonePosition);
-	QAngle ViewAngles = from.GetViewAngles();
-	QAngle SwayAngles = from.GetSwayAngles();
-	//remove sway and recoil
-	if(aim_no_recoil)
-		CalculatedAngles-=SwayAngles-ViewAngles;
-	Math::NormalizeAngles(CalculatedAngles);
-	QAngle Delta = CalculatedAngles - ViewAngles;
+	QAngle final_angle;
+	if (current_cam_angles.x < angle1.x) {
+		final_angle = angle1;
+	} else if (current_cam_angles.x > angle2.x) {
+		final_angle = angle2;
+	} else {
+		float ratio = (current_cam_angles.x - angle1.x) / (angle2.x - angle1.x);
+		float dyaw = angle2.y - angle1.y;
+		if (dyaw > 180.0f) dyaw -= 360.0f;
+		else if (dyaw < -180.0f) dyaw += 360.0f;
+		final_angle = QAngle{ current_cam_angles.x, angle1.y + dyaw * ratio, 0.f };
+	}
 
-	Math::NormalizeAngles(Delta);
-
-	QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
-	return SmoothedAngles;
+	Math::NormalizeAngles(final_angle);
+	return final_angle;
 }
 
 Entity getEntity(uintptr_t ptr)

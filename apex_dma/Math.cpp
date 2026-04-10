@@ -51,3 +51,21 @@ float Math::SmoothStep(float edge0, float edge1, float x)
 	// Evaluate polynomial
 	return x * x * (3 - 2 * x);
 }
+
+float PidController::step(float err, float dt, const PidConfig& config)
+{
+	float d = (err - p) / dt;
+	p = err;
+	i += err * dt;
+	// Damp the integral factor if it disagrees with the proportional factor
+	if (p * i <= 0.0f) {
+		i *= config.damp;
+	}
+	return config.kp * p + config.ki * i + config.kd * d;
+}
+
+void PidController::reset()
+{
+	p = 0.0f;
+	i = 0.0f;
+}

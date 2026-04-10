@@ -22,6 +22,21 @@ struct SVector
 	}
 };
 
+struct PidConfig {
+	float kp;
+	float ki;
+	float kd;
+	float damp;
+};
+
+struct PidController {
+	float p = 0.0f;
+	float i = 0.0f;
+
+	float step(float err, float dt, const PidConfig& config);
+	void reset();
+};
+
 namespace Math
 {
 	void NormalizeAngles(QAngle& angle);

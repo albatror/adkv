@@ -21,11 +21,19 @@ extern bool is_aimentity_visible;
 bool stuff_t = false;
 
 
+static double trigger_release_time = 0;
+static double trigger_again_time = 0;
+
 void TriggerBotRun()
 {
+    auto now = std::chrono::steady_clock::now().time_since_epoch();
+    double current_time = std::chrono::duration<double>(now).count();
+
+    // trigger_release = 0.08, trigger_again = 0.16
+    trigger_release_time = current_time + 0.08;
+    trigger_again_time = current_time + 0.16;
+
     apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-    std::this_thread::sleep_for(std::chrono::milliseconds(60));
-    apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
 }
 
 void StuffBotLoop()
@@ -37,6 +45,20 @@ void StuffBotLoop()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         if (g_Base == 0) continue;
 
+        auto now_epoch = std::chrono::steady_clock::now().time_since_epoch();
+        double current_time = std::chrono::duration<double>(now_epoch).count();
+
+        // Handle trigger release
+        if (trigger_release_time > 0) {
+            if (current_time >= trigger_release_time) {
+                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
+                trigger_release_time = 0;
+            } else {
+                // Keep attacking
+                apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+            }
+        }
+
         uint64_t LocalPlayer = 0;
         apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
         if (LocalPlayer == 0) continue;
@@ -45,6 +67,8 @@ void StuffBotLoop()
         // Triggerbot logic
         if (triggerbot && triggerbot_aiming)
         {
+            if (current_time < trigger_again_time) continue;
+
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
             int ent_count = firing_range ? 10000 : 100;
             static std::unordered_map<uint64_t, float> last_crosshair_times;
@@ -86,6 +110,22 @@ void StuffBotLoop()
                             last_crosshair_times[centity] = now_crosshair_target_time;
                             continue;
                         }
+                    }
+
+                    // Reaction time check
+                    float last_vis_time = 0;
+                    apex_mem.Read<float>(centity + OFFSET_VISIBLE_TIME, last_vis_time);
+
+                    // Get current game time (approximate from local player)
+                    // In apex_dma.cpp there's worldtime read, but here we can try to get it
+                    // Or just use the crosshair timestamp which is also a time.
+                    // Actually, apexdream uses state.time which is real time.
+                    // Let's assume OFFSET_CROSSHAIR_LAST is game time.
+                    float trigger_react = 0.1f;
+                    if (now_crosshair_target_time < last_vis_time + trigger_react) {
+                         // Still in reaction time
+                         // We don't update last_crosshair_times[centity] here to keep checking
+                         continue;
                     }
 
                     // Check FOV using head bone for better accuracy
@@ -134,14 +174,6 @@ void StuffBotLoop()
                     }
 
                     if (can_shoot) {
-                        char weaponModel[256] = { 0 };
-                        LPlayer.getWeaponModelName(weaponModel, 256);
-                        std::string weaponName = get_weapon_name_by_model(weaponModel);
-                        if (weaponName == "Unknown" || weaponName == "unknown") {
-                            int weaponId = LPlayer.getCurrentWeaponId();
-                            weaponName = get_weapon_name(weaponId);
-                        }
-                        //printf("[TRIGGERBOT] Shooting at entity %d (dist: %.2f, fov: %.2f) with weapon %s\n", i, dist / 40.0f, fov, weaponName.c_str());
                         TriggerBotRun();
                         last_crosshair_times[centity] = now_crosshair_target_time;
                         break;
