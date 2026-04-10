@@ -20,6 +20,7 @@ extern float max_dist;
 extern float aim_dist;
 extern float default_smooth;
 extern float default_fov;
+
 extern int bone;
 extern float glowr;
 extern float glowg;

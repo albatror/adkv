@@ -21,6 +21,7 @@ extern unsigned char outlinesize;
 extern float max_fov;
 extern float default_smooth;
 extern float default_fov;
+
 extern int bone;
 extern int spectators;
 extern int allied_spectators;
