@@ -227,12 +227,12 @@ void Overlay::RenderMenu()
 			ImGui::Text("%d meters", (int)(aim_dist / 40));
 
 			ImGui::Text(XorStr("ADS Smooth:"));
-			ImGui::SliderFloat(XorStr("##ads_smooth"), &ads_smooth, 1.0f, 100.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##ads_smooth"), &ads_smooth, 1.0f, 1000.0f, "%.2f");
 			ImGui::Text(XorStr("ADS FOV:"));
 			ImGui::SliderFloat(XorStr("##ads_fov"), &ads_fov, 1.0f, 50.0f, "%.2f");
 
 			ImGui::Text(XorStr("Hipfire Smooth:"));
-			ImGui::SliderFloat(XorStr("##hip_smooth"), &hip_smooth, 1.0f, 100.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("##hip_smooth"), &hip_smooth, 1.0f, 1000.0f, "%.2f");
 			ImGui::Text(XorStr("Hipfire FOV:"));
 			ImGui::SliderFloat(XorStr("##hip_fov"), &hip_fov, 1.0f, 50.0f, "%.2f");
 
@@ -318,6 +318,10 @@ void Overlay::RenderMenu()
 				ImGui::SameLine();
 				ImGui::SliderFloat(XorStr("Indicator FOV"), &v.target_indicator_fov, 1.0f, 1000.0f, "%.2f");
 			}
+
+			ImGui::Checkbox(XorStr("ADS FOV Circle"), &v.ads_fov_circle);
+			ImGui::SameLine();
+			ImGui::Checkbox(XorStr("Hipfire FOV Circle"), &v.hip_fov_circle);
 
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
 			//test glow
@@ -562,6 +566,20 @@ DWORD Overlay::CreateOverlay()
 			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
 			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (v.ads_fov_circle)
+		{
+			ImGui::Begin("##adscirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), ads_fov * 10.0f, IM_COL32(0, 255, 255, 255), 100, 1.0f);
+			ImGui::End();
+		}
+		if (v.hip_fov_circle)
+		{
+			ImGui::Begin("##hipcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+			auto draw = ImGui::GetBackgroundDrawList();
+			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), hip_fov * 10.0f, IM_COL32(255, 0, 255, 255), 100, 1.0f);
 			ImGui::End();
 		}
 		RenderEsp();

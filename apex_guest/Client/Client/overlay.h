@@ -40,6 +40,8 @@ typedef struct visuals
 	bool target_indicator = false;
 	float target_indicator_fov = 10.0f;
 	bool triggerbot_fov_circle = false;
+	bool ads_fov_circle = false;
+	bool hip_fov_circle = false;
 	float skeleton_thickness = 1.0f;
 }visuals;
 
