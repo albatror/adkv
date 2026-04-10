@@ -80,6 +80,10 @@ void SaveConfig(const std::string& filename) {
     file << "aim_dist " << aim_dist << "\n";
     file << "default_smooth " << default_smooth << "\n";
     file << "default_fov " << default_fov << "\n";
+    file << "ads_fov " << ads_fov << "\n";
+    file << "ads_smooth " << ads_smooth << "\n";
+    file << "hip_fov " << hip_fov << "\n";
+    file << "hip_smooth " << hip_smooth << "\n";
     file << "bone " << bone << "\n";
     file << "healthbar " << std::boolalpha << v.healthbar << "\n";
     file << "shieldbar " << std::boolalpha << v.shieldbar << "\n";
@@ -151,6 +155,10 @@ void LoadConfig(const std::string& filename) {
         else if (key == "aim_dist") ss >> aim_dist;
         else if (key == "default_smooth") ss >> default_smooth;
         else if (key == "default_fov") ss >> default_fov;
+        else if (key == "ads_fov") ss >> ads_fov;
+        else if (key == "ads_smooth") ss >> ads_smooth;
+        else if (key == "hip_fov") ss >> hip_fov;
+        else if (key == "hip_smooth") ss >> hip_smooth;
         else if (key == "bone") ss >> bone;
         else if (key == "healthbar") ss >> std::boolalpha >> v.healthbar;
         else if (key == "shieldbar") ss >> std::boolalpha >> v.shieldbar;

@@ -225,12 +225,16 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(aim_dist / 40));
 
-			ImGui::Text(XorStr("Smooth aim value:"));
-			ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
+			ImGui::Text(XorStr("ADS Smooth:"));
+			ImGui::SliderFloat(XorStr("##ads_smooth"), &ads_smooth, 1.0f, 100.0f, "%.2f");
+			ImGui::Text(XorStr("ADS FOV:"));
+			ImGui::SliderFloat(XorStr("##ads_fov"), &ads_fov, 1.0f, 50.0f, "%.2f");
 
-			ImGui::Text(XorStr("Max FOV:"));
-			ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 1000.0f, "%.2f");
-			
+			ImGui::Text(XorStr("Hipfire Smooth:"));
+			ImGui::SliderFloat(XorStr("##hip_smooth"), &hip_smooth, 1.0f, 100.0f, "%.2f");
+			ImGui::Text(XorStr("Hipfire FOV:"));
+			ImGui::SliderFloat(XorStr("##hip_fov"), &hip_fov, 1.0f, 50.0f, "%.2f");
+
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
 			//TEST DDS

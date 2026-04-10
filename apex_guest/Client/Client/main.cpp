@@ -73,6 +73,12 @@ float smooth = 200.00f;
 float max_fov = 3.80f;
 float default_smooth = 200.00f;
 float default_fov = 3.80f;
+
+float ads_fov = 3.0f;
+float ads_smooth = 15.0f;
+float hip_fov = 8.0f;
+float hip_smooth = 25.0f;
+
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
@@ -517,6 +523,10 @@ int main(int argc, char** argv)
 	add[49] = (uintptr_t)&aim_dist;
 	add[50] = (uintptr_t)&insidevalue;
 	add[51] = (uintptr_t)&outlinesize;
+	add[52] = (uintptr_t)&ads_fov;
+	add[53] = (uintptr_t)&ads_smooth;
+	add[54] = (uintptr_t)&hip_fov;
+	add[55] = (uintptr_t)&hip_smooth;
 	add[56] = (uintptr_t)&DDS;
 	add[58] = (uintptr_t)&min_max_fov;
 	add[59] = (uintptr_t)&max_max_fov;

@@ -33,6 +33,12 @@ float max_dist = 200.0f * 40.0f;
 float aim_dist = 200.0f * 40.0f;
 int team_player = 0;
 float max_fov = 5;
+
+float ads_fov = 3.0f;
+float ads_smooth = 15.0f;
+float hip_fov = 8.0f;
+float hip_smooth = 25.0f;
+
 const int toRead = 100;
 
 int aim = false;
@@ -268,12 +274,14 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		is_aimentity_visible = visible;
 	}
 
-	float active_fov = max_fov;
+	float active_fov = LPlayer.isZooming() ? ads_fov : hip_fov;
 	float active_dist = aim_dist;
 
 	if (triggerbot) {
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
 	}
+
+	float priority = fov + logf(fmaxf(dist / 40.0f, 1.0f));
 
 	if (aimentity != 0 && lock)
 	{
@@ -283,9 +291,9 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			if (priority < max)
 			{
-				max = fov;
+				max = priority;
 				tmp_aimentity = target.ptr;
 			}
 		}
@@ -301,9 +309,9 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		if (fov <= active_fov && dist <= active_dist)
 		{
-			if (fov < max)
+			if (priority < max)
 			{
-				max = fov;
+				max = priority;
 				tmp_aimentity = target.ptr;
 			}
 		}
@@ -1060,15 +1068,18 @@ static void AimbotLoop()
 					lock_start_time = std::chrono::steady_clock::now();
 				}
 
-				float current_smooth = smooth;
+				bool is_zooming = LPlayer.isZooming();
+				float current_smooth = is_zooming ? ads_smooth : hip_smooth;
+				float current_max_fov = is_zooming ? ads_fov : hip_fov;
+
 				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
 				if (elapsed < 500) {
-					current_smooth = smooth * 2.0f;
+					current_smooth *= 2.0f;
 				}
 
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > max_fov)
+				if (fov > current_max_fov)
 				{
 					if (!shooting) {
 						lock = false;
@@ -1084,7 +1095,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, max_fov, current_smooth);
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, current_max_fov, current_smooth);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
@@ -1364,6 +1375,30 @@ if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr
   printf("Read failed!\n");
 }
 
+uint64_t ads_fov_addr = 0;
+printf("Reading ads_fov address: %lx\n", add_addr + sizeof(uint64_t) * 52);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, ads_fov_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t ads_smooth_addr = 0;
+printf("Reading ads_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 53);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, ads_smooth_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t hip_fov_addr = 0;
+printf("Reading hip_fov address: %lx\n", add_addr + sizeof(uint64_t) * 54);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, hip_fov_addr)) {
+  printf("Read failed!\n");
+}
+
+uint64_t hip_smooth_addr = 0;
+printf("Reading hip_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 55);
+if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, hip_smooth_addr)) {
+  printf("Read failed!\n");
+}
+
 uint64_t dds_addr = 0;
 printf("Reading DDS address: %lx\n", add_addr + sizeof(uint64_t) * 56);
 if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, dds_addr)) {
@@ -1552,6 +1587,14 @@ while (vars_t)
         if (insidevalue_addr) client_mem.Read<unsigned char>(insidevalue_addr, insidevalue);
 
         if (outlinesize_addr) client_mem.Read<unsigned char>(outlinesize_addr, outlinesize);
+
+        if (ads_fov_addr) client_mem.Read<float>(ads_fov_addr, ads_fov);
+
+        if (ads_smooth_addr) client_mem.Read<float>(ads_smooth_addr, ads_smooth);
+
+        if (hip_fov_addr) client_mem.Read<float>(hip_fov_addr, hip_fov);
+
+        if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
 
 		if (dds_addr) client_mem.Read<float>(dds_addr, DDS);
 
