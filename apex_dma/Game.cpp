@@ -11,7 +11,6 @@ extern Memory apex_mem;
 extern bool firing_range;
 extern unsigned char insidevalue;
 extern unsigned char outlinesize;
-float smooth = 12.0f;
 extern bool aim_no_recoil;
 extern int bone;
 //

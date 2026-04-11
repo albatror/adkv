@@ -8,3 +8,8 @@
 
 #include "math.h"
 #include "overlay.h"
+
+extern float ads_fov;
+extern float ads_smooth;
+extern float hip_fov;
+extern float hip_smooth;

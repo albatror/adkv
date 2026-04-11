@@ -27,10 +27,12 @@ GameVersion v3.0.1.35
 - **Glow Items:** Glow items (Loba Style)
 
 ### 🔫 Combat & Aimbot
-- **Aimbot:** Smooth and adjustable aiming with FOV locking.
+- **Advanced Aimbot:** Smooth and adjustable aiming with dedicated settings for ADS and Hipfire.
+- **Dynamic Switching:** Automatically toggles between ADS and Hipfire FOV/Smoothing based on your zoom state.
+- **Target Priority System:** Intelligent target selection using a weighted formula (`FOV + distance`) for sticky, stable tracking.
 - **Lock On Target:** Prevents target switching during active combat.
-- **TriggerBot:** Automated firing when crosshairs are over an enemy with configurable FOV and prediction [HOLD Left SHIFT Key to activate].
-- **Dynamic Settings (DDS):** On-the-fly adjustment of FOV and Smoothing from specific distance (Default: 40m).
+- **Professional Triggerbot:** Refactored non-blocking state machine for high-performance, responsive automated firing [HOLD Left SHIFT Key to activate].
+- **Visual FOV Feedback:** Independent overlay circles for ADS (Cyan) and Hipfire (Magenta) ranges.
 
 ### 🏃 Movement & Misc
 - **Auto SuperGlide:** Perfect glides every time.
