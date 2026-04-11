@@ -10,14 +10,11 @@
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
-extern uintptr_t aimentity;
-extern float smooth;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
 extern float aim_dist;
 extern bool firing_range;
-extern bool is_aimentity_visible;
 bool stuff_t = false;
 
 

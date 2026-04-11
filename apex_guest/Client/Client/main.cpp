@@ -56,7 +56,6 @@ bool walljump = false;
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
-bool dds_active = false;
 extern visuals v;
 int aim = 0; //read
 bool esp = false; //read
@@ -68,11 +67,6 @@ bool aiming = false; //read
 uint64_t g_Base = 0; //write
 float max_dist = 120.0f * 40.0f;
 float aim_dist = 120.0f * 40.0f;
-//float esp_distance = 300.0f * 40.0f;
-float smooth = 200.00f;
-float max_fov = 3.80f;
-float default_smooth = 200.00f;
-float default_fov = 3.80f;
 
 float ads_fov = 3.0f;
 float ads_smooth = 15.0f;
@@ -82,19 +76,6 @@ float hip_smooth = 25.0f;
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
-//int SuperKey = false;
-
-//float esp_distance = 300.0f; // Units in meters
-
-float DDS = 70.0f * 40.0f; //need test 25 before for closets targets but seem to be wrong
-
-// Define the minimum and maximum values for max_fov, cfsize, and smooth
-float min_max_fov = 4.00f;
-float max_max_fov = 25.00f;
-float min_cfsize = min_max_fov;
-float max_cfsize = max_max_fov;
-float min_smooth = 100.00f;
-float max_smooth = 150.00f;
 
 bool firing_range = false;
 bool shooting = false; //read
@@ -153,8 +134,6 @@ std::string GetPlatformName(int platform)
 
 static bool showing = false;
 static bool k_del = 0;
-bool fov = false;
-float cfsize = max_fov;
 
 int spectators = 0; //write
 int allied_spectators = 0; //write
@@ -278,7 +257,6 @@ void Overlay::RenderEsp()
 			ImGui::Begin(XorStr("##esp"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
 			int best_player_idx = -1;
-			float best_fov = 9999.0f;
 			float best_score = 999999.0f;
 			float cx = (float)getWidth() / 2.0f;
 			float cy = (float)getHeight() / 2.0f;
@@ -310,7 +288,6 @@ void Overlay::RenderEsp()
 					float score = d + (players[i].dist / 20.0f); // Weighted score (screen distance + world distance)
 					if (score < best_score) {
 						best_score = score;
-						best_fov = d;
 						best_player_idx = i;
 					}
 
@@ -439,29 +416,7 @@ void Overlay::RenderEsp()
 						ImGui::GetWindowDrawList()->AddCircle(ImVec2(players[active_idx].b_x, (players[active_idx].b_y + players[active_idx].h_y) / 2.0f), 5.0f, color, 12, 2.0f);
 					}
 				}
-				float distRatio = players[active_idx].dist / max_dist;
-				float distanceFactor = 1.0f - distRatio;
-				float easedDistanceFactor = smoothStep(0.0f, 1.0f, distanceFactor);
-				float fovDiff = max_max_fov - min_max_fov;
-				float smoothDiff = max_smooth - min_smooth;
-
-				if (players[active_idx].dist < DDS) {
-					max_fov = min_max_fov + (fovDiff * easedDistanceFactor);
-					smooth = max_smooth - (smoothDiff * easedDistanceFactor);
-					dds_active = true;
-				}
-				else {
-					max_fov = default_fov;
-					smooth = default_smooth;
-					dds_active = false;
-				}
 			}
-			else {
-				max_fov = default_fov;
-				smooth = default_smooth;
-				dds_active = false;
-			}
-			cfsize = max_fov;
 
 			ImGui::End();
 		}
@@ -481,58 +436,45 @@ int main(int argc, char** argv)
 	add[8] = (uintptr_t)&max_dist;
 	add[9] = (uintptr_t)&item_glow;
 	add[10] = (uintptr_t)&aim_no_recoil;
-	add[11] = (uintptr_t)&smooth;
-	add[12] = (uintptr_t)&max_fov;
-	add[13] = (uintptr_t)&bone;
-	add[14] = (uintptr_t)&spectators;
-	add[15] = (uintptr_t)&allied_spectators;
-
-	//glow notvisable
-	add[16] = (uintptr_t)&glowr;
-	add[17] = (uintptr_t)&glowg;
-	add[18] = (uintptr_t)&glowb;
-	//glow visable
-	add[19] = (uintptr_t)&glowrviz;
-	add[20] = (uintptr_t)&glowgviz;
-	add[21] = (uintptr_t)&glowbviz;
-	//knocked
-	add[22] = (uintptr_t)&glowrknocked;
-	add[23] = (uintptr_t)&glowgknocked;
-	add[24] = (uintptr_t)&glowbknocked;
-	add[25] = (uintptr_t)&firing_range;
-	add[26] = (uintptr_t)&shooting;
-	//items
-	//add[28] = (uintptr_t)&medbackpack;
-	add[27] = (uintptr_t)&onevone;
-	add[28] = (uintptr_t)&spectator_list;
-	add[29] = (uintptr_t)&dump;
-	add[30] = (uintptr_t)&update_offsets;
-	add[31] = (uintptr_t)&v.skeleton;
-	add[32] = (uintptr_t)&screen_width;
-	add[33] = (uintptr_t)&screen_height;
-	add[37] = (uintptr_t)&triggerbot;
-	add[38] = (uintptr_t)&triggerbot_key;
-	add[39] = (uintptr_t)&triggerbot_aiming;
-	add[40] = (uintptr_t)&superglide;
-	add[41] = (uintptr_t)&bhop;
-	add[42] = (uintptr_t)&walljump;
-	add[43] = (uintptr_t)&SuperKey;
-	add[46] = (uintptr_t)&triggerbot_fov;
-	add[47] = (uintptr_t)&lock_target;
-	add[48] = (uintptr_t)&player_glow;
-	add[49] = (uintptr_t)&aim_dist;
-	add[50] = (uintptr_t)&insidevalue;
-	add[51] = (uintptr_t)&outlinesize;
-	add[52] = (uintptr_t)&ads_fov;
-	add[53] = (uintptr_t)&ads_smooth;
-	add[54] = (uintptr_t)&hip_fov;
-	add[55] = (uintptr_t)&hip_smooth;
-	add[56] = (uintptr_t)&DDS;
-	add[58] = (uintptr_t)&min_max_fov;
-	add[59] = (uintptr_t)&max_max_fov;
-	add[60] = (uintptr_t)&min_smooth;
-	add[61] = (uintptr_t)&max_smooth;
-	add[63] = (uintptr_t)&v.skeleton_thickness;
+	add[11] = (uintptr_t)&bone;
+	add[12] = (uintptr_t)&spectators;
+	add[13] = (uintptr_t)&allied_spectators;
+	add[14] = (uintptr_t)&glowr;
+	add[15] = (uintptr_t)&glowg;
+	add[16] = (uintptr_t)&glowb;
+	add[17] = (uintptr_t)&glowrviz;
+	add[18] = (uintptr_t)&glowgviz;
+	add[19] = (uintptr_t)&glowbviz;
+	add[20] = (uintptr_t)&glowrknocked;
+	add[21] = (uintptr_t)&glowgknocked;
+	add[22] = (uintptr_t)&glowbknocked;
+	add[23] = (uintptr_t)&firing_range;
+	add[24] = (uintptr_t)&shooting;
+	add[25] = (uintptr_t)&onevone;
+	add[26] = (uintptr_t)&spectator_list;
+	add[27] = (uintptr_t)&dump;
+	add[28] = (uintptr_t)&update_offsets;
+	add[29] = (uintptr_t)&v.skeleton;
+	add[30] = (uintptr_t)&screen_width;
+	add[31] = (uintptr_t)&screen_height;
+	add[32] = (uintptr_t)&triggerbot;
+	add[33] = (uintptr_t)&triggerbot_key;
+	add[34] = (uintptr_t)&triggerbot_aiming;
+	add[35] = (uintptr_t)&superglide;
+	add[36] = (uintptr_t)&bhop;
+	add[37] = (uintptr_t)&walljump;
+	add[38] = (uintptr_t)&SuperKey;
+	add[39] = (uintptr_t)&triggerbot_fov;
+	add[40] = (uintptr_t)&lock_target;
+	add[41] = (uintptr_t)&player_glow;
+	add[42] = (uintptr_t)&aim_dist;
+	add[43] = (uintptr_t)&insidevalue;
+	add[44] = (uintptr_t)&outlinesize;
+	add[45] = (uintptr_t)&ads_fov;
+	add[46] = (uintptr_t)&ads_smooth;
+	add[47] = (uintptr_t)&hip_fov;
+	add[48] = (uintptr_t)&hip_smooth;
+	add[49] = (uintptr_t)&v.skeleton_thickness;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -557,13 +499,6 @@ int main(int argc, char** argv)
 	while (active)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-		if (!esp) {
-			smooth = default_smooth;
-			max_fov = default_fov;
-			cfsize = max_fov;
-			dds_active = false;
-		}
 
 		screen_width = ov1.getWidth();
 		screen_height = ov1.getHeight();
@@ -700,24 +635,8 @@ int main(int argc, char** argv)
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		if (IsKeyDown(aim_key) || (dds_active && IsKeyDown(aim_key2)))
-		{
-			aiming = true;
-			//randomBone();//RANDOMIZE BONE WHEN SHOOT
-		}
-		else
-		{
-			aiming = false;
-		}
-
-		if (triggerbot && IsKeyDown(VK_LSHIFT))
-		{
-			triggerbot_aiming = true;
-		}
-		else
-		{
-			triggerbot_aiming = false;
-		}
+		aiming = IsKeyDown(aim_key) || IsKeyDown(aim_key2);
+		triggerbot_aiming = triggerbot && IsKeyDown(VK_LSHIFT);
 
 		shooting = IsKeyDown(VK_LBUTTON);
 

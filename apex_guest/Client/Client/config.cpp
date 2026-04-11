@@ -18,8 +18,6 @@ extern bool aim_no_recoil;
 extern bool lock_target;
 extern float max_dist;
 extern float aim_dist;
-extern float default_smooth;
-extern float default_fov;
 
 extern int bone;
 extern float glowr;
@@ -38,20 +36,11 @@ extern float glowbknocked;
 extern float glowcolorknocked[3];
 extern bool firing_range;
 extern bool onevone;
-extern float DDS;
-extern float min_max_fov;
-extern float max_max_fov;
-extern float min_smooth;
-extern float max_smooth;
-extern float min_cfsize;
-extern float max_cfsize;
 extern bool triggerbot;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
 extern float triggerbot_fov;
-extern bool fov;
-extern float cfsize;
 extern visuals v;
 
 // Helper to trim strings
@@ -79,8 +68,6 @@ void SaveConfig(const std::string& filename) {
     file << "lock_target " << std::boolalpha << lock_target << "\n";
     file << "max_dist " << max_dist << "\n";
     file << "aim_dist " << aim_dist << "\n";
-    file << "default_smooth " << default_smooth << "\n";
-    file << "default_fov " << default_fov << "\n";
     file << "ads_fov " << ads_fov << "\n";
     file << "ads_smooth " << ads_smooth << "\n";
     file << "hip_fov " << hip_fov << "\n";
@@ -114,13 +101,6 @@ void SaveConfig(const std::string& filename) {
     file << "outlinesize " << (int)outlinesize << "\n";
     file << "firing_range " << std::boolalpha << firing_range << "\n";
     file << "onevone " << std::boolalpha << onevone << "\n";
-    file << "DDS " << DDS << "\n";
-    file << "min_max_fov " << min_max_fov << "\n";
-    file << "max_max_fov " << max_max_fov << "\n";
-    file << "min_smooth " << min_smooth << "\n";
-    file << "max_smooth " << max_smooth << "\n";
-    file << "min_cfsize " << min_cfsize << "\n";
-    file << "max_cfsize " << max_cfsize << "\n";
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
@@ -129,8 +109,6 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "ads_fov_circle " << std::boolalpha << v.ads_fov_circle << "\n";
     file << "hip_fov_circle " << std::boolalpha << v.hip_fov_circle << "\n";
-    file << "fov " << std::boolalpha << fov << "\n";
-    file << "cfsize " << cfsize << "\n";
 
     file.close();
 }
@@ -156,8 +134,6 @@ void LoadConfig(const std::string& filename) {
         else if (key == "lock_target") ss >> std::boolalpha >> lock_target;
         else if (key == "max_dist") ss >> max_dist;
         else if (key == "aim_dist") ss >> aim_dist;
-        else if (key == "default_smooth") ss >> default_smooth;
-        else if (key == "default_fov") ss >> default_fov;
         else if (key == "ads_fov") ss >> ads_fov;
         else if (key == "ads_smooth") ss >> ads_smooth;
         else if (key == "hip_fov") ss >> hip_fov;
@@ -191,13 +167,6 @@ void LoadConfig(const std::string& filename) {
         else if (key == "outlinesize") { int val; ss >> val; outlinesize = (unsigned char)val; }
         else if (key == "firing_range") ss >> std::boolalpha >> firing_range;
         else if (key == "onevone") ss >> std::boolalpha >> onevone;
-        else if (key == "DDS") ss >> DDS;
-        else if (key == "min_max_fov") ss >> min_max_fov;
-        else if (key == "max_max_fov") ss >> max_max_fov;
-        else if (key == "min_smooth") ss >> min_smooth;
-        else if (key == "max_smooth") ss >> max_smooth;
-        else if (key == "min_cfsize") ss >> min_cfsize;
-        else if (key == "max_cfsize") ss >> max_cfsize;
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
@@ -206,8 +175,6 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "ads_fov_circle") ss >> std::boolalpha >> v.ads_fov_circle;
         else if (key == "hip_fov_circle") ss >> std::boolalpha >> v.hip_fov_circle;
-        else if (key == "fov") ss >> std::boolalpha >> fov;
-        else if (key == "cfsize") ss >> cfsize;
     }
 
     file.close();

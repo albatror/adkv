@@ -32,8 +32,6 @@ float max = 999.0f;
 float max_dist = 200.0f * 40.0f;
 float aim_dist = 200.0f * 40.0f;
 int team_player = 0;
-float max_fov = 5;
-
 float ads_fov = 3.0f;
 float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
@@ -51,34 +49,16 @@ bool aim_no_recoil = true;
 bool lock_target = false;
 bool aiming = false;
 
-extern float smooth;
-//added stuff
-//extern float min_max_fov;
-//extern float max_max_fov;
-//extern float min_smooth;
-//extern float max_smooth;
-//en stuff
-
 int bone = 2;
 bool shooting = false;
 
-//const int SuperKey = VK_SPACE;
 int SuperKey = false;
-//bool SuperKeyToggle = true;
-
-//int itementcount = 10000;
 
 bool isGrappling;
 int grappleAttached;
 
 //Firing Range 1v1 toggle
 bool onevone = false;
-
-float DDS = 70.0f * 40.0f;
-float min_max_fov = 4.00f;
-float max_max_fov = 25.00f;
-float min_smooth = 100.00f;
-float max_smooth = 150.00f;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
@@ -89,10 +69,6 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 
-///////////
-//bool medbackpack = true;
-///////////
-bool updateInsideValue_t = false;
 ///////////////////////////
 //Player Glow Color and Brightness.
 //inside fill
@@ -130,17 +106,8 @@ bool valid = false;
 bool lock = false;
 bool is_aimentity_visible = false;
 
-//map
-int map = 0;
-
 int screen_width = 2560;
 int screen_height = 1440;
-
-// DÃ©clarations au niveau global (ou dans votre classe si besoin)
-
-int tapstrafe = 0;  // InitialisÃ© Ã  0, commence le comptage
-
-bool forward_hold = false;  // InitialisÃ© Ã  faux, pas de clÃ© maintenue au dÃ©but
 
 typedef struct player
 {
@@ -322,29 +289,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	lastvis_aim[index] = target.lastVisTime();
 }
 
-////////////////////////////////////////
-//Used to change things on a timer
-/* unsigned char insidevalueItem = 0;
-void updateInsideValue()
-{
-	updateInsideValue_t = true;
-	while (updateInsideValue_t)
-	{
-		insidevalueItem++;
-		insidevalueItem %= 256;
-		//std::this_thread::sleep_for(std::chrono::seconds(1));
-		std::this_thread::sleep_for(std::chrono::seconds(2));
-		printf("smooth: %f\n", smooth);
-		printf("bone: %i\n", bone);
-		printf("glowrnot: %f\n", glowr);
-		printf("glowgnot: %f\n", glowg);
-		printf("glowbnot: %f\n", glowb);
-		
-		//printf("%i\n", insidevalueItem);
-		
-	}
-	updateInsideValue_t = false;
-} */
 //walljump +//////////////////////////////////////
 	int onWallTmp = 0;
 	int wallJumpNow = 0;
@@ -368,39 +312,6 @@ void DoActions()
 
 		while (g_Base != 0 && c_Base != 0)
 		{
-///////////////
-			char MapName[200] = { 0 };
-			uint64_t MapName_ptr = 0;
-			apex_mem.Read<uint64_t>(g_Base + OFFSET_HOST_MAP, MapName_ptr);
-			apex_mem.ReadArray<char>(MapName_ptr, MapName, 200);
-					
-			//printf("%s\n", MapName);
-			if (strcmp(MapName, "mp_rr_tropic_island_mu1_storm") == 0) 
-			{
-				map = 1;
-			} 
-			else if (strcmp(MapName, "mp_rr_canyonlands_mu") == 0) 
-			{
-				map = 2;
-			}
-			else if (strcmp(MapName, "mp_rr_desertlands_hu") == 0) 
-			{
-				map = 3;
-			}
-			else if (strcmp(MapName, "mp_rr_olympus") == 0) 
-			{
-				map = 4;
-			} 
-			else  if (strcmp(MapName, "mp_rr_divided_moon") == 0)
-			{
-				map = 5;
-			}
-			else
-			{
-				map = 0;
-			}
-			
-///////////////
 			std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
 			uint64_t LocalPlayer = 0;
@@ -1114,367 +1025,154 @@ static void set_vars(uint64_t add_addr)
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	//Get addresses of client vars
 uint64_t check_addr = 0;
-printf("Reading check address: %lx\n", add_addr);
-if(!client_mem.Read<uint64_t>(add_addr, check_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr, check_addr);
 
 uint64_t aim_addr = 0;  
-printf("Reading aim address: %lx\n", add_addr + sizeof(uint64_t));
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t), aim_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 1, aim_addr);
 
 uint64_t esp_addr = 0;
-printf("Reading esp address: %lx\n", add_addr + sizeof(uint64_t) * 2);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 2, esp_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 2, esp_addr);
+
 uint64_t aiming_addr = 0;
-printf("Reading aiming address: %lx\n", add_addr + sizeof(uint64_t) * 3);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 3, aiming_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 3, aiming_addr);
 
 uint64_t g_Base_addr = 0;
-printf("Reading g_Base address: %lx\n", add_addr + sizeof(uint64_t) * 4);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 4, g_Base_addr);
 
 uint64_t next_addr = 0;  
-printf("Reading next address: %lx\n", add_addr + sizeof(uint64_t) * 5);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 5, next_addr);
+
 uint64_t player_addr = 0;
-printf("Reading player address: %lx\n", add_addr + sizeof(uint64_t) * 6);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 6, player_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 6, player_addr);
 
 uint64_t valid_addr = 0;
-printf("Reading valid address: %lx\n", add_addr + sizeof(uint64_t) * 7);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 7, valid_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 7, valid_addr);
 
 uint64_t max_dist_addr = 0;
-printf("Reading max_dist address: %lx\n", add_addr + sizeof(uint64_t) * 8);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 8, max_dist_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 8, max_dist_addr);
 
 uint64_t item_glow_addr = 0;
-printf("Reading item_glow address: %lx\n", add_addr + sizeof(uint64_t) * 9);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, item_glow_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t player_glow_addr = 0;
-printf("Reading player_glow address: %lx\n", add_addr + sizeof(uint64_t) * 48);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, player_glow_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 9, item_glow_addr);
 
 uint64_t aim_no_recoil_addr = 0;
-printf("Reading aim_no_recoil address: %lx\n", add_addr + sizeof(uint64_t) * 10);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 10, aim_no_recoil_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t smooth_addr = 0;
-printf("Reading smooth address: %lx\n", add_addr + sizeof(uint64_t) * 11);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, smooth_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t max_fov_addr = 0;
-printf("Reading max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 12); 
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, max_fov_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 10, aim_no_recoil_addr);
 
 uint64_t bone_addr = 0;
-printf("Reading bone address: %lx\n", add_addr + sizeof(uint64_t) * 13);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 13, bone_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 11, bone_addr);
 
 uint64_t spectators_addr = 0;
-printf("Reading spectators address: %lx\n", add_addr + sizeof(uint64_t) * 14);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, spectators_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 12, spectators_addr);
 
 uint64_t allied_spectators_addr = 0;  
-printf("Reading allied_spectators address: %lx\n", add_addr + sizeof(uint64_t) * 15);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, allied_spectators_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 13, allied_spectators_addr);
 
 uint64_t glowr_addr = 0;
-printf("Reading glowr address: %lx\n", add_addr + sizeof(uint64_t) * 16);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, glowr_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 14, glowr_addr);
 
 uint64_t glowg_addr = 0;
-printf("Reading glowg address: %lx\n", add_addr + sizeof(uint64_t) * 17);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, glowg_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 15, glowg_addr);
 
 uint64_t glowb_addr = 0;
-printf("Reading glowb address: %lx\n", add_addr + sizeof(uint64_t) * 18);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, glowb_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 16, glowb_addr);
 
 uint64_t glowrviz_addr = 0;
-printf("Reading glowrviz address: %lx\n", add_addr + sizeof(uint64_t) * 19);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, glowrviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 17, glowrviz_addr);
 
 uint64_t glowgviz_addr = 0;
-printf("Reading glowgviz address: %lx\n", add_addr + sizeof(uint64_t) * 20);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 20, glowgviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 18, glowgviz_addr);
 
 uint64_t glowbviz_addr = 0;
-printf("Reading glowbviz address: %lx\n", add_addr + sizeof(uint64_t) * 21);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 21, glowbviz_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 19, glowbviz_addr);
 
 uint64_t glowrknocked_addr = 0;
-printf("Reading glowrknocked address: %lx\n", add_addr + sizeof(uint64_t) * 22);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowrknocked_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 20, glowrknocked_addr);
 
 uint64_t glowgknocked_addr = 0;  
-printf("Reading glowgknocked address: %lx\n", add_addr + sizeof(uint64_t) * 23);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, glowgknocked_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 21, glowgknocked_addr);
 
 uint64_t glowbknocked_addr = 0;
-printf("Reading glowbknocked address: %lx\n", add_addr + sizeof(uint64_t) * 24);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, glowbknocked_addr)) {
-  printf("Read failed!\n"); 
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 22, glowbknocked_addr);
 
 uint64_t firing_range_addr = 0;
-printf("Reading firing_range address: %lx\n", add_addr + sizeof(uint64_t) * 25);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, firing_range_addr)) {
-  printf("Read failed!\n"); 
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 23, firing_range_addr);
 
 uint64_t shooting_addr = 0;
-printf("Reading shooting address: %lx\n", add_addr + sizeof(uint64_t) * 26);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, shooting_addr)) {
-  printf("Read failed!\n"); 
-}
-
-uint64_t skeleton_addr = 0;
-printf("Reading skeleton address: %lx\n", add_addr + sizeof(uint64_t) * 31);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 31, skeleton_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t dump_req_addr = 0;
-printf("Reading dump_req address: %lx\n", add_addr + sizeof(uint64_t) * 29);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 29, dump_req_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t update_req_addr = 0;
-printf("Reading update_req address: %lx\n", add_addr + sizeof(uint64_t) * 30);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 30, update_req_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t screen_width_addr = 0;
-printf("Reading screen_width address: %lx\n", add_addr + sizeof(uint64_t) * 32);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 32, screen_width_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t screen_height_addr = 0;
-printf("Reading screen_height address: %lx\n", add_addr + sizeof(uint64_t) * 33);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, screen_height_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t triggerbot_addr = 0;
-printf("Reading triggerbot address: %lx\n", add_addr + sizeof(uint64_t) * 37);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, triggerbot_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t triggerbot_aiming_addr = 0;
-printf("Reading triggerbot_aiming address: %lx\n", add_addr + sizeof(uint64_t) * 39);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, triggerbot_aiming_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t superglide_addr = 0;
-printf("Reading superglide address: %lx\n", add_addr + sizeof(uint64_t) * 40);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 40, superglide_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t bhop_addr = 0;
-printf("Reading bhop address: %lx\n", add_addr + sizeof(uint64_t) * 41);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 41, bhop_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t walljump_addr = 0;
-printf("Reading walljump address: %lx\n", add_addr + sizeof(uint64_t) * 42);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, walljump_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t superkey_addr = 0;
-printf("Reading superkey address: %lx\n", add_addr + sizeof(uint64_t) * 43);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, superkey_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t triggerbot_fov_addr = 0;
-printf("Reading triggerbot_fov address: %lx\n", add_addr + sizeof(uint64_t) * 46);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, triggerbot_fov_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t lock_target_addr = 0;
-printf("Reading lock_target address: %lx\n", add_addr + sizeof(uint64_t) * 47);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, lock_target_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t aim_dist_addr = 0;
-printf("Reading aim_dist address: %lx\n", add_addr + sizeof(uint64_t) * 49);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, aim_dist_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t insidevalue_addr = 0;
-printf("Reading insidevalue address: %lx\n", add_addr + sizeof(uint64_t) * 50);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, insidevalue_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t outlinesize_addr = 0;
-printf("Reading outlinesize address: %lx\n", add_addr + sizeof(uint64_t) * 51);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, outlinesize_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t ads_fov_addr = 0;
-printf("Reading ads_fov address: %lx\n", add_addr + sizeof(uint64_t) * 52);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, ads_fov_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t ads_smooth_addr = 0;
-printf("Reading ads_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 53);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, ads_smooth_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t hip_fov_addr = 0;
-printf("Reading hip_fov address: %lx\n", add_addr + sizeof(uint64_t) * 54);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, hip_fov_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t hip_smooth_addr = 0;
-printf("Reading hip_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 55);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, hip_smooth_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t dds_addr = 0;
-printf("Reading DDS address: %lx\n", add_addr + sizeof(uint64_t) * 56);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, dds_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t min_max_fov_addr = 0;
-printf("Reading min_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 58);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, min_max_fov_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t max_max_fov_addr = 0;
-printf("Reading max_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 59);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, max_max_fov_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t min_smooth_addr = 0;
-printf("Reading min_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 60);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, min_smooth_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t max_smooth_addr = 0;
-printf("Reading max_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 61);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, max_smooth_addr)) {
-  printf("Read failed!\n");
-}
-
-uint64_t skeleton_thickness_addr = 0;
-printf("Reading skeleton_thickness address: %lx\n", add_addr + sizeof(uint64_t) * 63);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, skeleton_thickness_addr)) {
-  printf("Read failed!\n");
-}
-
-////////
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 24, shooting_addr);
 
 uint64_t onevone_addr = 0;
-printf("Reading onevone address: %lx\n", add_addr + sizeof(uint64_t) * 27);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 27, onevone_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 25, onevone_addr);
 
 uint64_t spec_list_addr = 0;
-printf("Reading spec_list address: %lx\n", add_addr + sizeof(uint64_t) * 28);
-if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, spec_list_addr)) {
-  printf("Read failed!\n");
-}
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 26, spec_list_addr);
 
-//
-//uint64_t min_max_fov_addr = 0;
-//printf("Reading min_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 29);
-//if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 29, min_max_fov_addr)) {
-//  printf("Read failed!\n");
-//}
-//
-//uint64_t max_max_fov_addr = 0;
-//printf("Reading max_max_fov address: %lx\n", add_addr + sizeof(uint64_t) * 30);
-//if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 30, max_max_fov_addr)) {
-//  printf("Read failed!\n");
-//}
-//
-//uint64_t min_smooth_addr = 0;
-//printf("Reading min_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 31);
-//if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 31, min_smooth_addr)) {
-//  printf("Read failed!\n");
-//}
-//
-//uint64_t max_smooth_addr = 0;
-//printf("Reading max_smooth address: %lx\n", add_addr + sizeof(uint64_t) * 32);
-//if(!client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 32, max_smooth_addr)) {
-//  printf("Read failed!\n");
-//}
+uint64_t dump_req_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 27, dump_req_addr);
 
-////////
+uint64_t update_req_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 28, update_req_addr);
+
+uint64_t skeleton_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 29, skeleton_addr);
+
+uint64_t screen_width_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 30, screen_width_addr);
+
+uint64_t screen_height_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 31, screen_height_addr);
+
+uint64_t triggerbot_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 32, triggerbot_addr);
+
+uint64_t triggerbot_key_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 33, triggerbot_key_addr);
+
+uint64_t triggerbot_aiming_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 34, triggerbot_aiming_addr);
+
+uint64_t superglide_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 35, superglide_addr);
+
+uint64_t bhop_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 36, bhop_addr);
+
+uint64_t walljump_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 37, walljump_addr);
+
+uint64_t superkey_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 38, superkey_addr);
+
+uint64_t triggerbot_fov_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 39, triggerbot_fov_addr);
+
+uint64_t lock_target_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 40, lock_target_addr);
+
+uint64_t player_glow_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 41, player_glow_addr);
+
+uint64_t aim_dist_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 42, aim_dist_addr);
+
+uint64_t insidevalue_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 43, insidevalue_addr);
+
+uint64_t outlinesize_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 44, outlinesize_addr);
+
+uint64_t ads_fov_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 45, ads_fov_addr);
+
+uint64_t ads_smooth_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 46, ads_smooth_addr);
+
+uint64_t hip_fov_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 47, hip_fov_addr);
+
+uint64_t hip_smooth_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
+
+uint64_t skeleton_thickness_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
@@ -1502,32 +1200,29 @@ while (vars_t)
     while (c_Base != 0 && g_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        client_mem.Write<uint64_t>(g_Base_addr, g_Base);
-        client_mem.Write<int>(spectators_addr, spectators);
-        client_mem.Write<int>(allied_spectators_addr, allied_spectators);
+        if (g_Base_addr) client_mem.Write<uint64_t>(g_Base_addr, g_Base);
+        if (spectators_addr) client_mem.Write<int>(spectators_addr, spectators);
+        if (allied_spectators_addr) client_mem.Write<int>(allied_spectators_addr, allied_spectators);
 
-        client_mem.Read<int>(aim_addr, aim);
-        client_mem.Read<bool>(esp_addr, esp);
-        client_mem.Read<bool>(aiming_addr, aiming);
-        client_mem.Read<float>(max_dist_addr, max_dist);
-        client_mem.Read<bool>(item_glow_addr, item_glow);
-        client_mem.Read<bool>(player_glow_addr, player_glow);
-        client_mem.Read<bool>(aim_no_recoil_addr, aim_no_recoil);
-        client_mem.Read<float>(smooth_addr, smooth);
-        client_mem.Read<float>(max_fov_addr, max_fov);
-        client_mem.Read<int>(bone_addr, bone);
-        client_mem.Read<float>(glowr_addr, glowr);
-        client_mem.Read<float>(glowg_addr, glowg);
-        client_mem.Read<float>(glowb_addr, glowb);
-        client_mem.Read<float>(glowrviz_addr, glowrviz);
-        client_mem.Read<float>(glowgviz_addr, glowgviz);
-        client_mem.Read<float>(glowbviz_addr, glowbviz);
-        client_mem.Read<float>(glowrknocked_addr, glowrknocked);
-        client_mem.Read<float>(glowgknocked_addr, glowgknocked);
-        client_mem.Read<float>(glowbknocked_addr, glowbknocked);
-        client_mem.Read<bool>(firing_range_addr, firing_range);
-        //client_mem.Read<bool>(shooting_addr, shooting);
-        client_mem.Read<bool>(onevone_addr, onevone);
+        if (aim_addr) client_mem.Read<int>(aim_addr, aim);
+        if (esp_addr) client_mem.Read<bool>(esp_addr, esp);
+        if (aiming_addr) client_mem.Read<bool>(aiming_addr, aiming);
+        if (max_dist_addr) client_mem.Read<float>(max_dist_addr, max_dist);
+        if (item_glow_addr) client_mem.Read<bool>(item_glow_addr, item_glow);
+        if (player_glow_addr) client_mem.Read<bool>(player_glow_addr, player_glow);
+        if (aim_no_recoil_addr) client_mem.Read<bool>(aim_no_recoil_addr, aim_no_recoil);
+        if (bone_addr) client_mem.Read<int>(bone_addr, bone);
+        if (glowr_addr) client_mem.Read<float>(glowr_addr, glowr);
+        if (glowg_addr) client_mem.Read<float>(glowg_addr, glowg);
+        if (glowb_addr) client_mem.Read<float>(glowb_addr, glowb);
+        if (glowrviz_addr) client_mem.Read<float>(glowrviz_addr, glowrviz);
+        if (glowgviz_addr) client_mem.Read<float>(glowgviz_addr, glowgviz);
+        if (glowbviz_addr) client_mem.Read<float>(glowbviz_addr, glowbviz);
+        if (glowrknocked_addr) client_mem.Read<float>(glowrknocked_addr, glowrknocked);
+        if (glowgknocked_addr) client_mem.Read<float>(glowgknocked_addr, glowgknocked);
+        if (glowbknocked_addr) client_mem.Read<float>(glowbknocked_addr, glowbknocked);
+        if (firing_range_addr) client_mem.Read<bool>(firing_range_addr, firing_range);
+        if (onevone_addr) client_mem.Read<bool>(onevone_addr, onevone);
 
         if (skeleton_addr)
             client_mem.Read<bool>(skeleton_addr, skeleton);
@@ -1558,7 +1253,7 @@ while (vars_t)
             }
         }
 
-        client_mem.WriteArray<spectator>(spec_list_addr, spectator_list, toRead);
+        if (spec_list_addr) client_mem.WriteArray<spectator>(spec_list_addr, spectator_list, toRead);
 
         if (screen_width_addr)
             client_mem.Read<int>(screen_width_addr, screen_width);
@@ -1595,16 +1290,6 @@ while (vars_t)
         if (hip_fov_addr) client_mem.Read<float>(hip_fov_addr, hip_fov);
 
         if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
-
-		if (dds_addr) client_mem.Read<float>(dds_addr, DDS);
-
-		if (min_max_fov_addr) client_mem.Read<float>(min_max_fov_addr, min_max_fov);
-
-		if (max_max_fov_addr) client_mem.Read<float>(max_max_fov_addr, max_max_fov);
-
-		if (min_smooth_addr) client_mem.Read<float>(min_smooth_addr, min_smooth);
-
-		if (max_smooth_addr) client_mem.Read<float>(max_smooth_addr, max_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 

@@ -15,12 +15,8 @@ extern bool ready;
 extern bool use_nvidia;
 extern float max_dist;
 extern float aim_dist;
-extern float smooth;
 extern unsigned char insidevalue;
 extern unsigned char outlinesize;
-extern float max_fov;
-extern float default_smooth;
-extern float default_fov;
 
 extern int bone;
 extern int spectators;
@@ -41,13 +37,8 @@ extern bool walljump;
 extern int index;
 //extern int xp_level;
 
-//Dynamic Distance Stuff
-extern float DDS;
-
 bool k_del = false;
-extern bool fov;
 static bool showing = false;
-extern float cfsize;
 
 //glow color and type
 extern float glowr; //Red Value
@@ -64,14 +55,6 @@ extern float glowrknocked;
 extern float glowgknocked;
 extern float glowbknocked;
 extern float glowcolorknocked[3];
-
-//DDS
-extern float min_max_fov;
-extern float max_max_fov;
-extern float min_cfsize;
-extern float max_cfsize;
-extern float min_smooth;
-extern float max_smooth;
 
 int width;
 int height;
@@ -238,32 +221,6 @@ void Overlay::RenderMenu()
 
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
-			//TEST DDS
-			ImGui::Text(XorStr("Dynamic Distance Stuff:"));
-			ImGui::SliderFloat(XorStr("##DDS"), &DDS, 40.0f * 40, 800.0f * 40, "%.2f");
-			ImGui::SameLine();
-			//ImGui::TextColored(GREEN, "%.0f ", DDS / 39.62);
-			ImGui::Text("%d meters", (int)(DDS / 40));
-			//TEST CONFIG DDS
-			//ImGui::Text(XorStr("EBD:"));
-			if (ImGui::SliderFloat(XorStr("##min_max_fov"), &min_max_fov, 3.80f, 1000.0f, "%.2f"))
-			{
-				min_cfsize = min_max_fov;
-			}
-			ImGui::SameLine();
-			ImGui::Text("Min Fov");
-			if (ImGui::SliderFloat(XorStr("##max_max_fov"), &max_max_fov, 3.80f, 1000.0f, "%.2f"))
-			{
-				max_cfsize = max_max_fov;
-			}
-			ImGui::SameLine();
-			ImGui::Text("Max Fov");
-			ImGui::SliderFloat(XorStr("##min_smooth"), &min_smooth, 12.0f, 1000.0f, "%.2f");
-			ImGui::SameLine();
-			ImGui::Text("Min Smooth");
-			ImGui::SliderFloat(XorStr("##max_smooth"), &max_smooth, 12.0f, 1000.0f, "%.2f");
-			ImGui::SameLine();
-			ImGui::Text("Max Smooth");
 
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Saving and Loading."));
@@ -308,10 +265,6 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Info window"), &v.info_window);
-
-			ImGui::Checkbox(XorStr("Circle fov"), &fov);
-			ImGui::SameLine();
-			ImGui::SliderFloat(XorStr("fov"), &cfsize, 2.0f, 1000.0f, "%.2f size");
 
 			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
 			if (v.target_indicator) {
@@ -372,11 +325,7 @@ void Overlay::RenderInfo()
 	ImGui::SetNextWindowPos(ImVec2(300, 0));
 	ImGui::SetNextWindowSize(ImVec2(170, 100));
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
-	//DrawLine(ImVec2(301, 2), ImVec2(469, 2), RED, 2);
-	ImGui::Text(XorStr("DDS :"));
-	ImGui::SameLine();
-	ImGui::Text("%d meters", (int)(DDS / 40));
-	ImGui::SameLine();
+
 	ImGui::TextColored(RED, "%d", spectators);
 	ImGui::SameLine();
 	ImGui::Text("-");
@@ -387,23 +336,11 @@ void Overlay::RenderInfo()
 	ImGui::Checkbox(XorStr("ESP"), &esp);
 	ImGui::SameLine();
 	ImGui::Checkbox(XorStr("1V1"), &onevone);
-	//ImGui::SameLine();
-	//ImGui::TextColored(GREEN, "%.0f", esp_distance / 39.62); //meters
-	ImGui::Text(XorStr("SMT"));
-	ImGui::SameLine();
-	ImGui::SliderFloat(XorStr("##2"), &default_smooth, 12.0f, 1000.0f, "%.2f");
-	ImGui::Text(XorStr("FOV"));
-	ImGui::SameLine();
-	ImGui::SliderFloat(XorStr("##3"), &default_fov, 3.80f, 1000.0f, "%.2f");
 
-	// Get the end position of the FOV slider
-	ImVec2 fovSliderEnd = ImGui::GetItemRectMax();
-	ImVec2 squarePos = ImVec2(fovSliderEnd.x + 5, fovSliderEnd.y - 10); // Adjust the position as needed
+	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 150, ImGui::GetWindowPos().y + 10);
 	ImVec2 squareSize = ImVec2(10, 10);
 
-	bool isConnected = ready; // Use the 'ready' variable to determine connection status
-
-	if (isConnected)
+	if (ready)
 	{
 		ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), IM_COL32(0, 255, 0, 255)); // Green if ready
 	}
@@ -554,13 +491,6 @@ DWORD Overlay::CreateOverlay()
 
 		RenderSpectator();
 
-		if (fov)
-		{
-			ImGui::Begin("##circlefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
-			auto draw = ImGui::GetBackgroundDrawList();
-			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), cfsize, IM_COL32(255, 0, 0, 255), 100, 1.0f);
-			ImGui::End();
-		}
 		if (v.triggerbot_fov_circle)
 		{
 			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
