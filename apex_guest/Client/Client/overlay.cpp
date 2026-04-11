@@ -334,34 +334,38 @@ void Overlay::RenderInfo()
 	ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), connColor);
 
 	ImGui::Indent(12);
-	// Row 1: Glow Player ESP 1V1
+	// Row 1: Glow Player - ESP - 1V1
 	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
-	ImGui::SameLine(120);
+	ImGui::SameLine(95);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(110);
 	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
-	ImGui::SameLine(175);
+	ImGui::SameLine(215);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(230);
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
 
-	// Row 2: AIM - Vis. Check - Norecoil
-	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("AIM"));
-	ImGui::SameLine(50);
+	// Row 2: Aim - Vis. Check - No Recoil
+	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("Aim"));
+	ImGui::SameLine(95);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(70);
+	ImGui::SameLine(110);
 	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
-	ImGui::SameLine(180);
+	ImGui::SameLine(215);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(200);
-	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("Norecoil"));
+	ImGui::SameLine(230);
+	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("No Recoil"));
 
-	// Row 3: IT glow - Lock Target - TGBot
-	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("IT glow"));
-	ImGui::SameLine(85);
+	// Row 3: Item Glow - Lock Target - Triggerbot
+	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("Item Glow"));
+	ImGui::SameLine(95);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(105);
+	ImGui::SameLine(110);
 	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
-	ImGui::SameLine(225);
+	ImGui::SameLine(215);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(245);
-	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("TGBot"));
+	ImGui::SameLine(230);
+	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
 
 	ImGui::End();
 }
