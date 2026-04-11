@@ -339,8 +339,6 @@ void Overlay::RenderInfo()
 	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
 	ImGui::SameLine();
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
-	ImGui::SameLine();
-	ImGui::TextColored(WHITE, XorStr("[%d - %d]"), spectators, allied_spectators);
 
 	// Row 2: AIM | Vis. Check | Norecoil
 	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("AIM"));
