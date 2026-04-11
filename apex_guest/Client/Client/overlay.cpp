@@ -323,31 +323,38 @@ void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 0));
-	ImGui::SetNextWindowSize(ImVec2(170, 100));
-	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
+	ImGui::SetNextWindowSize(ImVec2(320, 100));
+	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground);
 
-	ImGui::TextColored(RED, "%d", spectators);
-	ImGui::SameLine();
-	ImGui::Text("-");
-	ImGui::SameLine();
-	ImGui::TextColored(GREEN, "%d", allied_spectators);
-	ImGui::Checkbox(XorStr("Glow"), &player_glow);
-	ImGui::SameLine();
-	ImGui::Checkbox(XorStr("ESP"), &esp);
-	ImGui::SameLine();
-	ImGui::Checkbox(XorStr("1V1"), &onevone);
+	// Connectivity Status
+	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 5, ImGui::GetWindowPos().y + 10);
+	ImVec2 squareSize = ImVec2(8, 8);
+	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
+	ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), connColor);
 
-	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 150, ImGui::GetWindowPos().y + 10);
-	ImVec2 squareSize = ImVec2(10, 10);
+	ImGui::Indent(15);
+	// Row 1: Glow Player | ESP | 1V1
+	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
+	ImGui::SameLine();
+	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
+	ImGui::SameLine();
+	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
+	ImGui::SameLine();
+	ImGui::TextColored(WHITE, XorStr("[%d - %d]"), spectators, allied_spectators);
 
-	if (ready)
-	{
-		ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), IM_COL32(0, 255, 0, 255)); // Green if ready
-	}
-	else
-	{
-		ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), IM_COL32(255, 0, 0, 255)); // Red if not ready
-	}
+	// Row 2: AIM | Vis. Check | Norecoil
+	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("AIM"));
+	ImGui::SameLine();
+	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
+	ImGui::SameLine();
+	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("Norecoil"));
+
+	// Row 3: IT glow | Lock Target | TGBot
+	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("IT glow"));
+	ImGui::SameLine();
+	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
+	ImGui::SameLine();
+	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("TGBot"));
 
 	ImGui::End();
 }
