@@ -322,36 +322,45 @@ void Overlay::RenderMenu()
 void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
-	ImGui::SetNextWindowPos(ImVec2(300, 0));
-	ImGui::SetNextWindowSize(ImVec2(320, 100));
-	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground);
+	ImGui::SetNextWindowPos(ImVec2(300, 10));
+	ImGui::SetNextWindowSize(ImVec2(320, 85));
+	ImGui::SetNextWindowBgAlpha(0.6f);
+	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
 
 	// Connectivity Status
-	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 5, ImGui::GetWindowPos().y + 10);
-	ImVec2 squareSize = ImVec2(8, 8);
+	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 8, ImGui::GetWindowPos().y + 12);
+	ImVec2 squareSize = ImVec2(6, 6);
 	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
 	ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), connColor);
 
-	ImGui::Indent(15);
-	// Row 1: Glow Player | ESP | 1V1
+	ImGui::Indent(12);
+	// Row 1: Glow Player ESP 1V1
 	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
-	ImGui::SameLine();
+	ImGui::SameLine(120);
 	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
-	ImGui::SameLine();
+	ImGui::SameLine(175);
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
 
-	// Row 2: AIM | Vis. Check | Norecoil
+	// Row 2: AIM - Vis. Check - Norecoil
 	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("AIM"));
-	ImGui::SameLine();
+	ImGui::SameLine(50);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(70);
 	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
-	ImGui::SameLine();
+	ImGui::SameLine(180);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(200);
 	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("Norecoil"));
 
-	// Row 3: IT glow | Lock Target | TGBot
+	// Row 3: IT glow - Lock Target - TGBot
 	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("IT glow"));
-	ImGui::SameLine();
+	ImGui::SameLine(85);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(105);
 	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
-	ImGui::SameLine();
+	ImGui::SameLine(225);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(245);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("TGBot"));
 
 	ImGui::End();
