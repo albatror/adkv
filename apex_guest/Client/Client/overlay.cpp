@@ -335,39 +335,39 @@ void Overlay::RenderInfo()
 	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(25);
 	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
-	ImGui::SameLine(110);
+	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(125);
+	ImGui::SameLine(130);
 	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
-	ImGui::SameLine(230);
+	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(245);
+	ImGui::SameLine(235);
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
 
 	// Row 2: - Aim - Vis. Check - No Recoil
 	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(25);
 	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("Aim"));
-	ImGui::SameLine(110);
+	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(125);
+	ImGui::SameLine(130);
 	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
-	ImGui::SameLine(230);
+	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(245);
+	ImGui::SameLine(235);
 	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("No Recoil"));
 
 	// Row 3: - Item Glow - Lock Target - Triggerbot
 	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(25);
 	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("Item Glow"));
-	ImGui::SameLine(110);
+	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(125);
+	ImGui::SameLine(130);
 	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
-	ImGui::SameLine(230);
+	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(245);
+	ImGui::SameLine(235);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
 
 	float windowWidth = ImGui::GetWindowSize().x;
@@ -383,19 +383,28 @@ void Overlay::RenderInfo()
 		ImGui::Image((void*)logoTexture, ImVec2(scaledWidth, scaledHeight));
 	}
 
-	// Row 5: [dot] Connected/Not connected to server
+	// Row 5: - [dot] Connected/Not connected to server
 	ImGui::Unindent(12);
 	ImGui::SetWindowFontScale(1.1f);
 	const char* statusText = ready ? XorStr("Connected to server") : XorStr("Not connected to server");
 	float textWidth = ImGui::CalcTextSize(statusText).x;
+	float dashWidth = ImGui::CalcTextSize("-").x;
+	float dashSpace = 6.0f;
 	float dotSize = 6.0f;
 	float spacing = 8.0f;
-	float totalRowWidth = dotSize + spacing + textWidth;
+	float totalRowWidth = dashWidth + dashSpace + dotSize + spacing + textWidth;
 
-	ImGui::SetCursorPosX((windowWidth - totalRowWidth) * 0.5f);
+	float startX = (windowWidth - totalRowWidth) * 0.5f;
+	ImGui::SetCursorPosX(startX);
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.0f);
 
 	ImVec2 curPos = ImGui::GetCursorScreenPos();
+
+	// Dash
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(startX + dashWidth + dashSpace);
+
+	curPos = ImGui::GetCursorScreenPos();
 	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
 	float textHeight = ImGui::GetTextLineHeight();
 	float dotYOffset = (textHeight - dotSize) * 0.5f;
