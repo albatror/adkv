@@ -332,42 +332,36 @@ void Overlay::RenderInfo()
 
 	ImGui::Indent(12);
 	// Row 1: - Glow Player - ESP - 1V1
-	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(25);
-	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
+	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("- Glow Player"));
 	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(130);
+	ImGui::SameLine();
 	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
 	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(235);
+	ImGui::SameLine();
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
 
 	// Row 2: - Aim - Vis. Check - No Recoil
-	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(25);
-	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("Aim"));
+	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("- Aim"));
 	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(130);
+	ImGui::SameLine();
 	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
 	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(235);
+	ImGui::SameLine();
 	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("No Recoil"));
 
 	// Row 3: - Item Glow - Lock Target - Triggerbot
-	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(25);
-	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("Item Glow"));
+	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("- Item Glow"));
 	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(130);
+	ImGui::SameLine();
 	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
 	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(235);
+	ImGui::SameLine();
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
 
 	float windowWidth = ImGui::GetWindowSize().x;
