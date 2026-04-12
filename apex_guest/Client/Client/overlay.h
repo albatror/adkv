@@ -70,7 +70,15 @@ public:
 	void String(ImVec2 pos, ImColor color, const char* text);
 	//seer
 	void DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health);
+
+	bool LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
 private:
 	bool running;
 	HWND overlayHWND;
+
+	ID3D11ShaderResourceView* logoTexture = nullptr;
+	ID3D11ShaderResourceView* logoGreenTexture = nullptr;
+	ID3D11ShaderResourceView* logoRedTexture = nullptr;
+	int logoWidth = 0;
+	int logoHeight = 0;
 };

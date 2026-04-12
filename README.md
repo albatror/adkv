@@ -22,8 +22,9 @@ GameVersion v3.0.1.35
 - **Skeleton:** Real-time bone rendering for precise movement tracking.
 - **Glow:** Highly customizable player glow (Green: Visible, Red: Hidden, Yellow: Knocked).
 - **Extra Info:** PLayer XP Level, Player Name, PLayer Distance, Players Weapons, Players Platforms and Snap-lines.
-- **Spectator List:** Keep track of who is watching you (Count + List of Names).
+- **Spectator List:** Keep track of who is watching you with an improved, clearly formatted name list (Count + List of Names).
 - **Target Indicator:** A visual DOT with configurable FOV to show best near target.
+- **Redesigned Info Overlay:** A streamlined dashboard featuring status-dependent colored logos (Green/Red) for instantaneous connection feedback and color-coded feature status.
 - **Glow Items:** Glow items (Loba Style)
 
 ### 🔫 Combat & Aimbot
