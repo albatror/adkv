@@ -203,10 +203,12 @@ spectator spectator_list[100];
 
 void Overlay::RenderSpectator() {
 	if (!v.spectator_notifier) return;
-	ImGui::SetNextWindowPos(ImVec2(630, 0));
-	ImGui::SetNextWindowSize(ImVec2(190, 130));
+	ImGui::SetNextWindowPos(ImVec2(630, 10));
+	ImGui::SetNextWindowSize(ImVec2(190, 205));
 	ImGui::SetNextWindowBgAlpha(0.6f);
-	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
+	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+	ImGui::Indent(12.0f);
 	//DrawLine(ImVec2(491, 2), ImVec2(679, 2), RED, 2);
 	ImGui::TextColored(RED, "%d", spectators);
 	ImGui::SameLine();
@@ -218,8 +220,8 @@ void Overlay::RenderSpectator() {
 	for (int i = 0; i < 100; i++) {
 		if (spectator_list[i].is_spec) {
 			ImGui::TextColored(WHITE, "%d", text_index + 1);
-			ImGui::SameLine(25);
-			ImGui::TextColored(ORANGE, "%s", spectator_list[i].name);
+			ImGui::SameLine();
+			ImGui::TextColored(ORANGE, " %s", spectator_list[i].name);
 			text_index++;
 		}
 	}

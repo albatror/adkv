@@ -3,6 +3,9 @@
 #include <fstream>
 #include <iomanip>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 
 using namespace std;
 extern int aim;
@@ -323,49 +326,59 @@ void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 10));
-	ImGui::SetNextWindowSize(ImVec2(320, 85));
+	ImGui::SetNextWindowSize(ImVec2(320, 205));
 	ImGui::SetNextWindowBgAlpha(0.6f);
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
 
-	// Connectivity Status
-	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 8, ImGui::GetWindowPos().y + 12);
-	ImVec2 squareSize = ImVec2(6, 6);
-	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-	ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), connColor);
-
 	ImGui::Indent(12);
-	// Row 1: Glow Player - ESP - 1V1
-	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
-	ImGui::SameLine(95);
+	// Row 1: - Glow Player - ESP - 1V1
+	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("- Glow Player"));
+	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(110);
+	ImGui::SameLine(130);
 	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
-	ImGui::SameLine(215);
+	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(230);
+	ImGui::SameLine(240);
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
 
-	// Row 2: Aim - Vis. Check - No Recoil
-	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("Aim"));
-	ImGui::SameLine(95);
+	// Row 2: - Aim - Vis. Check - No Recoil
+	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("- Aim"));
+	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(110);
+	ImGui::SameLine(130);
 	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
-	ImGui::SameLine(215);
+	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(230);
+	ImGui::SameLine(240);
 	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("No Recoil"));
 
-	// Row 3: Item Glow - Lock Target - Triggerbot
-	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("Item Glow"));
-	ImGui::SameLine(95);
+	// Row 3: - Item Glow - Lock Target - Triggerbot
+	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("- Item Glow"));
+	ImGui::SameLine(115);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(110);
+	ImGui::SameLine(130);
 	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
-	ImGui::SameLine(215);
+	ImGui::SameLine(220);
 	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(230);
+	ImGui::SameLine(240);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
+
+	float windowWidth = ImGui::GetWindowSize().x;
+	ImGui::Unindent(12);
+
+	// Status Row: [Logo]
+	ID3D11ShaderResourceView* statusLogo = ready ? logoGreenTexture : logoRedTexture;
+	if (statusLogo)
+	{
+		float logoScale = 0.25f;
+		float scaledWidth = logoWidth * logoScale;
+		float scaledHeight = logoHeight * logoScale;
+
+		ImGui::SetCursorPosX((windowWidth - scaledWidth) * 0.5f);
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
+		ImGui::Image((void*)statusLogo, ImVec2(scaledWidth, scaledHeight));
+	}
 
 	ImGui::End();
 }
@@ -426,6 +439,10 @@ DWORD Overlay::CreateOverlay()
 	// Setup Platform/Renderer bindings
 	ImGui_ImplWin32_Init(overlayHWND);
 	ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+
+	LoadTextureFromFile(XorStr("logo.png"), &logoTexture, &logoWidth, &logoHeight);
+	LoadTextureFromFile(XorStr("logo-green.png"), &logoGreenTexture, &logoWidth, &logoHeight);
+	LoadTextureFromFile(XorStr("logo-red.png"), &logoRedTexture, &logoWidth, &logoHeight);
 
 	ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.00f);
 
@@ -546,6 +563,9 @@ DWORD Overlay::CreateOverlay()
 	}
 	ClickThrough(true);
 
+	if (logoTexture) { logoTexture->Release(); logoTexture = nullptr; }
+	if (logoGreenTexture) { logoGreenTexture->Release(); logoGreenTexture = nullptr; }
+	if (logoRedTexture) { logoRedTexture->Release(); logoRedTexture = nullptr; }
 	CleanupDeviceD3D();
 	::DestroyWindow(overlayHWND);
 	return 0;
@@ -688,6 +708,52 @@ void DrawHexagonFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, con
 {
 	ImVec2 points[6] = { p1, p2, p3, p4, p5, p6 };
 	ImGui::GetWindowDrawList()->AddConvexPolyFilled(points, 6, col);
+}
+
+bool Overlay::LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height)
+{
+	// Load from disk into a raw RGBA buffer
+	int image_width = 0;
+	int image_height = 0;
+	unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
+	if (image_data == NULL)
+		return false;
+
+	// Create texture
+	D3D11_TEXTURE2D_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.Width = image_width;
+	desc.Height = image_height;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = 0;
+
+	ID3D11Texture2D* pTexture = NULL;
+	D3D11_SUBRESOURCE_DATA subResource;
+	subResource.pSysMem = image_data;
+	subResource.SysMemPitch = desc.Width * 4;
+	subResource.SysMemSlicePitch = 0;
+	g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+
+	// Create texture view
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(srvDesc));
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv);
+	pTexture->Release();
+
+	*out_width = image_width;
+	*out_height = image_height;
+	stbi_image_free(image_data);
+
+	return true;
 }
 
 void Overlay::DrawSeerLikeHealth(float x, float y, int shield, int max_shield, int armorType, int health) {
