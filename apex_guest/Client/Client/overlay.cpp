@@ -326,7 +326,7 @@ void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 10));
-	ImGui::SetNextWindowSize(ImVec2(320, 195));
+	ImGui::SetNextWindowSize(ImVec2(320, 205));
 	ImGui::SetNextWindowBgAlpha(0.6f);
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
 
@@ -370,30 +370,9 @@ void Overlay::RenderInfo()
 	ImGui::SameLine(245);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
 
-	// Row 4: - [dot] Connected/Not connected to server
-	ImGui::Unindent(12);
 	float windowWidth = ImGui::GetWindowSize().x;
-	const char* statusText = ready ? XorStr("Connected to server") : XorStr("Not connected to server");
-	float textWidth = ImGui::CalcTextSize(statusText).x;
-	float dashWidth = ImGui::CalcTextSize("-").x;
-	float dotSize = 6.0f;
-	float spacing = 8.0f;
-	float totalRowWidth = dashWidth + spacing + dotSize + spacing + textWidth;
 
-	ImGui::SetCursorPosX((windowWidth - totalRowWidth) * 0.5f);
-	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(0, spacing);
-
-	ImVec2 curPos = ImGui::GetCursorScreenPos();
-	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-	float textHeight = ImGui::GetTextLineHeight();
-	float dotYOffset = (textHeight - dotSize) * 0.5f;
-	ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(curPos.x, curPos.y + dotYOffset), ImVec2(curPos.x + dotSize, curPos.y + dotYOffset + dotSize), connColor);
-
-	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + dotSize + spacing);
-	ImGui::TextColored(ready ? GREEN : RED, statusText);
-
-	// Row 5: Logo at 25% size
+	// Row 4: Logo at 25% size
 	if (logoTexture)
 	{
 		float logoScale = 0.25f;
@@ -403,6 +382,28 @@ void Overlay::RenderInfo()
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.0f);
 		ImGui::Image((void*)logoTexture, ImVec2(scaledWidth, scaledHeight));
 	}
+
+	// Row 5: [dot] Connected/Not connected to server
+	ImGui::Unindent(12);
+	ImGui::SetWindowFontScale(1.1f);
+	const char* statusText = ready ? XorStr("Connected to server") : XorStr("Not connected to server");
+	float textWidth = ImGui::CalcTextSize(statusText).x;
+	float dotSize = 6.0f;
+	float spacing = 8.0f;
+	float totalRowWidth = dotSize + spacing + textWidth;
+
+	ImGui::SetCursorPosX((windowWidth - totalRowWidth) * 0.5f);
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.0f);
+
+	ImVec2 curPos = ImGui::GetCursorScreenPos();
+	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
+	float textHeight = ImGui::GetTextLineHeight();
+	float dotYOffset = (textHeight - dotSize) * 0.5f;
+	ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(curPos.x, curPos.y + dotYOffset), ImVec2(curPos.x + dotSize, curPos.y + dotYOffset + dotSize), connColor);
+
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + dotSize + spacing);
+	ImGui::TextColored(ready ? GREEN : RED, statusText);
+	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::End();
 }

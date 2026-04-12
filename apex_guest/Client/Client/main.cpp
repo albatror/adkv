@@ -203,7 +203,7 @@ spectator spectator_list[100];
 
 void Overlay::RenderSpectator() {
 	if (!v.spectator_notifier) return;
-	ImGui::SetNextWindowPos(ImVec2(630, 0));
+	ImGui::SetNextWindowPos(ImVec2(630, 10));
 	ImGui::SetNextWindowSize(ImVec2(190, 130));
 	ImGui::SetNextWindowBgAlpha(0.6f);
 	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
