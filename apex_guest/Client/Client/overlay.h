@@ -77,6 +77,8 @@ private:
 	HWND overlayHWND;
 
 	ID3D11ShaderResourceView* logoTexture = nullptr;
+	ID3D11ShaderResourceView* logoGreenTexture = nullptr;
+	ID3D11ShaderResourceView* logoRedTexture = nullptr;
 	int logoWidth = 0;
 	int logoHeight = 0;
 };
