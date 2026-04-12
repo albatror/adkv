@@ -204,9 +204,11 @@ spectator spectator_list[100];
 void Overlay::RenderSpectator() {
 	if (!v.spectator_notifier) return;
 	ImGui::SetNextWindowPos(ImVec2(630, 10));
-	ImGui::SetNextWindowSize(ImVec2(190, 130));
+	ImGui::SetNextWindowSize(ImVec2(190, 205));
 	ImGui::SetNextWindowBgAlpha(0.6f);
-	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
+	ImGui::Begin(XorStr("##spectator_list"), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+	ImGui::Indent(12.0f);
 	//DrawLine(ImVec2(491, 2), ImVec2(679, 2), RED, 2);
 	ImGui::TextColored(RED, "%d", spectators);
 	ImGui::SameLine();
