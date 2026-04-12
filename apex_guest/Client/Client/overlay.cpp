@@ -383,28 +383,20 @@ void Overlay::RenderInfo()
 		ImGui::Image((void*)logoTexture, ImVec2(scaledWidth, scaledHeight));
 	}
 
-	// Row 5: - [dot] Connected/Not connected to server
+	// Row 5: [dot] Connected/Not connected to server
 	ImGui::Unindent(12);
 	ImGui::SetWindowFontScale(1.1f);
 	const char* statusText = ready ? XorStr("Connected to server") : XorStr("Not connected to server");
 	float textWidth = ImGui::CalcTextSize(statusText).x;
-	float dashWidth = ImGui::CalcTextSize("-").x;
-	float dashSpace = 6.0f;
 	float dotSize = 6.0f;
 	float spacing = 8.0f;
-	float totalRowWidth = dashWidth + dashSpace + dotSize + spacing + textWidth;
+	float totalRowWidth = dotSize + spacing + textWidth;
 
 	float startX = (windowWidth - totalRowWidth) * 0.5f;
 	ImGui::SetCursorPosX(startX);
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.0f);
 
 	ImVec2 curPos = ImGui::GetCursorScreenPos();
-
-	// Dash
-	ImGui::TextColored(WHITE, XorStr("-"));
-	ImGui::SameLine(startX + dashWidth + dashSpace);
-
-	curPos = ImGui::GetCursorScreenPos();
 	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
 	float textHeight = ImGui::GetTextLineHeight();
 	float dotYOffset = (textHeight - dotSize) * 0.5f;
