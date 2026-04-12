@@ -367,7 +367,7 @@ void Overlay::RenderInfo()
 	float windowWidth = ImGui::GetWindowSize().x;
 	ImGui::Unindent(12);
 
-	// Status Row: - [Logo] Connected/Not connected to server
+	// Status Row: [Logo]
 	ID3D11ShaderResourceView* statusLogo = ready ? logoGreenTexture : logoRedTexture;
 	if (statusLogo)
 	{
@@ -375,35 +375,9 @@ void Overlay::RenderInfo()
 		float scaledWidth = logoWidth * logoScale;
 		float scaledHeight = logoHeight * logoScale;
 
-		const char* statusText = ready ? XorStr("Connected to server") : XorStr("Not connected to server");
-		ImGui::SetWindowFontScale(1.1f);
-		float spacing = 8.0f;
-		float dashWidth = ImGui::CalcTextSize("-").x;
-		float textWidth = ImGui::CalcTextSize(statusText).x;
-		float totalWidth = dashWidth + spacing + scaledWidth + spacing + textWidth;
-
-		ImGui::SetCursorPosX((windowWidth - totalWidth) * 0.5f);
+		ImGui::SetCursorPosX((windowWidth - scaledWidth) * 0.5f);
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
-
-		ImGui::BeginGroup();
-		float textHeight = ImGui::GetTextLineHeight();
-		float centerY = (scaledHeight - textHeight) * 0.5f;
-
-		ImVec2 startPos = ImGui::GetCursorPos();
-
-		ImGui::SetCursorPosY(startPos.y + centerY);
-		ImGui::TextColored(ready ? GREEN : RED, XorStr("-"));
-		ImGui::SameLine(0, spacing);
-
-		ImGui::SetCursorPosY(startPos.y);
 		ImGui::Image((void*)statusLogo, ImVec2(scaledWidth, scaledHeight));
-		ImGui::SameLine(0, spacing);
-
-		ImGui::SetCursorPosY(startPos.y + centerY);
-		ImGui::TextColored(ready ? GREEN : RED, statusText);
-		ImGui::EndGroup();
-
-		ImGui::SetWindowFontScale(1.0f);
 	}
 
 	ImGui::End();

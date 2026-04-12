@@ -220,8 +220,8 @@ void Overlay::RenderSpectator() {
 	for (int i = 0; i < 100; i++) {
 		if (spectator_list[i].is_spec) {
 			ImGui::TextColored(WHITE, "%d", text_index + 1);
-			ImGui::SameLine(25);
-			ImGui::TextColored(ORANGE, "%s", spectator_list[i].name);
+			ImGui::SameLine();
+			ImGui::TextColored(ORANGE, " %s", spectator_list[i].name);
 			text_index++;
 		}
 	}
