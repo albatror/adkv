@@ -323,49 +323,72 @@ void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 10));
-	ImGui::SetNextWindowSize(ImVec2(320, 85));
+	ImGui::SetNextWindowSize(ImVec2(320, 110));
 	ImGui::SetNextWindowBgAlpha(0.6f);
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
 
-	// Connectivity Status
-	ImVec2 squarePos = ImVec2(ImGui::GetWindowPos().x + 8, ImGui::GetWindowPos().y + 12);
-	ImVec2 squareSize = ImVec2(6, 6);
-	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-	ImGui::GetWindowDrawList()->AddRectFilled(squarePos, ImVec2(squarePos.x + squareSize.x, squarePos.y + squareSize.y), connColor);
-
 	ImGui::Indent(12);
-	// Row 1: Glow Player - ESP - 1V1
+	// Row 1: - Glow Player - ESP - 1V1
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(25);
 	ImGui::TextColored(player_glow ? GREEN : RED, XorStr("Glow Player"));
-	ImGui::SameLine(95);
-	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(110);
-	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
-	ImGui::SameLine(215);
 	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(125);
+	ImGui::TextColored(esp ? GREEN : RED, XorStr("ESP"));
 	ImGui::SameLine(230);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(245);
 	ImGui::TextColored(onevone ? GREEN : RED, XorStr("1V1"));
 
-	// Row 2: Aim - Vis. Check - No Recoil
+	// Row 2: - Aim - Vis. Check - No Recoil
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(25);
 	ImGui::TextColored(aim > 0 ? GREEN : RED, XorStr("Aim"));
-	ImGui::SameLine(95);
-	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(110);
-	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
-	ImGui::SameLine(215);
 	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(125);
+	ImGui::TextColored(aim == 2 ? GREEN : RED, XorStr("Vis. Check"));
 	ImGui::SameLine(230);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(245);
 	ImGui::TextColored(aim_no_recoil ? GREEN : RED, XorStr("No Recoil"));
 
-	// Row 3: Item Glow - Lock Target - Triggerbot
+	// Row 3: - Item Glow - Lock Target - Triggerbot
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(25);
 	ImGui::TextColored(item_glow ? GREEN : RED, XorStr("Item Glow"));
-	ImGui::SameLine(95);
-	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(110);
-	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
-	ImGui::SameLine(215);
 	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(125);
+	ImGui::TextColored(lock_target ? GREEN : RED, XorStr("Lock Target"));
 	ImGui::SameLine(230);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(245);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
+
+	// Row 4: - [dot] Connected/Not connected to server
+	ImGui::Unindent(12);
+	float windowWidth = ImGui::GetWindowSize().x;
+	const char* statusText = ready ? XorStr("Connected to server") : XorStr("Not connected to server");
+	float textWidth = ImGui::CalcTextSize(statusText).x;
+	float dashWidth = ImGui::CalcTextSize("-").x;
+	float dotSize = 6.0f;
+	float spacing = 8.0f;
+	float totalRowWidth = dashWidth + spacing + dotSize + spacing + textWidth;
+
+	ImGui::SetCursorPosX((windowWidth - totalRowWidth) * 0.5f);
+	ImGui::TextColored(WHITE, XorStr("-"));
+	ImGui::SameLine(0, spacing);
+
+	ImVec2 curPos = ImGui::GetCursorScreenPos();
+	ImU32 connColor = ready ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
+	float textHeight = ImGui::GetTextLineHeight();
+	float dotYOffset = (textHeight - dotSize) * 0.5f;
+	ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(curPos.x, curPos.y + dotYOffset), ImVec2(curPos.x + dotSize, curPos.y + dotYOffset + dotSize), connColor);
+
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + dotSize + spacing);
+	ImGui::TextColored(ready ? GREEN : RED, statusText);
 
 	ImGui::End();
 }
