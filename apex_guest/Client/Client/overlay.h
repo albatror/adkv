@@ -37,6 +37,7 @@ typedef struct visuals
 	bool skeleton = false;
 	bool spectator_notifier = false;
 	bool info_window = false;
+	bool info_window_logo = true;
 	bool target_indicator = false;
 	float target_indicator_fov = 10.0f;
 	bool triggerbot_fov_circle = false;
