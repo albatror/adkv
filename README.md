@@ -12,7 +12,7 @@ We use kvm connector for best performances.
 
 ---
 
-GameVersion v3.0.1.35
+GameVersion v3.0.2.49
 
 ## 🚀 Features
 
