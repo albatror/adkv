@@ -61,7 +61,7 @@ int grappleAttached;
 bool onevone = false;
 
 bool aassist = false;
-float aassist_dist = 200.0f * 40.0f;
+float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
 bool triggerbot = false;

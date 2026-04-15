@@ -228,7 +228,7 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("##hip_fov"), &hip_fov, 1.0f, 50.0f, "%.2f");
 
 			ImGui::Text(XorStr("AAssist Distance:"));
-			ImGui::SliderFloat(XorStr("##aassist_dist"), &aassist_dist, 100.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SliderFloat(XorStr("##aassist_dist"), &aassist_dist, 1.0f * 40, 150.0f * 40, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(aassist_dist / 40));
 
