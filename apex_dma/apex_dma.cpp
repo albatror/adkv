@@ -69,6 +69,9 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 
+bool aa = false;
+float aa_dist = 40.0f * 40.0f;
+
 ///////////////////////////
 //Player Glow Color and Brightness.
 //inside fill
@@ -250,13 +253,15 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 
 	float priority = fov + logf(fmaxf(dist / 40.0f, 1.0f));
 
+	bool can_aim = aiming || (aa && shooting && dist <= aa_dist);
+
 	if (aimentity != 0 && lock)
 	{
 		// Stick to target
 	}
 	else if (aim == 2)
 	{
-		if (visible && fov <= active_fov && dist <= active_dist)
+		if (visible && fov <= active_fov && dist <= active_dist && can_aim)
 		{
 			if (priority < max)
 			{
@@ -274,7 +279,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 	else
 	{
-		if (fov <= active_fov && dist <= active_dist)
+		if (fov <= active_fov && dist <= active_dist && can_aim)
 		{
 			if (priority < max)
 			{
@@ -949,7 +954,21 @@ static void AimbotLoop()
 
 			if (aim > 0)
 			{
-				if (aimentity == 0 || !aiming)
+				bool can_aim = aiming;
+				if (aa && shooting)
+				{
+					Entity Target = getEntity(aimentity);
+					if (Target.ptr != 0)
+					{
+						Vector EntityPosition = Target.getPosition();
+						Vector LocalPlayerPosition = LPlayer.getPosition();
+						float dist = LocalPlayerPosition.DistTo(EntityPosition);
+						if (dist <= aa_dist)
+							can_aim = true;
+					}
+				}
+
+				if (aimentity == 0 || !can_aim)
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -1174,6 +1193,12 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
 uint64_t skeleton_thickness_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
+uint64_t aa_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, aa_addr);
+
+uint64_t aa_dist_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aa_dist_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1292,6 +1317,10 @@ while (vars_t)
         if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
+
+        if (aa_addr) client_mem.Read<bool>(aa_addr, aa);
+
+        if (aa_dist_addr) client_mem.Read<float>(aa_dist_addr, aa_dist);
 
         if (esp && next)
         {

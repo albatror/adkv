@@ -37,6 +37,8 @@ extern float glowcolorknocked[3];
 extern bool firing_range;
 extern bool onevone;
 extern bool triggerbot;
+extern bool aa;
+extern float aa_dist;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -109,6 +111,8 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "ads_fov_circle " << std::boolalpha << v.ads_fov_circle << "\n";
     file << "hip_fov_circle " << std::boolalpha << v.hip_fov_circle << "\n";
+    file << "aa " << std::boolalpha << aa << "\n";
+    file << "aa_dist " << aa_dist << "\n";
 
     file.close();
 }
@@ -175,6 +179,8 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "ads_fov_circle") ss >> std::boolalpha >> v.ads_fov_circle;
         else if (key == "hip_fov_circle") ss >> std::boolalpha >> v.hip_fov_circle;
+        else if (key == "aa") ss >> std::boolalpha >> aa;
+        else if (key == "aa_dist") ss >> aa_dist;
     }
 
     file.close();

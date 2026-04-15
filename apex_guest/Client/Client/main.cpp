@@ -53,6 +53,9 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 
+bool aa = false;
+float aa_dist = 40.0f * 40.0f;
+
 bool use_nvidia = false;
 bool active = true;
 bool ready = false;
@@ -478,6 +481,8 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&hip_fov;
 	add[48] = (uintptr_t)&hip_smooth;
 	add[49] = (uintptr_t)&v.skeleton_thickness;
+	add[50] = (uintptr_t)&aa;
+	add[51] = (uintptr_t)&aa_dist;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
