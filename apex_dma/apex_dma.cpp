@@ -70,7 +70,7 @@ bool bhop = false;
 bool walljump = false;
 
 bool aa = false;
-float aa_dist = 40.0f * 40.0f;
+float aa_dist = 1600.0f;
 
 ///////////////////////////
 //Player Glow Color and Brightness.
@@ -534,6 +534,24 @@ if (bhop && SuperKey) {
 			kbutton_t in_attack_button;
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
 			shooting = (in_attack_button.state & 1) != 0;
+
+			// Implement AA shoot/track logic for the right button
+			if (aa && aiming && aimentity != 0)
+			{
+				Entity Target = getEntity(aimentity);
+				if (Target.ptr != 0)
+				{
+					Vector EntityPosition = Target.getPosition();
+					Vector LocalPlayerPosition = LPlayer.getPosition();
+					float dist = LocalPlayerPosition.DistTo(EntityPosition);
+					if (dist <= aa_dist)
+					{
+						// Force shooting state in the game
+						apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
+						shooting = true;
+					}
+				}
+			}
 
 			tmp_spec = 0;
 			tmp_all_spec = 0;

@@ -54,7 +54,7 @@ bool bhop = false;
 bool walljump = false;
 
 bool aa = false;
-float aa_dist = 40.0f * 40.0f;
+float aa_dist = 1600.0f;
 
 bool use_nvidia = false;
 bool active = true;
@@ -643,10 +643,10 @@ int main(int argc, char** argv)
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		aiming = IsKeyDown(aim_key) || IsKeyDown(aim_key2);
+		aiming = IsKeyDown(aim_key2);
 		triggerbot_aiming = triggerbot && IsKeyDown(VK_LSHIFT);
 
-		shooting = IsKeyDown(VK_LBUTTON);
+		shooting = IsKeyDown(aim_key);
 
 	}
 	ready = false;
