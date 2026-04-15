@@ -48,6 +48,8 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
     if (off_data.count("[.Miscellaneous]CBaseAnimating!m_pStudioHdr")) offsets.StudioHdr = off_data["[.Miscellaneous]CBaseAnimating!m_pStudioHdr"];
     if (off_data.count("[.Miscellaneous]InputSystem")) offsets.InputSystem = off_data["[.Miscellaneous]InputSystem"];
     if (off_data.count("[.Miscellaneous]HighlightSettings")) offsets.HighlightSettings = off_data["[.Miscellaneous]HighlightSettings"];
+    if (off_data.count("[.Miscellaneous]observerList")) offsets.ObserverList = off_data["[.Miscellaneous]observerList"];
+    if (off_data.count("[.Miscellaneous]observer_index")) offsets.ObserverArray = off_data["[.Miscellaneous]observer_index"];
 
     if (off_data.count("[RecvTable.DT_BaseEntity]m_iTeamNum")) offsets.Team = off_data["[RecvTable.DT_BaseEntity]m_iTeamNum"];
     if (off_data.count("[RecvTable.DT_Player]m_iHealth")) offsets.Health = off_data["[RecvTable.DT_Player]m_iHealth"];

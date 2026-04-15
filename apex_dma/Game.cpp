@@ -29,16 +29,19 @@ extern int glowtype3;
 bool Entity::Observing(uint64_t localptr)
 {
 	uint64_t SpectatorList;
-	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_OBSERVER_LIST, SpectatorList);
+	uint64_t observer_list_off = (offsets.ObserverList > 0) ? offsets.ObserverList : OFFSET_OBSERVER_LIST;
+	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + observer_list_off, SpectatorList);
 
 	int PlayerData;
 	apex_mem.Read<int>(ptr + 0x38, PlayerData);
 
 	int SpecIndex;
-	apex_mem.Read<int>(SpectatorList + PlayerData * 8 + OFFSET_OBSERVER_ARRAY, SpecIndex);
+	uint64_t observer_array_off = (offsets.ObserverArray > 0) ? offsets.ObserverArray : OFFSET_OBSERVER_ARRAY;
+	apex_mem.Read<int>(SpectatorList + PlayerData * 8 + observer_array_off, SpecIndex);
 
 	uint64_t SpectatorAddr;
-	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + ((SpecIndex & 0xFFFF) << 5), SpectatorAddr);
+	uint64_t entity_list_off = (offsets.EntityList > 0) ? offsets.EntityList : OFFSET_ENTITYLIST;
+	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + entity_list_off + ((SpecIndex & 0xFFFF) << 5), SpectatorAddr);
 
 	if (SpectatorAddr == localptr)
 	{

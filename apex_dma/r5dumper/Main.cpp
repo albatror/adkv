@@ -700,9 +700,10 @@ std::cout << "\n[WeaponSettingsMeta]\n";
 //2026Jan14        580FCC59 CA580FD8 0FD9580F 00809B11 89480000  2A73A11D B58B4906   0011A350 589D8B49   E80011A3 FFFF348E 50B58949 @ a4bad6
                         {"ViewMatrix",                "? ? ? 0F 11 9F ? ? ? ? 48 89 3D ? ? ? ? ? ? ?  u4"},
 //2026Feb10        00C0C60F 0FC5590F 580FCC59 CA580FD8 0FD9580F 00809F11  89480000  0404DC3D B58B4906 0011A350 58BD8B49 E80011A3 @ a5f8b3
-                        {"ObserverList",              "? 48 8B 0D ${'}     48 85 C9 74 ? 48 8B 01 FF ? ? 48 85 C0 74 ? 48 63 4E 38"},
+                        {"observerList",              "? 48 8B 0D ${'}     48 85 C9 74 ? 48 8B 01 FF ? ? 48 85 C0 74 ? 48 63 4E 38"},
 //2025Aug26        059C3DEA 247C8948 DB9E3840 74000041 0D8B4863   059C5DF6 74C98548    018B4857   483050FF  4C74C085   384E6348    C8048D48 @ 8213ea
 //2026Feb10        05BE4C5A 247C8948 939E3840 74000041 0D8B485C   05BE6C66 74C98548    018B4850   483050FF  4574C085   384E6348    64C8848B @ 8672ea
+                        {"observer_index",            "8B 84 C8 u4 83 F8"},
                       //{"m_gameTimescale",           "? C8 48 05 u4       ? ? ? ?  83 F8 ? ?"},
 //2025Aug26        50FF018B C0854830 63484C74 8D48384E 0548C804   00000954 008B2074 74FFF883  F8B70F19 05E7C148 74FD0348 10E8C10D @ 821408
                         {"m_gameTimescale",           "? 8B 84 C8 u4                83 F8 ? ?"},
