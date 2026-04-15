@@ -268,6 +268,10 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Spectator list"), &v.spectator_notifier);
 			ImGui::SameLine();
 			ImGui::Checkbox(XorStr("Info window"), &v.info_window);
+			if (v.info_window) {
+				ImGui::SameLine();
+				ImGui::Checkbox(XorStr("Logo"), &v.info_window_logo);
+			}
 
 			ImGui::Checkbox(XorStr("Target Indicator"), &v.target_indicator);
 			if (v.target_indicator) {
@@ -368,16 +372,19 @@ void Overlay::RenderInfo()
 	ImGui::Unindent(12);
 
 	// Status Row: [Logo]
-	ID3D11ShaderResourceView* statusLogo = ready ? logoGreenTexture : logoRedTexture;
-	if (statusLogo)
+	if (v.info_window_logo)
 	{
-		float logoScale = 0.25f;
-		float scaledWidth = logoWidth * logoScale;
-		float scaledHeight = logoHeight * logoScale;
+		ID3D11ShaderResourceView* statusLogo = ready ? logoGreenTexture : logoRedTexture;
+		if (statusLogo)
+		{
+			float logoScale = 0.25f;
+			float scaledWidth = logoWidth * logoScale;
+			float scaledHeight = logoHeight * logoScale;
 
-		ImGui::SetCursorPosX((windowWidth - scaledWidth) * 0.5f);
-		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
-		ImGui::Image((void*)statusLogo, ImVec2(scaledWidth, scaledHeight));
+			ImGui::SetCursorPosX((windowWidth - scaledWidth) * 0.5f);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
+			ImGui::Image((void*)statusLogo, ImVec2(scaledWidth, scaledHeight));
+		}
 	}
 
 	ImGui::End();

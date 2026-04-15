@@ -83,6 +83,7 @@ void SaveConfig(const std::string& filename) {
     file << "skeleton_thickness " << v.skeleton_thickness << "\n";
     file << "spectator_notifier " << std::boolalpha << v.spectator_notifier << "\n";
     file << "info_window " << std::boolalpha << v.info_window << "\n";
+    file << "info_window_logo " << std::boolalpha << v.info_window_logo << "\n";
     file << "target_indicator " << std::boolalpha << v.target_indicator << "\n";
     file << "target_indicator_fov " << v.target_indicator_fov << "\n";
     file << "glowr " << glowr << "\n";
@@ -149,6 +150,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "skeleton_thickness") ss >> v.skeleton_thickness;
         else if (key == "spectator_notifier") ss >> std::boolalpha >> v.spectator_notifier;
         else if (key == "info_window") ss >> std::boolalpha >> v.info_window;
+        else if (key == "info_window_logo") ss >> std::boolalpha >> v.info_window_logo;
         else if (key == "target_indicator") ss >> std::boolalpha >> v.target_indicator;
         else if (key == "target_indicator_fov") ss >> v.target_indicator_fov;
         else if (key == "glowr") ss >> glowr;
