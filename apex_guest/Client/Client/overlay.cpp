@@ -31,6 +31,9 @@ extern bool firing_range;
 extern bool triggerbot;
 extern float triggerbot_fov;
 
+extern bool aassist;
+extern float aassist_dist;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -189,6 +192,8 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
+			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
+
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Misc")))
@@ -221,6 +226,11 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("##hip_smooth"), &hip_smooth, 1.0f, 1000.0f, "%.2f");
 			ImGui::Text(XorStr("Hipfire FOV:"));
 			ImGui::SliderFloat(XorStr("##hip_fov"), &hip_fov, 1.0f, 50.0f, "%.2f");
+
+			ImGui::Text(XorStr("AAssist Distance:"));
+			ImGui::SliderFloat(XorStr("##aassist_dist"), &aassist_dist, 100.0f * 40, 800.0f * 40, "%.2f");
+			ImGui::SameLine();
+			ImGui::Text("%d meters", (int)(aassist_dist / 40));
 
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
