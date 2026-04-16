@@ -1180,8 +1180,7 @@ client_mem.Read<uint32_t>(check_addr, check);
 if (check != 0xABCD)
 {
     printf("Incorrect values read. Check if the add_off is correct. Quitting.\n");
-    active = false;
-    return;
+    GracefulExit();
 }
 
 bool new_client = true;
@@ -1477,12 +1476,11 @@ int main(int argc, char *argv[])
 				stuff_t = false;
 				g_Base = 0;
 
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				itemglow_thr.~thread();
-				stuffbot_thr.~thread();
-
+				if (aimbot_thr.joinable()) aimbot_thr.detach();
+				if (esp_thr.joinable()) esp_thr.detach();
+				if (actions_thr.joinable()) actions_thr.detach();
+				if (itemglow_thr.joinable()) itemglow_thr.detach();
+				if (stuffbot_thr.joinable()) stuffbot_thr.detach();
 			}
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1529,7 +1527,7 @@ int main(int argc, char *argv[])
 				vars_t = false;
 				c_Base = 0;
 
-				vars_thr.~thread();
+				if (vars_thr.joinable()) vars_thr.detach();
 			}
 			
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1543,8 +1541,30 @@ int main(int argc, char *argv[])
 				printf("\nClient process found\n");
 				printf("Base: %lx\n", c_Base);
 
-				vars_thr = std::thread(set_vars, c_Base + add_off);
+			uint64_t target_add_addr = 0;
+			if (add_off != 0) {
+				target_add_addr = c_Base + add_off;
+			} else {
+				printf("Scanning for client vars...\n");
+				// Scan for 0xABCD magic value
+				for (uint64_t i = 0; i < 0x10000000; i += 8) {
+					uint32_t val = 0;
+					if (client_mem.Read<uint32_t>(c_Base + i, val)) {
+						if (val == 0xABCD) {
+							target_add_addr = c_Base + i;
+							printf("Found client vars at offset: %lx\n", i);
+							break;
+						}
+					}
+				}
+			}
+
+			if (target_add_addr != 0) {
+				vars_thr = std::thread(set_vars, target_add_addr);
 				vars_thr.detach();
+			} else {
+				printf("Failed to find client vars. Check add_off.\n");
+			}
 			}
 		}
 		else
