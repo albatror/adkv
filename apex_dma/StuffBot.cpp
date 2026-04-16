@@ -62,6 +62,7 @@ void StuffBotLoop()
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
             int ent_count = firing_range ? 10000 : 1000;
             static std::unordered_map<uint64_t, float> last_crosshair_times;
+            static std::unordered_map<uint64_t, float> last_visible_times;
 
             for (int i = 0; i < ent_count; i++) {
                 uint64_t centity = 0;
@@ -73,27 +74,35 @@ void StuffBotLoop()
 
                 if (last_crosshair_times.find(centity) == last_crosshair_times.end()) {
                     last_crosshair_times[centity] = now_crosshair_target_time;
+                    float vis_time = 0;
+                    apex_mem.Read<float>(centity + OFFSET_VISIBLE_TIME, vis_time);
+                    last_visible_times[centity] = vis_time;
                     continue;
                 }
 
                 if (now_crosshair_target_time > last_crosshair_times[centity]) {
                     // Possible target detected by crosshair, now perform detailed checks
-                    int health = 0;
-                    apex_mem.Read<int>(centity + OFFSET_HEALTH, health);
-                    if (health <= 0) {
+                    Entity Target = getEntity(centity);
+                    if (!Target.isAlive() || (Target.isKnocked() && !firing_range)) {
                         last_crosshair_times[centity] = now_crosshair_target_time;
                         continue;
                     }
 
-                    int team = 0;
-                    apex_mem.Read<int>(centity + OFFSET_TEAM, team);
-                    if (team == LPlayer.getTeamId() && !firing_range) {
+                    // Visibility check
+                    float now_visible_time = 0;
+                    apex_mem.Read<float>(centity + OFFSET_VISIBLE_TIME, now_visible_time);
+                    if (now_visible_time <= last_visible_times[centity] && !firing_range) {
+                        last_crosshair_times[centity] = now_crosshair_target_time;
+                        continue;
+                    }
+                    last_visible_times[centity] = now_visible_time;
+
+                    if (Target.getTeamId() == LPlayer.getTeamId() && !firing_range) {
                         last_crosshair_times[centity] = now_crosshair_target_time;
                         continue;
                     }
 
                     // Check FOV using head bone for better accuracy
-                    Entity Target = getEntity(centity);
                     Vector HeadPos = Target.getBonePositionByHitbox(0);
                     if (HeadPos.IsZero()) {
                         last_crosshair_times[centity] = now_crosshair_target_time;
@@ -141,6 +150,7 @@ void StuffBotLoop()
                         TriggerBotRun(true);
                         trigger_again_time = now + std::chrono::milliseconds(80);
                         last_crosshair_times[centity] = now_crosshair_target_time;
+                        last_visible_times[centity] = now_visible_time;
                         break;
                     }
                     // Responsive logic: only update last_crosshair_times if the target is invalid or we shot.

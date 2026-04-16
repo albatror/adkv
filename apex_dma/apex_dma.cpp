@@ -230,7 +230,9 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (entity_team < 0 || entity_team > 50 || entity_team == team_player)
 			return;
 	
-	bool visible = (target.lastVisTime() > lastvis_aim[index]);
+	bool visible = false;
+	if (index >= 0 && index < toRead)
+		visible = (target.lastVisTime() > lastvis_aim[index]);
 
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
@@ -254,7 +256,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	{
 		// Stick to target
 	}
-	else if (aim == 2)
+	else if (aim == 2 || triggerbot_aiming)
 	{
 		if (visible && fov <= active_fov && dist <= active_dist)
 		{
@@ -286,7 +288,8 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	////
 	SetPlayerGlow(LPlayer, target, index);
 	////
-	lastvis_aim[index] = target.lastVisTime();
+	if (index >= 0 && index < toRead)
+		lastvis_aim[index] = target.lastVisTime();
 }
 
 //walljump +//////////////////////////////////////
@@ -947,9 +950,9 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || triggerbot_aiming)
 			{
-				if (aimentity == 0 || !aiming)
+				if (aimentity == 0 || (!aiming && !triggerbot_aiming))
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -983,6 +986,9 @@ static void AimbotLoop()
 				float current_smooth = is_zooming ? ads_smooth : hip_smooth;
 				float current_max_fov = is_zooming ? ads_fov : hip_fov;
 
+				if (triggerbot_aiming && triggerbot_fov > current_max_fov)
+					current_max_fov = triggerbot_fov;
+
 				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
 				if (elapsed < 500) {
 					current_smooth *= 2.0f;
@@ -1001,7 +1007,7 @@ static void AimbotLoop()
 					continue;
 				}
 
-				if (aim == 2 && !is_aimentity_visible)
+				if ((aim == 2 || triggerbot_aiming) && !is_aimentity_visible)
 				{
 					continue;
 				}
