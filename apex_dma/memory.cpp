@@ -5,6 +5,76 @@
 
 static std::recursive_mutex static_m;
 
+static uint64_t g_mm_pfn_database = 0;
+static uint64_t g_pte_base = 0;
+static uint64_t g_pxe_base = 0;
+static uint64_t g_index_offset = 0;
+
+bool GetKernelInfo(uint64_t& base, uint32_t& size)
+{
+	ModuleInfo info;
+	if (kernel && kernel.get()->vtbl_os && kernel.get()->module_by_name("ntoskrnl.exe", &info) == 0)
+	{
+		base = info.base;
+		size = (uint32_t)info.size;
+		return true;
+	}
+	return false;
+}
+
+bool InitializePfnData()
+{
+	if (g_mm_pfn_database && g_pxe_base) return true;
+
+	uint64_t ntos_base;
+	uint32_t ntos_size;
+	if (!GetKernelInfo(ntos_base, ntos_size)) return false;
+
+	uint8_t* buffer = (uint8_t*)malloc(ntos_size);
+	if (!buffer) return false;
+
+	if (kernel.get()->read_raw_into(ntos_base, CSliceMut<uint8_t>((char*)buffer, ntos_size)) != 0)
+	{
+		free(buffer);
+		return false;
+	}
+
+	// Signature for MmPteBase (Win10/11)
+	size_t pte_base_off = findPattern(buffer, ntos_size, "48 8B 05 ? ? ? ? 48 8B 00 48 8B 00 48 89 05");
+	if (pte_base_off != -1)
+	{
+		int32_t rel = *(int32_t*)(buffer + pte_base_off + 3);
+		uint64_t pte_base_ptr = ntos_base + pte_base_off + 7 + rel;
+		kernel.get()->read_raw_into(pte_base_ptr, CSliceMut<uint8_t>((char*)&g_pte_base, 8));
+
+		if (g_pte_base)
+		{
+			uint64_t pde_base = g_pte_base + ((g_pte_base & 0xffffffffffffULL) >> 9);
+			uint64_t ppe_base = g_pte_base + ((pde_base & 0xffffffffffffULL) >> 9);
+			g_pxe_base = g_pte_base + ((ppe_base & 0xffffffffffffULL) >> 9);
+			g_index_offset = (g_pte_base >> 39) - 0x1FFFE00ULL;
+		}
+	}
+
+	// Signature for MmPfnDatabase (Win10/11)
+	size_t pfn_db_off = findPattern(buffer, ntos_size, "48 8B 05 ? ? ? ? 48 83 C0 08 48 89 05");
+	if (pfn_db_off == -1)
+	{
+		// Alternate signature
+		pfn_db_off = findPattern(buffer, ntos_size, "48 8B 05 ? ? ? ? 48 03 C0 48 8B 00 48 8B 00");
+	}
+
+	if (pfn_db_off != -1)
+	{
+		int32_t rel = *(int32_t*)(buffer + pfn_db_off + 3);
+		uint64_t pfn_db_ptr = ntos_base + pfn_db_off + 7 + rel;
+		kernel.get()->read_raw_into(pfn_db_ptr, CSliceMut<uint8_t>((char*)&g_mm_pfn_database, 8));
+	}
+
+	free(buffer);
+	return g_mm_pfn_database != 0 && g_pxe_base != 0;
+}
+
 // Credits: learn_more, stevemk14ebr
 size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
 {
@@ -265,6 +335,59 @@ bool Memory::IsMovedByEAC(uint64_t pml4eAddr, uint64_t pml4eContent)
 	return (pml4eAddr & 0xff0000) == (pml4eContent & 0xff0000) && ((pml4eContent >> 48) & 0xffff) == 0;
 }
 
+uint64_t Memory::GetPfnDtb(uint64_t eprocess_ptr)
+{
+	std::lock_guard<std::recursive_mutex> l(static_m);
+	if (!kernel || !conn) return 0;
+
+	if (!g_mm_pfn_database || !g_pxe_base)
+	{
+		InitializePfnData();
+	}
+
+	if (!g_mm_pfn_database || !g_pxe_base) return 0;
+
+	const uint64_t cr3_pte = g_index_offset * 8 + g_pxe_base;
+
+	PhysicalMemoryMetadata meta = conn.get()->metadata();
+	uint64_t search_limit = meta.max_address;
+	if (search_limit > MAX_PHYADDR) search_limit = MAX_PHYADDR;
+
+	printf("[*] Searching PFN database for EPROCESS 0x%lx (cr3_pte: 0x%lx)...\n", eprocess_ptr, cr3_pte);
+	auto start = std::chrono::high_resolution_clock::now();
+
+	const size_t entries_per_chunk = 4096;
+	std::vector<_MMPFN> chunk(entries_per_chunk);
+
+	for (uint64_t pfn_start = 0; pfn_start < (search_limit >> 12); pfn_start += entries_per_chunk)
+	{
+		uint64_t chunk_ptr = g_mm_pfn_database + sizeof(_MMPFN) * pfn_start;
+		if (kernel.get()->read_raw_into(chunk_ptr, CSliceMut<uint8_t>((char*)chunk.data(), sizeof(_MMPFN) * entries_per_chunk)) != 0)
+			continue;
+
+		for (size_t i = 0; i < entries_per_chunk; i++)
+		{
+			if (chunk[i].pte_address == cr3_pte)
+			{
+				uint64_t eproc_candidate = (((chunk[i].flags | 0xF000000000000000ULL) >> 0xD) | 0xFFFF000000000000ULL);
+				if (eproc_candidate == eprocess_ptr)
+				{
+					uint64_t dtb = (pfn_start + i) << 12;
+					if (testDtbValue(dtb))
+					{
+						auto end_time = std::chrono::high_resolution_clock::now();
+						auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start);
+						printf("[+] Found DTB via PFN: 0x%lx, time: %ldms\n", dtb, duration.count());
+						return dtb;
+					}
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
 uint64_t Memory::TranslateVirtualToPhysical(uint64_t dtb, uint64_t virtualAddr)
 {
 	dtb &= ~0xf;
@@ -390,8 +513,13 @@ void Memory::open_proc(const char *name)
 		}
 	}
 
-	// If standard failed or module not found (EAC protection), use PML4 scanner
-	uint64_t found_dtb = scanPml4();
+	// If standard failed or module not found (EAC protection), try PFN resolver then PML4 scanner
+	uint64_t found_dtb = GetPfnDtb(info.address);
+	if (found_dtb == 0)
+	{
+		found_dtb = scanPml4();
+	}
+
 	if (found_dtb)
 	{
 		info.dtb1 = found_dtb;
