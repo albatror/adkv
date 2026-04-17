@@ -52,6 +52,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool debug = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -478,6 +479,7 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&hip_fov;
 	add[48] = (uintptr_t)&hip_smooth;
 	add[49] = (uintptr_t)&v.skeleton_thickness;
+	add[50] = (uintptr_t)&debug;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

@@ -40,6 +40,7 @@ extern bool triggerbot;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool debug;
 extern float triggerbot_fov;
 extern visuals v;
 
@@ -106,6 +107,7 @@ void SaveConfig(const std::string& filename) {
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
+    file << "debug " << std::boolalpha << debug << "\n";
     file << "triggerbot_fov " << triggerbot_fov << "\n";
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "ads_fov_circle " << std::boolalpha << v.ads_fov_circle << "\n";
@@ -173,6 +175,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;
+        else if (key == "debug") ss >> std::boolalpha >> debug;
         else if (key == "triggerbot_fov") ss >> triggerbot_fov;
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "ads_fov_circle") ss >> std::boolalpha >> v.ads_fov_circle;

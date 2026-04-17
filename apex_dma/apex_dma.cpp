@@ -68,6 +68,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool debug = false;
 
 ///////////////////////////
 //Player Glow Color and Brightness.
@@ -287,6 +288,12 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	SetPlayerGlow(LPlayer, target, index);
 	////
 	lastvis_aim[index] = target.lastVisTime();
+
+	if (debug)
+	{
+		printf("Player[%d] dist: %.2f team: %d visible: %d fov: %.2f health: %d\n",
+			index, dist, entity_team, visible, fov, target.getHealth());
+	}
 }
 
 //walljump +//////////////////////////////////////
@@ -312,6 +319,7 @@ void DoActions()
 
 		while (g_Base != 0 && c_Base != 0)
 		{
+			if (debug) printf("Actions loop running. LocalPlayer: 0x%lx\n", g_Base + OFFSET_LOCAL_ENT);
 			std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
 			uint64_t LocalPlayer = 0;
@@ -1174,6 +1182,9 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
 uint64_t skeleton_thickness_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
+uint64_t debug_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, debug_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1292,6 +1303,8 @@ while (vars_t)
         if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
+
+        if (debug_addr) client_mem.Read<bool>(debug_addr, debug);
 
         if (esp && next)
         {
