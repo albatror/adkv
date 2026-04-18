@@ -193,7 +193,6 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
-			ImGui::Checkbox(XorStr("Debug mode"), &debug);
 
 			ImGui::EndTabItem();
 		}

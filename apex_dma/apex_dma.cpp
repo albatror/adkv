@@ -42,7 +42,6 @@ Vector player_last_pos[toRead];
 float player_last_time[toRead];
 Vector player_velocity[toRead];
 float vel_multiplier = 1.4f;
-bool debug = false;
 
 int aim = false;
 bool esp = false;
@@ -230,9 +229,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			}
 		}
 
-		if (debug && target.ptr == aimentity) {
-			printf("Target Vel: %.2f %.2f %.2f | Speed: %.2f\n", player_velocity[index].x, player_velocity[index].y, player_velocity[index].z, player_velocity[index].Length());
-		}
 	}
 	
 	if (!target.isAlive())
@@ -1222,20 +1218,17 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
 uint64_t skeleton_thickness_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
-uint64_t debug_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, debug_addr);
-
 uint64_t vel_multiplier_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, vel_multiplier_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, vel_multiplier_addr);
 
 uint64_t aassist_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_addr);
 
 uint64_t aassist_dist_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aassist_dist_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_dist_addr);
 
 uint64_t aassist_aiming_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, aassist_aiming_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aassist_aiming_addr);
 
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
@@ -1356,7 +1349,6 @@ while (vars_t)
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
 
-        if (debug_addr) client_mem.Read<bool>(debug_addr, debug);
         if (vel_multiplier_addr) client_mem.Read<float>(vel_multiplier_addr, vel_multiplier);
 
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
