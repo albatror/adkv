@@ -60,6 +60,10 @@ int grappleAttached;
 //Firing Range 1v1 toggle
 bool onevone = false;
 
+bool aassist = false;
+float aassist_dist = 50.0f * 40.0f;
+bool aassist_aiming = false;
+
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
@@ -242,7 +246,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	}
 
 	float active_fov = LPlayer.isZooming() ? ads_fov : hip_fov;
-	float active_dist = aim_dist;
+	float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
 
 	if (triggerbot) {
 		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
@@ -949,7 +953,8 @@ static void AimbotLoop()
 
 			if (aim > 0)
 			{
-				if (aimentity == 0 || !aiming)
+				bool is_aiming = aiming || (aassist && aassist_aiming);
+				if (aimentity == 0 || !is_aiming)
 				{
 					lock = false;
 					lastaimentity = 0;
@@ -990,7 +995,10 @@ static void AimbotLoop()
 
 
 				float fov = CalculateFov(LPlayer, Target);
-				if (fov > current_max_fov)
+				float dist = LPlayer.getPosition().DistTo(Target.getPosition());
+				float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
+
+				if (fov > current_max_fov || dist > active_dist)
 				{
 					if (!shooting) {
 						lock = false;
@@ -1174,6 +1182,15 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
 uint64_t skeleton_thickness_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
+uint64_t aassist_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, aassist_addr);
+
+uint64_t aassist_dist_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
+
+uint64_t aassist_aiming_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1292,6 +1309,10 @@ while (vars_t)
         if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
+
+        if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
+        if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
+        if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
 
         if (esp && next)
         {

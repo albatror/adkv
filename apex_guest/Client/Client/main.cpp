@@ -73,6 +73,10 @@ float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
 
+bool aassist = false;
+float aassist_dist = 50.0f * 40.0f;
+bool aassist_aiming = false;
+
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
@@ -478,6 +482,9 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&hip_fov;
 	add[48] = (uintptr_t)&hip_smooth;
 	add[49] = (uintptr_t)&v.skeleton_thickness;
+	add[50] = (uintptr_t)&aassist;
+	add[51] = (uintptr_t)&aassist_dist;
+	add[52] = (uintptr_t)&aassist_aiming;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -638,10 +645,12 @@ int main(int argc, char** argv)
 		}
 
 		////////////////////////////////////NORMAL AIM & BUTTON///////////////////////////////////////
-		aiming = IsKeyDown(aim_key) || IsKeyDown(aim_key2);
+		aiming = IsKeyDown(aim_key);
+		aassist_aiming = aassist && IsKeyDown(aim_key2);
 		triggerbot_aiming = triggerbot && IsKeyDown(VK_LSHIFT);
 
-		shooting = IsKeyDown(VK_LBUTTON);
+		// Shooting can be triggered by either left or right mouse button
+		shooting = IsKeyDown(VK_LBUTTON) || IsKeyDown(VK_RBUTTON);
 
 	}
 	ready = false;
