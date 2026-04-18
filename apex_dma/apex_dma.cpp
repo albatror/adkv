@@ -36,8 +36,14 @@ float ads_fov = 3.0f;
 float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
+float vel_multiplier = 1.4f;
 
-const int toRead = 100;
+extern const int toRead = 100;
+
+Vector player_velocity[toRead];
+Vector player_last_pos[toRead];
+float player_last_time[toRead];
+uint64_t player_ptr[toRead];
 
 int aim = false;
 bool esp = false;
@@ -199,6 +205,32 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index, uint64_t spectated_ptr)
 {
 	int entity_team = target.getTeamId();
+
+	// Manual Velocity Calculation
+	if (index >= 0 && index < toRead)
+	{
+		if (player_ptr[index] != target.ptr)
+		{
+			player_ptr[index] = target.ptr;
+			player_last_time[index] = 0;
+			player_last_pos[index] = Vector(0, 0, 0);
+			player_velocity[index] = Vector(0, 0, 0);
+		}
+
+		float current_time = *(float*)(target.buffer + OFFSET_TIME_BASE);
+		Vector current_pos = target.getPosition();
+
+		if (player_last_time[index] != 0)
+		{
+			float time_delta = current_time - player_last_time[index];
+			if (time_delta > 0.0f && time_delta < 1.0f)
+			{
+				player_velocity[index] = (current_pos - player_last_pos[index]) / time_delta;
+			}
+		}
+		player_last_pos[index] = current_pos;
+		player_last_time[index] = current_time;
+	}
 	
 	if (!target.isAlive())
 	{
@@ -1174,6 +1206,9 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
 uint64_t skeleton_thickness_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
+uint64_t vel_multiplier_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, vel_multiplier_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1292,6 +1327,7 @@ while (vars_t)
         if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
+        if (vel_multiplier_addr) client_mem.Read<float>(vel_multiplier_addr, vel_multiplier);
 
         if (esp && next)
         {

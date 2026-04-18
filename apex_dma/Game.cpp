@@ -582,12 +582,27 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	//more accurate prediction
 	if (BulletSpeed > 1.f)
 	{
+		extern float vel_multiplier;
+		extern Vector player_velocity[];
+		extern const int toRead;
+
 		PredictCtx Ctx;
 		Ctx.StartPos = LocalCamera;
 		Ctx.TargetPos = TargetBonePosition; 
 		Ctx.BulletSpeed = BulletSpeed - (BulletSpeed*0.08);
 		Ctx.BulletGravity = BulletGrav + (BulletGrav*0.05);
-		Ctx.TargetVel = target.getAbsVelocity();
+
+		Vector velocity = target.getAbsVelocity();
+		// Find index of target to use calculated velocity if possible
+		extern uint64_t player_ptr[];
+		for (int i = 0; i < toRead; i++) {
+			if (player_ptr[i] == t) {
+				velocity = player_velocity[i];
+				break;
+			}
+		}
+
+		Ctx.TargetVel = velocity * vel_multiplier;
 
 		if (BulletPredict(Ctx))
 			CalculatedAngles = QAngle{Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f};

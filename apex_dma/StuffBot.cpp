@@ -123,7 +123,20 @@ void StuffBotLoop()
                             // Scale bullet speed and gravity for prediction offset
                             Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
                             Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
-                            Ctx.TargetVel = Target.getAbsVelocity();
+
+                            extern float vel_multiplier;
+                            extern Vector player_velocity[];
+                            extern const int toRead;
+
+                            Vector velocity = Target.getAbsVelocity();
+                            extern uint64_t player_ptr[];
+                            for (int idx = 0; idx < toRead; idx++) {
+                                if (player_ptr[idx] == centity) {
+                                    velocity = player_velocity[idx];
+                                    break;
+                                }
+                            }
+                            Ctx.TargetVel = velocity * vel_multiplier;
 
                             if (BulletPredict(Ctx)) {
                                 QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };

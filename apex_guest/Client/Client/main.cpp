@@ -73,6 +73,8 @@ float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
 
+float vel_multiplier = 1.4f;
+
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
@@ -478,6 +480,7 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&hip_fov;
 	add[48] = (uintptr_t)&hip_smooth;
 	add[49] = (uintptr_t)&v.skeleton_thickness;
+	add[51] = (uintptr_t)&vel_multiplier;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
