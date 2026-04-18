@@ -166,10 +166,15 @@ struct InState
 
 ///////////////////////////////////
 
+const int toRead = 100;
+extern uint64_t player_ptr[toRead];
+extern Vector player_velocity[toRead];
+extern float vel_multiplier;
+
 Entity getEntity(uintptr_t ptr);
 Item getItem(uintptr_t ptr);
 bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHeight, Vector& to);
 float CalculateFov(Entity& from, Entity& target);
-QAngle CalculateBestBoneAim(Entity& from, uintptr_t target, float max_fov, float smoothing);
+QAngle CalculateBestBoneAim(Entity& from, uintptr_t target, float max_fov, float smoothing, int index = -1);
 void get_class_name(uint64_t entity_ptr, char* out_str);
 void charge_rifle_hack(uint64_t entity_ptr);

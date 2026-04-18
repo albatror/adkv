@@ -513,7 +513,7 @@ float CalculateFov(Entity& from, Entity& target)
 	return Math::GetFov(ViewAngles, Angle);
 }
 
-QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing)
+QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing, int index)
 {
 	Entity target = getEntity(t);
 	if(firing_range)
@@ -587,7 +587,15 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 		Ctx.TargetPos = TargetBonePosition; 
 		Ctx.BulletSpeed = BulletSpeed - (BulletSpeed*0.08);
 		Ctx.BulletGravity = BulletGrav + (BulletGrav*0.05);
-		Ctx.TargetVel = target.getAbsVelocity();
+
+		Vector manual_vel = Vector(0, 0, 0);
+		if (index >= 0 && index < toRead && player_ptr[index] == t) {
+			manual_vel = player_velocity[index] * vel_multiplier;
+		}
+		else {
+			manual_vel = target.getAbsVelocity();
+		}
+		Ctx.TargetVel = manual_vel;
 
 		if (BulletPredict(Ctx))
 			CalculatedAngles = QAngle{Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f};

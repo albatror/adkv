@@ -37,7 +37,12 @@ float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
 
-const int toRead = 100;
+uint64_t player_ptr[toRead];
+Vector player_last_pos[toRead];
+float player_last_time[toRead];
+Vector player_velocity[toRead];
+float vel_multiplier = 1.4f;
+bool debug = false;
 
 int aim = false;
 bool esp = false;
@@ -203,6 +208,32 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int index, uint64_t spectated_ptr)
 {
 	int entity_team = target.getTeamId();
+
+	if (index >= 0 && index < toRead) {
+		float worldtime = 0;
+		apex_mem.Read<float>(target.ptr + OFFSET_TIME_BASE, worldtime);
+
+		if (player_ptr[index] != target.ptr) {
+			player_ptr[index] = target.ptr;
+			player_last_pos[index] = target.getPosition();
+			player_last_time[index] = worldtime;
+			player_velocity[index] = Vector(0, 0, 0);
+		}
+		else {
+			float delta_time = worldtime - player_last_time[index];
+			if (delta_time > 0.0f && delta_time < 1.0f) {
+				Vector current_pos = target.getPosition();
+				Vector delta_pos = current_pos - player_last_pos[index];
+				player_velocity[index] = delta_pos / delta_time;
+				player_last_pos[index] = current_pos;
+				player_last_time[index] = worldtime;
+			}
+		}
+
+		if (debug && target.ptr == aimentity) {
+			printf("Target Vel: %.2f %.2f %.2f | Speed: %.2f\n", player_velocity[index].x, player_velocity[index].y, player_velocity[index].z, player_velocity[index].Length());
+		}
+	}
 	
 	if (!target.isAlive())
 	{
@@ -569,6 +600,7 @@ if (bhop && SuperKey) {
 
 					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
 					c++;
+						if (c >= toRead) break;
 				}
 			}
 			else
@@ -1014,7 +1046,15 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, current_max_fov, current_smooth);
+				int target_idx = -1;
+				for (int i = 0; i < toRead; i++) {
+					if (player_ptr[i] == aimentity) {
+						target_idx = i;
+						break;
+					}
+				}
+
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, current_max_fov, current_smooth, target_idx);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
@@ -1182,14 +1222,20 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 48, hip_smooth_addr);
 uint64_t skeleton_thickness_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 49, skeleton_thickness_addr);
 
+uint64_t debug_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, debug_addr);
+
+uint64_t vel_multiplier_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, vel_multiplier_addr);
+
 uint64_t aassist_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 50, aassist_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_addr);
 
 uint64_t aassist_dist_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aassist_dist_addr);
 
 uint64_t aassist_aiming_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, aassist_aiming_addr);
 
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
@@ -1309,6 +1355,9 @@ while (vars_t)
         if (hip_smooth_addr) client_mem.Read<float>(hip_smooth_addr, hip_smooth);
 
         if (skeleton_thickness_addr) client_mem.Read<float>(skeleton_thickness_addr, skeleton_thickness);
+
+        if (debug_addr) client_mem.Read<bool>(debug_addr, debug);
+        if (vel_multiplier_addr) client_mem.Read<float>(vel_multiplier_addr, vel_multiplier);
 
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
