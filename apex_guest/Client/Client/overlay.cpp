@@ -193,6 +193,7 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
+			ImGui::Checkbox(XorStr("Debug mode"), &debug);
 
 			ImGui::EndTabItem();
 		}
@@ -231,6 +232,9 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("##aassist_dist"), &aassist_dist, 1.0f * 40, 150.0f * 40, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(aassist_dist / 40));
+
+			ImGui::Text(XorStr("Aim Velocity Multiplier:"));
+			ImGui::SliderFloat(XorStr("##vel_multiplier"), &vel_multiplier, 0.0f, 10.0f, "%.2f");
 
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
