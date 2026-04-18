@@ -649,7 +649,8 @@ int main(int argc, char** argv)
 		aassist_aiming = aassist && IsKeyDown(aim_key2);
 		triggerbot_aiming = triggerbot && IsKeyDown(VK_LSHIFT);
 
-		shooting = IsKeyDown(VK_LBUTTON);
+		// Shooting can be triggered by either left or right mouse button
+		shooting = IsKeyDown(VK_LBUTTON) || IsKeyDown(VK_RBUTTON);
 
 	}
 	ready = false;
