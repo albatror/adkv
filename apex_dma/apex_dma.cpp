@@ -223,20 +223,13 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 		if (player_last_time[index] != 0)
 		{
 			float time_delta = current_time - player_last_time[index];
-			if (time_delta > 0.0f)
+			if (time_delta > 0.0f && time_delta < 1.0f)
 			{
-				if (time_delta < 1.0f)
-					player_velocity[index] = (current_pos - player_last_pos[index]) / time_delta;
-
-				player_last_pos[index] = current_pos;
-				player_last_time[index] = current_time;
+				player_velocity[index] = (current_pos - player_last_pos[index]) / time_delta;
 			}
 		}
-		else
-		{
-			player_last_pos[index] = current_pos;
-			player_last_time[index] = current_time;
-		}
+		player_last_pos[index] = current_pos;
+		player_last_time[index] = current_time;
 	}
 	
 	if (!target.isAlive())
