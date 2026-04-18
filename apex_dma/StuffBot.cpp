@@ -125,15 +125,18 @@ void StuffBotLoop()
                             Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
 
                             extern float vel_multiplier;
+                            extern bool vel_manual;
                             extern Vector player_velocity[];
                             extern const int toRead;
 
                             Vector velocity = Target.getAbsVelocity();
-                            extern uint64_t player_ptr[];
-                            for (int idx = 0; idx < toRead; idx++) {
-                                if (player_ptr[idx] == centity) {
-                                    velocity = player_velocity[idx];
-                                    break;
+                            if (vel_manual) {
+                                extern uint64_t player_ptr[];
+                                for (int idx = 0; idx < toRead; idx++) {
+                                    if (player_ptr[idx] == centity) {
+                                        velocity = player_velocity[idx];
+                                        break;
+                                    }
                                 }
                             }
                             Ctx.TargetVel = velocity * vel_multiplier;

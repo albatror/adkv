@@ -224,6 +224,7 @@ void Overlay::RenderMenu()
 
 			ImGui::Text(XorStr("Aim Velocity Multiplier:"));
 			ImGui::SliderFloat(XorStr("##vel_multiplier"), &vel_multiplier, 1.0f, 2.0f, "%.2f");
+			ImGui::Checkbox(XorStr("Manual Velocity Calculation"), &vel_manual);
 
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);

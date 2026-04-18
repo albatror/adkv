@@ -42,6 +42,7 @@ extern bool bhop;
 extern bool walljump;
 extern float triggerbot_fov;
 extern float vel_multiplier;
+extern bool vel_manual;
 extern visuals v;
 
 // Helper to trim strings
@@ -74,6 +75,7 @@ void SaveConfig(const std::string& filename) {
     file << "hip_fov " << hip_fov << "\n";
     file << "hip_smooth " << hip_smooth << "\n";
     file << "vel_multiplier " << vel_multiplier << "\n";
+    file << "vel_manual " << std::boolalpha << vel_manual << "\n";
     file << "bone " << bone << "\n";
     file << "healthbar " << std::boolalpha << v.healthbar << "\n";
     file << "shieldbar " << std::boolalpha << v.shieldbar << "\n";
@@ -142,6 +144,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "hip_fov") ss >> hip_fov;
         else if (key == "hip_smooth") ss >> hip_smooth;
         else if (key == "vel_multiplier") ss >> vel_multiplier;
+        else if (key == "vel_manual") ss >> std::boolalpha >> vel_manual;
         else if (key == "bone") ss >> bone;
         else if (key == "healthbar") ss >> std::boolalpha >> v.healthbar;
         else if (key == "shieldbar") ss >> std::boolalpha >> v.shieldbar;

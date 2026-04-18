@@ -10,3 +10,4 @@ extern float ads_smooth;
 extern float hip_fov;
 extern float hip_smooth;
 extern float vel_multiplier;
+extern bool vel_manual;
