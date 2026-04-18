@@ -47,7 +47,7 @@ GameVersion v3.0.2.49
 ## 💻 Requirements
 
 ### Host (Linux)
-- **Supported Distros:** Fedora, Ubuntu, Proxmox.
+- **Supported Distros:** Fedora, Ubuntu, Debian, Proxmox.
 - **Hardware:** Second PC or KVM-compatible setup for DMA.
 - **Dependencies:** Cargo, Rust, Memflow.
 
@@ -130,3 +130,20 @@ GameVersion v3.0.2.49
 
 ---
 *Credits to the Memflow team and all contributors, Y33Tcoder, MisterY, Gerosity, ApexCV, KrackerCo, caochuang, and more... .*
+
+
+
+## ⚠️ FAQ
+- **set up memflow
+Quote:
+i can't set up memflow can you help me Warning: unrecognized protocol ''=https''
+Hey, your shell strips quotes incorrectly
+or you're on a slightly different curl version / environment (common on some Linux setups, WSL, or minimal distros)
+
+Just remove the problematic --proto part:
+
+curl -sSf https://sh.memflow.io/ | sh
+
+And same for Rust:
+
+curl -sSf https://sh.rustup.rs | sh and test it
