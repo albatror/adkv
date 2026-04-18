@@ -74,7 +74,6 @@ float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
 
 float vel_multiplier = 1.4f;
-bool vel_manual = true;
 
 int bone = 2;
 // Declare constants for key detection
@@ -482,7 +481,6 @@ int main(int argc, char** argv)
 	add[48] = (uintptr_t)&hip_smooth;
 	add[49] = (uintptr_t)&v.skeleton_thickness;
 	add[51] = (uintptr_t)&vel_multiplier;
-	add[52] = (uintptr_t)&vel_manual;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
