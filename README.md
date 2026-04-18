@@ -76,7 +76,7 @@ GameVersion v3.0.2.49
     Install memflow:
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.memflow.io/ | sh
-    sudo modprobe memflow
+    sudo modprobe memflow (necessary at start of host, you can add to cron)
     ```
 
 4.  **Initial Build:**
