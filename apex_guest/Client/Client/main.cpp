@@ -2,12 +2,19 @@
 #include "config.h"
 #include <random>
 #include <Windows.h>
+#include <SetupAPI.h>
+#include <devguid.h>
+#include <numeric>
+#include <algorithm>
+#include <cctype>
 //#include <chrono>
 //test
 #include <string>
 #include <vector>
 #include <fstream>
 #include <iostream>
+
+#pragma comment(lib, "setupapi.lib")
 //test contraste texte
 #include ".\imgui\imgui.h"
 
@@ -92,6 +99,10 @@ bool update_offsets = false;
 
 //1v1
 bool onevone = false;
+
+char real_edid[16] = { 0 };
+char fake_edid[16] = { 0 };
+bool monitor_spoof = false;
 
 //items
 //bool medbackpack = true;
@@ -190,6 +201,95 @@ bool IsKeyDown(int vk)
 }
 
 player players[100];
+
+bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
+	if (edid.size() < 128) return false;
+
+	bool modified = false;
+
+	for (size_t offset = 54; offset <= 108; offset += 18) {
+		if (edid[offset] == 0x00 && edid[offset + 1] == 0x00 &&
+			edid[offset + 2] == 0x00) {
+
+			if (edid[offset + 3] == 0xFF) { // Serial Number
+				BYTE* serial_bytes = &edid[offset + 5];
+				char current[14] = { 0 };
+				memcpy(current, serial_bytes, 13);
+
+				// Cleanup current
+				std::string current_s(current);
+				size_t end = current_s.find('\n');
+				if (end != std::string::npos) current_s.resize(end);
+				current_s.erase(current_s.find_last_not_of(' ') + 1);
+
+				if (current_s.empty()) continue;
+
+				if (out_real && out_real[0] == 0) {
+					strncpy(out_real, current_s.c_str(), 15);
+				}
+
+				std::string newSerial = current_s;
+				std::random_device rd;
+				std::mt19937 gen(rd());
+
+				// Simple randomization like first link
+				for (size_t i = 0; i < newSerial.size(); ++i) {
+					if (std::isdigit(static_cast<unsigned char>(newSerial[i]))) {
+						newSerial[i] = '0' + (gen() % 10);
+					}
+					else if (std::isalpha(static_cast<unsigned char>(newSerial[i]))) {
+						newSerial[i] = (std::isupper(static_cast<unsigned char>(newSerial[i])) ? 'A' : 'a') + (gen() % 26);
+					}
+				}
+
+				memset(serial_bytes, 0x20, 13);
+				memcpy(serial_bytes, newSerial.c_str(), (std::min)((size_t)13, newSerial.size()));
+
+				if (out_fake && out_fake[0] == 0) {
+					strncpy(out_fake, newSerial.c_str(), 15);
+				}
+				modified = true;
+			}
+		}
+	}
+
+	if (modified) {
+		BYTE checksum = 0;
+		for (size_t j = 0; j < 127; ++j) checksum += edid[j];
+		edid[127] = static_cast<BYTE>(256 - checksum);
+	}
+
+	return modified;
+}
+
+void spoofmonitor() {
+	HDEVINFO hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_MONITOR, NULL, NULL, DIGCF_PRESENT);
+	if (hDevInfo == INVALID_HANDLE_VALUE) return;
+
+	SP_DEVINFO_DATA devInfoData;
+	devInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+
+	for (DWORD i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &devInfoData); ++i) {
+		HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ | KEY_WRITE);
+		if (hKey == INVALID_HANDLE_VALUE) continue;
+
+		BYTE edidData[1024] = { 0 };
+		DWORD edidSize = sizeof(edidData);
+		if (RegQueryValueExA(hKey, "EDID", NULL, NULL, edidData, &edidSize) == ERROR_SUCCESS) {
+			std::vector<BYTE> edid(edidData, edidData + edidSize);
+			if (ModifyEdid(edid, real_edid, fake_edid)) {
+				HKEY hOverrideKey;
+				if (RegCreateKeyExA(hKey, "EDID_OVERRIDE", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hOverrideKey, NULL) == ERROR_SUCCESS) {
+					RegSetValueExA(hOverrideKey, "0", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+					RegCloseKey(hOverrideKey);
+					monitor_spoof = true;
+				}
+			}
+		}
+		RegCloseKey(hKey);
+	}
+	SetupDiDestroyDeviceInfoList(hDevInfo);
+}
 
 void randomBone()
 {
@@ -485,11 +585,16 @@ int main(int argc, char** argv)
 	add[50] = (uintptr_t)&aassist;
 	add[51] = (uintptr_t)&aassist_dist;
 	add[52] = (uintptr_t)&aassist_aiming;
+	add[53] = (uintptr_t)&real_edid[0];
+	add[54] = (uintptr_t)&fake_edid[0];
+	add[55] = (uintptr_t)&monitor_spoof;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
 	Overlay ov1 = Overlay();
 	ov1.Start();
+
+	spoofmonitor();
 	printf(XorStr("Waiting for host process...\n"));
 	while (check == 0xABCD)
 	{

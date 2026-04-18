@@ -64,6 +64,10 @@ bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
+char real_edid[16] = { 0 };
+char fake_edid[16] = { 0 };
+bool monitor_spoof = false;
+
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
@@ -1191,6 +1195,15 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
 
+uint64_t real_edid_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, real_edid_addr);
+
+uint64_t fake_edid_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, fake_edid_addr);
+
+uint64_t monitor_spoof_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, monitor_spoof_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1313,6 +1326,10 @@ while (vars_t)
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+
+        if (real_edid_addr) client_mem.ReadArray<char>(real_edid_addr, real_edid, 16);
+        if (fake_edid_addr) client_mem.ReadArray<char>(fake_edid_addr, fake_edid, 16);
+        if (monitor_spoof_addr) client_mem.Read<bool>(monitor_spoof_addr, monitor_spoof);
 
         if (esp && next)
         {

@@ -34,6 +34,11 @@ extern float triggerbot_fov;
 extern bool aassist;
 extern float aassist_dist;
 
+extern char real_edid[16];
+extern char fake_edid[16];
+extern bool monitor_spoof;
+extern void spoofmonitor();
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -328,6 +333,27 @@ void Overlay::RenderMenu()
 			ImGui::Text(XorStr("Glow Thickness:"));
 			ImGui::SliderScalar("##GlowThickness", ImGuiDataType_U8, &outlinesize, &min_val, &max_val_thick);
 
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem(XorStr("Spoof")))
+		{
+			ImGui::Text(XorStr("Monitor EDID Spoofing"));
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+			if (monitor_spoof)
+				ImGui::TextColored(GREEN, XorStr("Status: Spoofed"));
+			else
+				ImGui::TextColored(RED, XorStr("Status: Not Spoofed"));
+
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+			ImGui::Text(XorStr("Real Serial: %s"), real_edid[0] ? real_edid : "Unknown");
+			ImGui::Text(XorStr("Fake Serial: %s"), fake_edid[0] ? fake_edid : "None");
+
+			ImGui::Dummy(ImVec2(0.0f, 10.0f));
+			if (ImGui::Button(XorStr("Spoof Monitor")))
+			{
+				spoofmonitor();
+			}
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
