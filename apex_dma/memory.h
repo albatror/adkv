@@ -177,6 +177,12 @@ inline bool Memory::ReadKernel(uint64_t address, T &out)
 	{
 		return kernel->read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0;
 	}
+	else if (conn)
+	{
+		// If kernel is not yet initialized but connector is, we might be able to read system memory
+		// using the phys_view and assuming a simple mapping, but it's risky for virtual addresses.
+		// For now, return false to avoid incorrect reads.
+	}
 	return false;
 }
 

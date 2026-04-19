@@ -26,6 +26,7 @@ namespace GPUSpoof {
             printf("[GPUSpoof] nvlddmkm.sys not found\n");
             return false;
         }
+        printf("[GPUSpoof] nvlddmkm.sys found at 0x%lX (size: 0x%X)\n", nv_base, nv_size);
 
         std::vector<uint8_t> buffer(nv_size);
         if (!mem.ReadKernelRobust(nv_base, buffer.data(), nv_size)) {
@@ -42,6 +43,9 @@ namespace GPUSpoof {
                 printf("[GPUSpoof] Failed to find GpuMgr pattern\n");
                 return false;
             }
+            printf("[GPUSpoof] Found GpuMgr pattern (fallback) at offset 0x%lX\n", off);
+        } else {
+            printf("[GPUSpoof] Found GpuMgr pattern at offset 0x%lX\n", off);
         }
 
         uint32_t uuid_valid_offset = 0;
@@ -77,26 +81,43 @@ namespace GPUSpoof {
         // Logic to get GpuMgr/System pointers
         // M4L1: 48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9
         size_t sys_off = findPattern(buffer.data(), nv_size, "48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9");
-        if (sys_off == (size_t)-1) return false;
+        if (sys_off == (size_t)-1) {
+            printf("[GPUSpoof] Failed to find system pattern\n");
+            return false;
+        }
 
         int32_t disp = 0;
         memcpy(&disp, &buffer[sys_off + 3], 4);
         uint64_t g_system_ptr = nv_base + sys_off + 7 + disp;
+        printf("[GPUSpoof] g_system_ptr: 0x%lX\n", g_system_ptr);
 
         uint64_t g_system = 0;
-        if (!mem.ReadKernel(g_system_ptr, g_system) || !g_system) return false;
+        if (!mem.ReadKernel(g_system_ptr, g_system) || !g_system) {
+            printf("[GPUSpoof] Failed to read g_system\n");
+            return false;
+        }
+        printf("[GPUSpoof] g_system: 0x%lX\n", g_system);
 
         uint64_t gpu_sys = 0;
-        if (!mem.ReadKernel(g_system + 0x1C0, gpu_sys) || !gpu_sys) return false;
+        if (!mem.ReadKernel(g_system + 0x1C0, gpu_sys) || !gpu_sys) {
+            printf("[GPUSpoof] Failed to read gpu_sys (offset 0x1C0)\n");
+            return false;
+        }
+        printf("[GPUSpoof] gpu_sys: 0x%lX\n", gpu_sys);
 
         uint32_t gpu_mask = 0;
-        if (!mem.ReadKernel(gpu_sys + 0x754, gpu_mask)) return false;
+        if (!mem.ReadKernel(gpu_sys + 0x754, gpu_mask)) {
+            printf("[GPUSpoof] Failed to read gpu_mask (offset 0x754)\n");
+            return false;
+        }
+        printf("[GPUSpoof] gpu_mask: 0x%X\n", gpu_mask);
 
         uint64_t gpu_sys_iterator = gpu_sys + 0x3C8D0;
         bool spoofed = false;
 
         for (int i = 0; i < 32; i++) {
             if (!(gpu_mask & (1U << i))) continue;
+            printf("[GPUSpoof] Searching for GPU instance %d...\n", i);
 
             uint64_t gpu_device = 0;
             uint32_t found_instance = 0;
@@ -109,10 +130,14 @@ namespace GPUSpoof {
                     break;
                 }
                 current_iterator += 0x10;
-                if (current_iterator > gpu_sys_iterator + 0x1000) break;
+                if (current_iterator > gpu_sys_iterator + 0x1000) {
+                     printf("[GPUSpoof] Iterator exceeded safety limit for instance %d\n", i);
+                     break;
+                }
             }
 
             if (gpu_device) {
+                printf("[GPUSpoof] Found GPU device at 0x%lX\n", gpu_device);
                 uint8_t uuid[16];
                 if (mem.ReadKernelArray(gpu_device + uuid_valid_offset + 1, uuid, 16)) {
                     real_uuid = UUIDToString(uuid);

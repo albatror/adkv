@@ -1592,25 +1592,26 @@ int main(int argc, char *argv[])
 
 				vars_thr = std::thread(set_vars, c_Base + add_off);
 				vars_thr.detach();
-
-				// Enforce startup order: Client connected -> Perform GPU Spoof
-				if (!spoof_done) {
-					printf("Enforcing startup order: Performing GPU UUID Spoofing...\n");
-					if (GPUSpoof::Apply(client_mem)) { // We use client_mem because it already has the kernel/conn initialized
-						strncpy(real_gpu_uuid, GPUSpoof::GetRealUUID().c_str(), 31);
-						strncpy(fake_gpu_uuid, GPUSpoof::GetFakeUUID().c_str(), 31);
-						gpu_spoof_active = true;
-						printf("GPU Spoofing Successful.\n");
-					} else {
-						printf("GPU Spoofing Failed or No NVIDIA GPU found.\n");
-					}
-					spoof_done = true;
-				}
 			}
 		}
 		else
 		{
 			client_mem.check_proc();
+		}
+
+		if (client_mem.get_proc_status() == process_status::FOUND_READY && !spoof_done)
+		{
+			// Enforce startup order: Client connected -> Perform GPU Spoof
+			printf("Enforcing startup order: Performing GPU UUID Spoofing...\n");
+			if (GPUSpoof::Apply(client_mem)) { // We use client_mem because it already has the kernel/conn initialized
+				strncpy(real_gpu_uuid, GPUSpoof::GetRealUUID().c_str(), 31);
+				strncpy(fake_gpu_uuid, GPUSpoof::GetFakeUUID().c_str(), 31);
+				gpu_spoof_active = true;
+				printf("GPU Spoofing Successful.\n");
+			} else {
+				printf("GPU Spoofing Failed or No NVIDIA GPU found.\n");
+			}
+			spoof_done = true;
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
