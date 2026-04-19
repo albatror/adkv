@@ -62,6 +62,11 @@ namespace GPUSpoof {
         return false;
     }
 
+    struct GpuIdentity {
+        uint64_t ptr;
+        uint32_t uuid_off;
+    };
+
     bool Apply(Memory& mem) {
         uint64_t nv_base = mem.GetKernelModuleBase("nvlddmkm.sys");
         uint32_t nv_size = mem.GetKernelModuleSize("nvlddmkm.sys");
@@ -80,8 +85,7 @@ namespace GPUSpoof {
             return false;
         }
 
-        uint32_t discovered_uuid_off = 0;
-        std::vector<uint64_t> gpu_devices;
+        std::vector<GpuIdentity> gpu_devices;
 
         // Strategy 1: Comprehensive Driver-wide Pointer Scan
         printf("[GPUSpoof] Starting comprehensive driver identity scan...\n");
@@ -93,11 +97,12 @@ namespace GPUSpoof {
                        uint64_t ptr = 0;
                        memcpy(&ptr, &page[i], 8);
                        if (ptr > 0xFFFF000000000000) {
+                            uint32_t discovered_uuid_off = 0;
                             if (VerifyGpuDevice(mem, ptr, discovered_uuid_off)) {
                                  bool duplicate = false;
-                                 for (uint64_t existing : gpu_devices) if (existing == ptr) duplicate = true;
+                                 for (const auto& existing : gpu_devices) if (existing.ptr == ptr) duplicate = true;
                                  if (!duplicate) {
-                                      gpu_devices.push_back(ptr);
+                                      gpu_devices.push_back({ptr, discovered_uuid_off});
                                       printf("[GPUSpoof] Identified GPU at 0x%lX (Driver+0x%X, UUID Off: 0x%X)\n", ptr, section_off + i, discovered_uuid_off);
                                  }
                             }
@@ -127,8 +132,9 @@ namespace GPUSpoof {
                                  uint64_t ptr1 = 0;
                                  memcpy(&ptr1, &block[i], 8);
                                  if (ptr1 > 0xFFFF000000000000) {
+                                      uint32_t discovered_uuid_off = 0;
                                       if (VerifyGpuDevice(mem, ptr1, discovered_uuid_off)) {
-                                           gpu_devices.push_back(ptr1);
+                                           gpu_devices.push_back({ptr1, discovered_uuid_off});
                                            continue;
                                       }
 
@@ -140,7 +146,7 @@ namespace GPUSpoof {
                                                      memcpy(&ptr2, &sub_block[j], 8);
                                                      if (ptr2 > 0xFFFF000000000000) {
                                                           if (VerifyGpuDevice(mem, ptr2, discovered_uuid_off)) {
-                                                               gpu_devices.push_back(ptr2);
+                                                               gpu_devices.push_back({ptr2, discovered_uuid_off});
                                                                printf("[GPUSpoof] Found nested GPU: 0x%lX -> 0x%lX\n", ptr1, ptr2);
                                                           }
                                                      }
@@ -155,9 +161,9 @@ namespace GPUSpoof {
         }
 
         bool spoofed = false;
-        for (uint64_t dev : gpu_devices) {
+        for (const auto& dev : gpu_devices) {
             uint8_t uuid[16];
-            if (mem.ReadKernelArray(dev + discovered_uuid_off + 1, uuid, 16)) {
+            if (mem.ReadKernelArray(dev.ptr + dev.uuid_off + 1, uuid, 16)) {
                 real_uuid = UUIDToString(uuid);
 
                 std::random_device rd;
@@ -166,10 +172,10 @@ namespace GPUSpoof {
 
                 for (int j = 0; j < 16; ++j) uuid[j] = dis(gen);
 
-                if (mem.WriteKernelArray(dev + discovered_uuid_off + 1, uuid, 16)) {
+                if (mem.WriteKernelArray(dev.ptr + dev.uuid_off + 1, uuid, 16)) {
                      fake_uuid = UUIDToString(uuid);
                      spoofed = true;
-                     printf("[GPUSpoof] Spoofed GPU at 0x%lX: %s -> %s\n", dev, real_uuid.c_str(), fake_uuid.c_str());
+                     printf("[GPUSpoof] Spoofed GPU at 0x%lX: %s -> %s\n", dev.ptr, real_uuid.c_str(), fake_uuid.c_str());
                 }
             }
         }
