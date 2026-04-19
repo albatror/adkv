@@ -29,7 +29,7 @@ inline uint64_t GetFurtherDistance(uint64_t A, uint64_t Min, uint64_t Max)
 	return (distanceToMin > distanceToMax) ? distanceToMin : distanceToMax;
 }
 
-inline bool isMatch(const PBYTE addr, const PBYTE pat, const PBYTE msk)
+inline bool isMatch(const uint8_t* addr, const PBYTE pat, const PBYTE msk)
 {
 	size_t n = 0;
 	while (addr[n] == pat[n] || msk[n] == (BYTE)'?')
@@ -42,7 +42,7 @@ inline bool isMatch(const PBYTE addr, const PBYTE pat, const PBYTE msk)
 	return false;
 }
 
-size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern);
+size_t findPattern(const uint8_t* rangeStart, size_t len, const char *pattern);
 
 typedef struct Process
 {
@@ -97,7 +97,96 @@ public:
 	bool testDtbValue(const uint64_t &dtb_val);
 
 	bool Dump(const char *filename);
+
+	uint64_t GetKernelModuleBase(const char *name);
+	uint32_t GetKernelModuleSize(const char *name);
+
+	template <typename T>
+	bool ReadPhysical(uint64_t address, T &out);
+
+	template <typename T>
+	bool WritePhysical(uint64_t address, const T &value);
+
+	template <typename T>
+	bool ReadKernel(uint64_t address, T &out);
+
+	template <typename T>
+	bool WriteKernel(uint64_t address, const T &value);
+
+	template <typename T>
+	bool ReadKernelArray(uint64_t address, T out[], size_t len);
+
+	template <typename T>
+	bool WriteKernelArray(uint64_t address, const T value[], size_t len);
 };
+
+template <typename T>
+inline bool Memory::ReadPhysical(uint64_t address, T &out)
+{
+	if (kernel)
+	{
+		return kernel->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0;
+	}
+	else if (conn)
+	{
+		return conn->phys_view().read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0;
+	}
+	return false;
+}
+
+template <typename T>
+inline bool Memory::WriteKernelArray(uint64_t address, const T value[], size_t len)
+{
+	if (kernel)
+	{
+		return kernel->write_raw(address, CSliceRef<uint8_t>((char *)value, sizeof(T) * len)) == 0;
+	}
+	return false;
+}
+
+template <typename T>
+inline bool Memory::ReadKernelArray(uint64_t address, T out[], size_t len)
+{
+	if (kernel)
+	{
+		return kernel->read_raw_into(address, CSliceMut<uint8_t>((char *)out, sizeof(T) * len)) == 0;
+	}
+	return false;
+}
+
+template <typename T>
+inline bool Memory::WritePhysical(uint64_t address, const T &value)
+{
+	if (kernel)
+	{
+		return kernel->phys_view().write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0;
+	}
+	else if (conn)
+	{
+		return conn->phys_view().write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0;
+	}
+	return false;
+}
+
+template <typename T>
+inline bool Memory::ReadKernel(uint64_t address, T &out)
+{
+	if (kernel)
+	{
+		return kernel->read_raw_into(address, CSliceMut<uint8_t>((char *)&out, sizeof(T))) == 0;
+	}
+	return false;
+}
+
+template <typename T>
+inline bool Memory::WriteKernel(uint64_t address, const T &value)
+{
+	if (kernel)
+	{
+		return kernel->write_raw(address, CSliceRef<uint8_t>((char *)&value, sizeof(T))) == 0;
+	}
+	return false;
+}
 
 template <typename T>
 inline bool Memory::Read(uint64_t address, T &out)

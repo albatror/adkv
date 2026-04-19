@@ -34,6 +34,10 @@ extern float triggerbot_fov;
 extern bool aassist;
 extern float aassist_dist;
 
+extern char real_gpu_uuid[32];
+extern char fake_gpu_uuid[32];
+extern bool gpu_spoof_active;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -340,7 +344,7 @@ void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 10));
-	ImGui::SetNextWindowSize(ImVec2(320, 205));
+	ImGui::SetNextWindowSize(ImVec2(320, 265));
 	ImGui::SetNextWindowBgAlpha(0.6f);
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
 
@@ -380,6 +384,23 @@ void Overlay::RenderInfo()
 
 	float windowWidth = ImGui::GetWindowSize().x;
 	ImGui::Unindent(12);
+
+	// GPUSpoof Section
+	ImGui::Separator();
+	ImGui::TextColored(WHITE, XorStr("GPUSpoof:"));
+	ImGui::SameLine();
+	ImGui::TextColored(gpu_spoof_active ? GREEN : RED, gpu_spoof_active ? XorStr("Enabled") : XorStr("Disabled"));
+
+	if (gpu_spoof_active) {
+		ImGui::TextColored(WHITE, XorStr(" UUID:"));
+		ImGui::SameLine();
+		ImGui::TextColored(ORANGE, real_gpu_uuid);
+
+		ImGui::TextColored(WHITE, XorStr(" Fake:"));
+		ImGui::SameLine();
+		ImGui::TextColored(GREEN, fake_gpu_uuid);
+	}
+	ImGui::Separator();
 
 	// Status Row: [Logo]
 	if (v.info_window_logo)

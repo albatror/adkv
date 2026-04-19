@@ -10,6 +10,7 @@
 #include "Game.h"
 #include "StuffBot.h"
 #include "Weapon.h"
+#include "gpuspoof.h"
 #include "ItemManager.h"
 #include <thread>
 #include <array>
@@ -106,6 +107,10 @@ bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
 bool next = false;
+
+char real_gpu_uuid[32] = { 0 };
+char fake_gpu_uuid[32] = { 0 };
+bool gpu_spoof_active = false;
 bool valid = false;
 bool lock = false;
 bool is_aimentity_visible = false;
@@ -1314,6 +1319,18 @@ while (vars_t)
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
 
+        uint64_t real_gpu_uuid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, real_gpu_uuid_addr);
+        if (real_gpu_uuid_addr) client_mem.WriteArray<char>(real_gpu_uuid_addr, real_gpu_uuid, 32);
+
+        uint64_t fake_gpu_uuid_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, fake_gpu_uuid_addr);
+        if (fake_gpu_uuid_addr) client_mem.WriteArray<char>(fake_gpu_uuid_addr, fake_gpu_uuid, 32);
+
+        uint64_t gpu_spoof_active_addr = 0;
+        client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, gpu_spoof_active_addr);
+        if (gpu_spoof_active_addr) client_mem.Write<bool>(gpu_spoof_active_addr, gpu_spoof_active);
+
         if (esp && next)
         {
             if (valid)
@@ -1476,6 +1493,9 @@ int main(int argc, char *argv[])
 
 	//Client "add" offset
 	uint64_t add_off = 0x000000;
+
+	bool spoof_done = false;
+
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
@@ -1519,6 +1539,12 @@ int main(int argc, char *argv[])
 
 			if (apex_mem.get_proc_status() == process_status::FOUND_READY)
 			{
+				if (!spoof_done) {
+					printf("Searching for apex process... but GPU Spoofing not done yet. Skipping initialization.\n");
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					continue;
+				}
+
 				g_Base = apex_mem.get_proc_baseaddr();
 				if (proc_not_found)
 				{
@@ -1566,6 +1592,20 @@ int main(int argc, char *argv[])
 
 				vars_thr = std::thread(set_vars, c_Base + add_off);
 				vars_thr.detach();
+
+				// Enforce startup order: Client connected -> Perform GPU Spoof
+				if (!spoof_done) {
+					printf("Enforcing startup order: Performing GPU UUID Spoofing...\n");
+					if (GPUSpoof::Apply(client_mem)) { // We use client_mem because it already has the kernel/conn initialized
+						strncpy(real_gpu_uuid, GPUSpoof::GetRealUUID().c_str(), 31);
+						strncpy(fake_gpu_uuid, GPUSpoof::GetFakeUUID().c_str(), 31);
+						gpu_spoof_active = true;
+						printf("GPU Spoofing Successful.\n");
+					} else {
+						printf("GPU Spoofing Failed or No NVIDIA GPU found.\n");
+					}
+					spoof_done = true;
+				}
 			}
 		}
 		else

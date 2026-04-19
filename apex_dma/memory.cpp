@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 // Credits: learn_more, stevemk14ebr
-size_t findPattern(const PBYTE rangeStart, size_t len, const char *pattern)
+size_t findPattern(const uint8_t* rangeStart, size_t len, const char *pattern)
 {
 	size_t l = strlen(pattern);
 	PBYTE patt_base = static_cast<PBYTE>(malloc(l >> 1));
@@ -269,6 +269,31 @@ uint64_t Memory::ScanPointer(uint64_t ptr_address, const uint32_t offsets[], int
 
 	return lvl;
 }
+
+uint64_t Memory::GetKernelModuleBase(const char *name)
+{
+	if (!kernel)
+		return 0;
+
+	ModuleInfo info;
+	if (kernel->module_by_name(name, &info))
+		return 0;
+
+	return info.base;
+}
+
+uint32_t Memory::GetKernelModuleSize(const char *name)
+{
+	if (!kernel)
+		return 0;
+
+	ModuleInfo info;
+	if (kernel->module_by_name(name, &info))
+		return 0;
+
+	return info.size;
+}
+
 
 bool Memory::Dump(const char *filename)
 {
