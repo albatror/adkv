@@ -594,8 +594,8 @@ int main(int argc, char** argv)
 	Overlay ov1 = Overlay();
 	ov1.Start();
 
-	spoofmonitor();
 	printf(XorStr("Waiting for host process...\n"));
+	// Step 3: Establish connection between client and server
 	while (check == 0xABCD)
 	{
 		if (IsKeyDown(VK_F4))
@@ -605,6 +605,31 @@ int main(int argc, char** argv)
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+
+	if (active)
+	{
+		// Step 4: Execute EDID spoof automatically (Host signal: 0xBCDE)
+		if (check == 0xBCDE)
+		{
+			printf(XorStr("Executing EDID Spoof...\n"));
+			spoofmonitor();
+			// Step 5: Inform host that spoof is complete
+			check = 0xCDEF;
+		}
+
+		// Step 6 & 7: Wait for host to detect Apex Legends and signal 0
+		printf(XorStr("Waiting for Apex Legends...\n"));
+		while (check == 0xCDEF)
+		{
+			if (IsKeyDown(VK_F4))
+			{
+				active = false;
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+	}
+
 	if (active)
 	{
 		ready = true;

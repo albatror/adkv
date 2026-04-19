@@ -349,11 +349,6 @@ void Overlay::RenderMenu()
 			ImGui::Text(XorStr("Real Serial: %s"), real_edid[0] ? real_edid : "Unknown");
 			ImGui::Text(XorStr("Fake Serial: %s"), fake_edid[0] ? fake_edid : "None");
 
-			ImGui::Dummy(ImVec2(0.0f, 10.0f));
-			if (ImGui::Button(XorStr("Spoof Monitor")))
-			{
-				spoofmonitor();
-			}
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
