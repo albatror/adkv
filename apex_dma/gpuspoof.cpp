@@ -18,24 +18,47 @@ namespace GPUSpoof {
         return ss.str();
     }
 
-    bool VerifyGpuDevice(Memory& mem, uint64_t ptr, uint32_t& discovered_offset) {
-        if (ptr < 0xFFFF000000000000 || (ptr & 0x7) != 0) return false;
+    bool IsValidUUID(const uint8_t* uuid) {
+        bool all_zero = true;
+        bool all_ones = true;
+        bool all_same = true;
+        for (int i = 0; i < 16; i++) {
+            if (uuid[i] != 0x00) all_zero = false;
+            if (uuid[i] != 0xFF) all_ones = false;
+            if (uuid[i] != uuid[0]) all_same = false;
+        }
+        return !all_zero && !all_ones && !all_same;
+    }
 
-        const uint32_t offset_candidates[] = { 0x848, 0xC64, 0x854, 0xC60, 0x850, 0x9E4, 0x754, 0x74C, 0xB2C, 0xB30 };
-        for (uint32_t off : offset_candidates) {
-            uint8_t valid_flag = 0;
-            if (mem.ReadKernel(ptr + off, valid_flag) && valid_flag == 1) {
-                uint8_t uuid[16];
-                if (mem.ReadKernelArray(ptr + off + 1, uuid, 16)) {
-                    bool all_zero = true;
-                    for (int i = 0; i < 16; i++) if (uuid[i] != 0) all_zero = false;
-                    if (!all_zero) {
-                        discovered_offset = off;
-                        return true;
-                    }
+    bool VerifyGpuDevice(Memory& mem, uint64_t ptr, uint32_t& discovered_offset) {
+        if (ptr < 0xFFFF000000000000 || (ptr & 0xF) != 0) return false;
+
+        // Read a large chunk of the potential object for internal scanning
+        uint8_t obj[0x2000];
+        if (!mem.ReadKernelRobust(ptr, obj, 0x2000)) return false;
+
+        // Check common offsets first for speed
+        const uint32_t common_offs[] = { 0x848, 0xC64, 0xB2C, 0xB30, 0x854, 0xC60, 0x850, 0x9E4, 0x754, 0x74C };
+        for (uint32_t off : common_offs) {
+            if (off < 0x1F00 && (obj[off] == 1 || obj[off] == 2)) {
+                if (IsValidUUID(&obj[off + 1])) {
+                    discovered_offset = off;
+                    return true;
                 }
             }
         }
+
+        // Brute-force scan the object for flag + UUID pattern
+        for (uint32_t j = 0x400; j < 0x1F00; j++) {
+            if (obj[j] > 0 && obj[j] < 4) {
+                if (IsValidUUID(&obj[j+1])) {
+                    discovered_offset = j;
+                    printf("[GPUSpoof] Discovered identity at non-standard object offset 0x%X\n", j);
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -49,12 +72,10 @@ namespace GPUSpoof {
         }
         printf("[GPUSpoof] nvlddmkm.sys found at 0x%lX (size: 0x%X)\n", nv_base, nv_size);
 
-        // Instead of reading the whole driver (which can be huge), we read a portion for pattern scanning
-        // and then perform direct pointer scanning in likely sections.
-        const uint32_t scan_range = 0x2000000; // First 32MB
-        uint32_t actual_scan = (nv_size < scan_range) ? nv_size : scan_range;
-        std::vector<uint8_t> buffer(actual_scan);
-        if (!mem.ReadKernelRobust(nv_base, buffer.data(), actual_scan)) {
+        const uint32_t header_scan = 0x2000000;
+        uint32_t actual_header = (nv_size < header_scan) ? nv_size : header_scan;
+        std::vector<uint8_t> buffer(actual_header);
+        if (!mem.ReadKernelRobust(nv_base, buffer.data(), actual_header)) {
             printf("[GPUSpoof] Failed to read nvlddmkm.sys header\n");
             return false;
         }
@@ -62,86 +83,35 @@ namespace GPUSpoof {
         uint32_t discovered_uuid_off = 0;
         std::vector<uint64_t> gpu_devices;
 
-        // Pattern for GpuMgr: E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 44 8B 80 ? ? ? ? 48 8D 15
-        size_t off = findPattern(buffer.data(), actual_scan, "E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 44 8B 80 ? ? ? ? 48 8D 15");
-        if (off == (size_t)-1) {
-            // Fallback to the other pattern
-            off = findPattern(buffer.data(), nv_size, "48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9");
-            if (off == (size_t)-1) {
-                printf("[GPUSpoof] Failed to find GpuMgr pattern\n");
-                return false;
-            }
-            printf("[GPUSpoof] Found GpuMgr pattern (fallback) at offset 0x%lX\n", off);
-        } else {
-            printf("[GPUSpoof] Found GpuMgr pattern at offset 0x%lX\n", off);
-        }
-
-        uint32_t uuid_valid_offset = 0;
-        uint64_t GpuMgrGetGpuFromId_ptr = 0;
-
-        // Extract GpuMgrGetGpuFromId from the first pattern (E8 CALL)
-        if (buffer[off] == 0xE8) {
-            int32_t call_disp = 0;
-            memcpy(&call_disp, &buffer[off + 1], 4);
-            GpuMgrGetGpuFromId_ptr = nv_base + off + 5 + call_disp;
-
-            // Search for the UUID offset inside GpuMgrGetGpuFromId
-            // Instruction: lea r8, [rcx + offset] -> 4C 8D 81 XX XX XX XX
-            size_t func_off = off + 5 + call_disp;
-            if (func_off + 100 < nv_size) {
-                for (int i = 0; i < 100; i++) {
-                    if (buffer[func_off + i] == 0x4C && buffer[func_off + i + 1] == 0x8D && buffer[func_off + i + 2] == 0x81) {
-                        memcpy(&uuid_valid_offset, &buffer[func_off + i + 3], 4);
-                        uuid_valid_offset -= 1; // The offset in research is often the valid flag, UUID is +1
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (uuid_valid_offset == 0) {
-            // Try to extract from the pattern itself: 44 8B 80 XX XX XX XX
-            // The pattern was: E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 44 8B 80 ? ? ? ? 48 8D 15
-            // Offset from start of pattern to 44 8B 80 is 17 bytes. Displacement is at 20.
-            if (off + 23 < nv_size && buffer[off + 17] == 0x44 && buffer[off + 18] == 0x8B && buffer[off + 19] == 0x80) {
-                 memcpy(&uuid_valid_offset, &buffer[off + 20], 4);
-                 printf("[GPUSpoof] Extracted UUID offset from pattern: 0x%X\n", uuid_valid_offset);
-            }
-        }
-
-        if (uuid_valid_offset == 0) {
-            uuid_valid_offset = 0x848; // Common hardcoded fallback
-            printf("[GPUSpoof] Using hardcoded offset 0x848\n");
-        } else {
-            printf("[GPUSpoof] Discovered UUID offset: 0x%X\n", uuid_valid_offset);
-        }
-
-        // Strategy: Driver-wide pointer scan in potential identity regions
-        printf("[GPUSpoof] Starting driver-wide identity scan...\n");
-        for (uint32_t section_off = 0; section_off < actual_scan; section_off += 0x1000) {
-             std::vector<uint8_t> page(0x1000);
-             if (mem.ReadKernelRobust(nv_base + section_off, page.data(), 0x1000)) {
-                  for (uint32_t i = 0; i < 0x1000; i += 8) {
+        // Strategy 1: Comprehensive Driver-wide Pointer Scan
+        printf("[GPUSpoof] Starting comprehensive driver identity scan...\n");
+        const uint32_t chunkSize = 0x20000; // 128KB
+        std::vector<uint8_t> page(chunkSize);
+        for (uint32_t section_off = 0; section_off < nv_size; section_off += chunkSize) {
+             if (mem.ReadKernelRobust(nv_base + section_off, page.data(), chunkSize)) {
+                  for (uint32_t i = 0; i < chunkSize; i += 8) {
                        uint64_t ptr = 0;
                        memcpy(&ptr, &page[i], 8);
-                       if (VerifyGpuDevice(mem, ptr, discovered_uuid_off)) {
-                            bool duplicate = false;
-                            for (uint64_t existing : gpu_devices) if (existing == ptr) duplicate = true;
-                            if (!duplicate) {
-                                 gpu_devices.push_back(ptr);
-                                 printf("[GPUSpoof] Discovered GPU device at 0x%lX (at driver offset 0x%X)\n", ptr, section_off + i);
+                       if (ptr > 0xFFFF000000000000) {
+                            if (VerifyGpuDevice(mem, ptr, discovered_uuid_off)) {
+                                 bool duplicate = false;
+                                 for (uint64_t existing : gpu_devices) if (existing == ptr) duplicate = true;
+                                 if (!duplicate) {
+                                      gpu_devices.push_back(ptr);
+                                      printf("[GPUSpoof] Identified GPU at 0x%lX (Driver+0x%X, UUID Off: 0x%X)\n", ptr, section_off + i, discovered_uuid_off);
+                                 }
                             }
                        }
                   }
              }
-             if (!gpu_devices.empty() && section_off > 0x1000000) break; // Found some and scanned enough
+             if (!gpu_devices.empty() && section_off > 0x1000000) break;
         }
 
-        // Discovery Strategy: Shallow-Crawl structural discovery
+        // Strategy 2: Deep System Crawl
         if (gpu_devices.empty()) {
-             printf("[GPUSpoof] Driver-wide scan failed. Starting recursive crawl discovery...\n");
-             size_t sys_off = findPattern(buffer.data(), actual_scan, "48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9");
-             if (sys_off == (size_t)-1) sys_off = findPattern(buffer.data(), actual_scan, "48 8B 05 ? ? ? ? 48 85 C0 74 ? 48 8B 80");
+             printf("[GPUSpoof] Driver scan failed. Starting deep system crawl...\n");
+             size_t sys_off = findPattern(buffer.data(), actual_header, "48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9");
+             if (sys_off == (size_t)-1) sys_off = findPattern(buffer.data(), actual_header, "48 8B 05 ? ? ? ? 48 85 C0 74 ? 48 8B 80");
 
              if (sys_off != (size_t)-1) {
                   int32_t disp = 0;
@@ -149,29 +119,31 @@ namespace GPUSpoof {
                   uint64_t g_system_ptr = nv_base + sys_off + 7 + disp;
                   uint64_t g_system = 0;
                   if (mem.ReadKernel(g_system_ptr, g_system) && g_system != 0) {
-                       printf("[GPUSpoof] Crawling g_system structure at 0x%lX...\n", g_system);
-
-                       const uint32_t crawl_size = 0x8000;
+                       printf("[GPUSpoof] Crawling pool block at 0x%lX...\n", g_system);
+                       const uint32_t crawl_size = 0x10000;
                        std::vector<uint8_t> block(crawl_size);
                        if (mem.ReadKernelRobust(g_system, block.data(), crawl_size)) {
                             for (uint32_t i = 0; i < crawl_size; i += 8) {
                                  uint64_t ptr1 = 0;
                                  memcpy(&ptr1, &block[i], 8);
-                                 if (VerifyGpuDevice(mem, ptr1, discovered_uuid_off)) {
-                                      gpu_devices.push_back(ptr1);
-                                      continue;
-                                 }
+                                 if (ptr1 > 0xFFFF000000000000) {
+                                      if (VerifyGpuDevice(mem, ptr1, discovered_uuid_off)) {
+                                           gpu_devices.push_back(ptr1);
+                                           continue;
+                                      }
 
-                                 // Shallow crawl: check memory pointed to by ptr1
-                                 if (ptr1 > 0xFFFF000000000000 && (ptr1 & 0xFFF) == 0) {
-                                      std::vector<uint8_t> sub_block(0x1000);
-                                      if (mem.ReadKernelRobust(ptr1, sub_block.data(), 0x1000)) {
-                                           for (uint32_t j = 0; j < 0x1000; j += 8) {
-                                                uint64_t ptr2 = 0;
-                                                memcpy(&ptr2, &sub_block[j], 8);
-                                                if (VerifyGpuDevice(mem, ptr2, discovered_uuid_off)) {
-                                                     gpu_devices.push_back(ptr2);
-                                                     printf("[GPUSpoof] Discovered GPU via nested ptr at 0x%lX+0x%X -> 0x%lX\n", ptr1, j, ptr2);
+                                      if ((ptr1 & 0xFFF) == 0) {
+                                           std::vector<uint8_t> sub_block(0x2000);
+                                           if (mem.ReadKernelRobust(ptr1, sub_block.data(), 0x2000)) {
+                                                for (uint32_t j = 0; j < 0x2000; j += 8) {
+                                                     uint64_t ptr2 = 0;
+                                                     memcpy(&ptr2, &sub_block[j], 8);
+                                                     if (ptr2 > 0xFFFF000000000000) {
+                                                          if (VerifyGpuDevice(mem, ptr2, discovered_uuid_off)) {
+                                                               gpu_devices.push_back(ptr2);
+                                                               printf("[GPUSpoof] Found nested GPU: 0x%lX -> 0x%lX\n", ptr1, ptr2);
+                                                          }
+                                                     }
                                                 }
                                            }
                                       }
@@ -183,7 +155,6 @@ namespace GPUSpoof {
         }
 
         bool spoofed = false;
-
         for (uint64_t dev : gpu_devices) {
             uint8_t uuid[16];
             if (mem.ReadKernelArray(dev + discovered_uuid_off + 1, uuid, 16)) {
