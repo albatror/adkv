@@ -9,12 +9,9 @@
 #define OFFSET_GLOBAL_VARS 0x1d0b8b0 //[Miscellaneous].GlobalVars updated 2026/04/014
  
 #define OFFSET_LEVELNAME 0x1d0bd34 //[Miscellaneous].LevelName updated 2026/04/14
-#define OFFSET_CLIENTSTATE OFFSET_LEVELNAME - 0x1c0 //ClientState  ClientState = LevelName - 0x1C0  //updated 1/10/2024
-//#define OFFSET_CLIENTSTATE 0x3090a0 //[Miscellaneous].ClientState updated 2026/04/14
-#define OFFSET_SIGNONSTATE OFFSET_CLIENTSTATE + 0xAC //SignonState (ClientState + 0xAC)  //updated 1/10/2024
-//#define OFFSET_SIGNONSTATE OFFSET_CLIENTSTATE 0x16d699c
+#define OFFSET_CLIENTSTATE 0x3090a0 //[Miscellaneous].ClientState updated 2026/04/14
+#define OFFSET_SIGNONSTATE 0x1d0bc1c //[Miscellaneous].SignonState updated 2026/04/14
 #define OFFSET_HOST_MAP 0x1b66060 + 0x58 //[ConVars].host_map + 0x58 updated 2026/04/14
-//#define OFFSET_GAME_MODE  0x259e8d8 #[ConVars]mp_gamemode + 0x48
  
 #define OFFSET_TEAM 0x334 //[RecvTable.DT_BaseEntity].m_iTeamNum updated 2026/04/14
 #define OFFSET_HEALTH 0x324 //0x950 //[RecvTable.DT_Player].m_iHealth updated updated 2026/04/14
@@ -26,18 +23,16 @@
 #define OFFSET_NAME 0x479 //[RecvTable.DT_BaseEntity].m_iName updated 2026/04/14
 #define OFFSET_SIGN_NAME 0x470 //[RecvTable.DT_BaseEntity].m_iSignifierName updated 2026/04/14
 #define OFFSET_ABS_VELOCITY 0x170 //[DataMap.DT_BaseEntity].m_vecAbsVelocity updated 2026/04/14
-//#define OFFSET_VISIBLE_TIME 0x1a64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/04/14
-//#define OFFSET_LAST_AIMEDAT_TIME 0x1a64 //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
 #define OFFSET_VISIBLE_TIME 0x1A64 //0x1a62 + 0x02 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02
 #define OFFSET_LAST_AIMEDAT_TIME   0x1a6c //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
 #define OFFSET_ZOOMING 0x1cb1 //[RecvTable.DT_Player].m_bZooming updated 2026/04/14
 
 #define OFFSET_VIEW_OFFSET 0xe8 //[DataMap.DT_BaseEntity].m_currentFrame.viewOffset updated 2026/04/14
-#define OFFSET_ACTIVE_WEAPON 0x1958 + 0x0058 //[RecvTable.DT_Player].m_inventory + WeaponInventory_Client>activeWeapons updated 2026/04/14
+#define OFFSET_ACTIVE_WEAPON 0x19b0 //[RecvTable.DT_BaseCombatCharacter].m_inventory + activeWeapons updated 2026/04/14
 
 #define OFFSET_SPECTATOR_LIST OFFSET_OBSERVER_LIST //? updated 2024/11/15
 #define OFFSET_OBSERVER_LIST 0x612e688 //[Miscellaneous].observerList updated 2026/04/14
-#define OFFSET_OBSERVER_ARRAY 0x968 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2026/04/14
+#define OFFSET_OBSERVER_ARRAY 0x964 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2026/04/14
 
 #define OFFSET_IN_DUCKSTATE 0x2abc //[RecvTable.DT_Player].m_duckState updated 2026/04/14
 
@@ -49,7 +44,7 @@
 #define OFFSET_IN_JUMP 0x3c754c0 //[Buttons].in_jump updated 2026/04/14
 #define OFFSET_IN_TOGGLE_DUCK 0x3c753e8 //[Buttons].in_toggle_duck updated 2026/04/14
  
-#define OFFSET_WEAPON_NAME 0x15f0 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
+#define OFFSET_WEAPON_NAME 0x1888 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
 #define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/04/14
 #define OFFSET_WALL_RUN_START_TIME 0x370c //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunStartTime updated 2026/04/14
 #define OFFSET_WALL_RUN_CLEAR_TIME 0x3710 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/04/14
@@ -77,23 +72,18 @@
 #define OFFSET_MATRIX 0x11a350 //[Miscellaneous].ViewMatrix updated 2026/04/14
 #define OFFSET_RENDER 0x3c739a0 //[Miscellaneous].ViewRender updated 2026/04/14
  
-#define OFFSET_WEAPON 0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
-//#define OFFSET_BULLET_SPEED 0x28a8 //[Miscellaneous].CWeaponX!m_flProjectileSpeed updated 2026/04/14
-//#define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x28b0 //[Miscellaneous].CWeaponX!m_flProjectileScale updated 2026/04/14
-#define OFFSET_BULLET_SPEED 0x1b20 + 0xd80 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_launch_speed updated 2026/04/14
-#define OFFSET_BULLET_SCALE 0x1b20 + 0xd88 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/04/14
+#define OFFSET_WEAPON 0x19b0 //[RecvTable.DT_BaseCombatCharacter].m_inventory + activeWeapons updated 2026/04/14
+#define OFFSET_BULLET_SPEED 0x1b20 + 0xd88 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_launch_speed updated 2026/04/14
+#define OFFSET_BULLET_SCALE 0x1b20 + 0xd90 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/04/14
 
 #define OFFSET_ZOOM_FOV 0x1724 //[DataMap.CWeaponX]m_playerData + [RecvTable.DT_WeaponPlayerData]m_targetZoomFOV updated 2025/02/25
-#define OFFSET_AMMO 0x15e0 //[RecvTable.DT_PropSurvival].m_ammoInClip updated 2026/04/14
+#define OFFSET_AMMO 0x1610 //[RecvTable.DT_WeaponX_LocalWeaponData].m_ammoInClip updated 2026/04/14
  
-//#define OFFSET_ITEM_GLOW 0x02f0 //m_highlightFunctionBits
 #define OFFSET_ITEM_ID 0x15e4 //[RecvTable.DT_PropSurvival].m_customScriptInt updated 2026/04/14
 #define OFFSET_MODELNAME 0x30 //[DataMap.DT_BaseEntity].m_ModelName updated 2026/04/14
 #define OFFSET_M_CUSTOMSCRIPTINT OFFSET_ITEM_ID //[RecvTable.DT_PropSurvival].m_customScriptInt updated 2026/04/14
 #define OFFSET_YAW 0x231c - 0x8 //[DataMap.DT_Player].m_currentFramePlayer.m_ammoPoolCount - 0x8 updated 2026/04/14
  
-//#define OFFSET_GLOW_T1 0x292 //16256 = enabled, 0 = disabled
-//#define OFFSET_GLOW_T2 0x30c //1193322764 = enabled, 0 = disabled
 #define OFFSET_GLOW_ENABLE 0x299 - 0x1 //[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x1 updated 2026/04/14
 #define OFFSET_GLOW_THROUGH_WALLS 0x26c //- 0x21 //[RecvTable.DT_HighlightSettings].m_highlightGenericContexts - 0x21 updated 2026/04/14
  
@@ -102,7 +92,6 @@
 #define OFFSET_HIGHLIGHTSERVERACTIVESTATES 0x29C //[DT_HighlightSettings].m_highlightServerActiveStates updated 2024/06/26
 
 #define OFFSET_GLOW_FIX 0x278 //0x268 //updated 2025/02/25
-//#define GLOW_VISIBLE_TYPE 0x27c      // updated 6/26/2024
 #define OFFSET_GLOW_ENABLE_GLOW_CONTEXT OFFSET_GLOW_ENABLE // Script_Highlight_SetCurrentContext updated 01/10/2024
 #define OFFSET_GLOW_CONTEXT_ID 0x29c                                            //updated 6/26/2024
 #define OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE OFFSET_GLOW_THROUGH_WALLS // Script_Highlight_SetVisibilityType 5th mov updated 01/10/2024
@@ -114,7 +103,6 @@
 #define HIGHLIGHT_SETTINGS 0x6876370 //[Miscellaneous].HighlightSetting updated 2026/04/14
 #define HIGHLIGHT_TYPE_SIZE 0x34 //? updated 01/10/2024
 #define OFFSET_CROSSHAIR_LAST 0x1a6c //[Miscellaneous].CWeaponX!lastCrosshairTargetTime updated 2025/04/18
-//#define OFFSET_CROSSHAIR_START 0x1958 //CPlayer!crosshairTargetStartTime updated 01/9/2024
 #define OFFSET_INPUT_SYSTEM 0x1dc5ec0 //[Miscellaneous].InputSystem updated 2026/04/14 
 
 #define OFFSET_SKYDIVE_STATE 0x48b8 //[RecvTable.DT_Player].m_skydiveState updated 2026/04/14
