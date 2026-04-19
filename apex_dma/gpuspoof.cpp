@@ -128,21 +128,36 @@ namespace GPUSpoof {
 
         // Discovery Strategy: Direct Pointer Scan
         // We scan a large block of g_system for anything that looks like a gpu_device
-        std::vector<uint8_t> system_block(0x4000);
-        if (mem.ReadKernelRobust(g_system, system_block.data(), 0x4000)) {
-             for (uint32_t i = 0; i < 0x4000; i += 8) {
+        const uint32_t scan_size = 0x8000;
+        std::vector<uint8_t> system_block(scan_size);
+        if (mem.ReadKernelRobust(g_system, system_block.data(), scan_size)) {
+             for (uint32_t i = 0; i < scan_size; i += 8) {
                   uint64_t ptr = 0;
                   memcpy(&ptr, &system_block[i], 8);
 
-                  if (ptr > 0xFFFF000000000000) {
-                       uint8_t valid_flag = 0;
-                       if (mem.ReadKernel(ptr + uuid_valid_offset, valid_flag) && valid_flag == 1) {
-                            // Verify it's not a duplicate
-                            bool duplicate = false;
-                            for (uint64_t existing : gpu_devices) if (existing == ptr) duplicate = true;
-                            if (!duplicate) {
-                                 gpu_devices.push_back(ptr);
-                                 printf("[GPUSpoof] Discovered potential GPU device at 0x%lX (via g_system+0x%X)\n", ptr, i);
+                  if (ptr > 0xFFFF000000000000 && (ptr & 0x7) == 0) {
+                       // Test multiple offset candidates for the valid flag
+                       const uint32_t offset_candidates[] = { uuid_valid_offset, 0x848, 0x854, 0xC64, 0xC60, 0x850 };
+                       for (uint32_t candidate_off : offset_candidates) {
+                            if (candidate_off == 0) continue;
+                            uint8_t valid_flag = 0;
+                            if (mem.ReadKernel(ptr + candidate_off, valid_flag) && valid_flag == 1) {
+                                 // Additional verification: UUID should not be all zeros
+                                 uint8_t test_uuid[16];
+                                 if (mem.ReadKernelArray(ptr + candidate_off + 1, test_uuid, 16)) {
+                                      bool all_zero = true;
+                                      for (int k = 0; k < 16; k++) if (test_uuid[k] != 0) all_zero = false;
+                                      if (!all_zero) {
+                                           bool duplicate = false;
+                                           for (uint64_t existing : gpu_devices) if (existing == ptr) duplicate = true;
+                                           if (!duplicate) {
+                                                gpu_devices.push_back(ptr);
+                                                uuid_valid_offset = candidate_off; // Lock in the discovered offset
+                                                printf("[GPUSpoof] Discovered GPU device at 0x%lX (via g_system+0x%X, offset 0x%X)\n", ptr, i, candidate_off);
+                                                break;
+                                           }
+                                      }
+                                 }
                             }
                        }
                   }
@@ -151,28 +166,39 @@ namespace GPUSpoof {
 
         // Fallback: search neighborhood of common gpu_sys offsets for the mask
         if (gpu_devices.empty()) {
-             printf("[GPUSpoof] Direct scan failed. Trying structural discovery...\n");
-             for (uint32_t i = 0; i < 0x1000; i += 8) {
+             printf("[GPUSpoof] Direct scan failed. Trying aggressive structural discovery...\n");
+             for (uint32_t i = 0; i < 0x2000; i += 8) {
                   uint64_t candidate = 0;
                   memcpy(&candidate, &system_block[i], 8);
-                  if (candidate > 0xFFFF000000000000) {
-                       uint32_t mask = 0;
-                       if (mem.ReadKernel(candidate + 0x754, mask) && mask != 0 && mask != 0xFFFFFFFF) {
-                            printf("[GPUSpoof] Found gpu_sys candidate at +0x%X: 0x%lX (mask 0x%X)\n", i, candidate, mask);
-                            // Try to find devices from this gpu_sys
-                            for (uint32_t iter_off : {0x3C8D0, 0x3C8E0, 0x3CAD0, 0x3CAF0}) {
-                                 uint64_t iter = candidate + iter_off;
-                                 for (int j = 0; j < 64; j++) {
-                                      uint64_t dev = 0;
-                                      if (mem.ReadKernel(iter + (j * 0x10), dev) && dev > 0xFFFF000000000000) {
-                                           uint8_t flag = 0;
-                                           if (mem.ReadKernel(dev + uuid_valid_offset, flag) && flag == 1) {
-                                                gpu_devices.push_back(dev);
+                  if (candidate > 0xFFFF000000000000 && (candidate & 0xFFF) == 0) { // Often page aligned
+                       const uint32_t mask_offsets[] = { 0x754, 0x74C, 0x9E4, 0x764, 0xA14 };
+                       for (uint32_t m_off : mask_offsets) {
+                            uint32_t mask = 0;
+                            if (mem.ReadKernel(candidate + m_off, mask) && mask != 0 && mask != 0xFFFFFFFF) {
+                                 printf("[GPUSpoof] Found gpu_sys candidate at +0x%X: 0x%lX (mask 0x%X at 0x%X)\n", i, candidate, mask, m_off);
+                                 // Try to find devices from this gpu_sys
+                                 for (uint32_t iter_off : {0x3C8D0, 0x3C8E0, 0x3CAD0, 0x3CAF0, 0x3C800}) {
+                                      uint64_t iter = candidate + iter_off;
+                                      for (int j = 0; j < 64; j++) {
+                                           uint64_t dev = 0;
+                                           if (mem.ReadKernel(iter + (j * 0x10), dev) && dev > 0xFFFF000000000000) {
+                                                const uint32_t offset_candidates[] = { uuid_valid_offset, 0x848, 0x854, 0xC64, 0xC60 };
+                                                for (uint32_t c_off : offset_candidates) {
+                                                     if (c_off == 0) continue;
+                                                     uint8_t flag = 0;
+                                                     if (mem.ReadKernel(dev + c_off, flag) && flag == 1) {
+                                                          gpu_devices.push_back(dev);
+                                                          uuid_valid_offset = c_off;
+                                                          break;
+                                                     }
+                                                }
                                            }
+                                           if (!gpu_devices.empty()) break;
                                       }
+                                      if (!gpu_devices.empty()) break;
                                  }
-                                 if (!gpu_devices.empty()) break;
                             }
+                            if (!gpu_devices.empty()) break;
                        }
                   }
                   if (!gpu_devices.empty()) break;
