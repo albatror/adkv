@@ -230,6 +230,10 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 	edid[14] = gen() % 256;
 	edid[15] = gen() % 256;
 
+	// 4. Spoof Week/Year of manufacture (offsets 0x10, 0x11)
+	edid[16] = (gen() % 54); // Week 0-53
+	edid[17] = (gen() % 35) + 10; // Year 2000 + (10 to 45)
+
 	modified = true;
 
 	for (size_t offset = 54; offset <= 108; offset += 18) {
@@ -271,7 +275,7 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 				}
 				modified = true;
 			}
-			else if (edid[offset + 3] == 0xFC) { // Monitor Name descriptor string
+			else if (edid[offset + 3] == 0xFC || edid[offset + 3] == 0xFE) { // Monitor Name or Unspecified Text descriptor string
 				BYTE* name_bytes = &edid[offset + 5];
 				for (int i = 0; i < 13; i++) {
 					if (name_bytes[i] == 0x0A) break;
@@ -313,7 +317,25 @@ bool RestartDevice(HDEVINFO hDevInfo, SP_DEVINFO_DATA* pDevInfoData) {
 	return true;
 }
 
+bool IsUserAdmin() {
+	BOOL bRet = FALSE;
+	HANDLE hToken = NULL;
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+		TOKEN_ELEVATION elevation;
+		DWORD dwSize;
+		if (GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &dwSize)) {
+			bRet = elevation.TokenIsElevated;
+		}
+	}
+	if (hToken) CloseHandle(hToken);
+	return bRet;
+}
+
 void spoofmonitor() {
+	if (!IsUserAdmin()) {
+		printf("Error: Client is NOT running as Admin. Registry spoofing will likely fail.\n");
+	}
+
 	HDEVINFO hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_MONITOR, NULL, NULL, DIGCF_PRESENT);
 	if (hDevInfo == INVALID_HANDLE_VALUE) return;
 
@@ -321,10 +343,23 @@ void spoofmonitor() {
 	devInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
 
 	for (DWORD i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &devInfoData); ++i) {
-		HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ | KEY_WRITE);
+		char szInstanceId[MAX_DEVICE_ID_LEN];
+		if (SetupDiGetDeviceInstanceIdA(hDevInfo, &devInfoData, szInstanceId, MAX_DEVICE_ID_LEN, NULL)) {
+			printf("Processing monitor %d: %s\n", i, szInstanceId);
+		}
+
+		HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_ALL_ACCESS);
 		if (hKey == INVALID_HANDLE_VALUE) {
-			printf("Failed to open registry key for monitor %d (Try running as Admin)\n", i);
-			continue;
+			DWORD err = GetLastError();
+			printf("Failed to open registry key for monitor %d (Error: %d). Trying fallback...\n", i, err);
+
+			// Fallback: Manually open the key in Enum\DISPLAY
+			char szRegPath[MAX_PATH];
+			sprintf(szRegPath, "SYSTEM\\CurrentControlSet\\Enum\\%s\\Device Parameters", szInstanceId);
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, szRegPath, 0, KEY_ALL_ACCESS, &hKey) != ERROR_SUCCESS) {
+				printf("Fallback failed for monitor %d. Skipping.\n", i);
+				continue;
+			}
 		}
 
 		BYTE edidData[1024] = { 0 };
@@ -350,6 +385,9 @@ void spoofmonitor() {
 				// 3. Spoof additional values if they exist
 				RegDeleteValueA(hKey, "HardwareID");
 				RegDeleteValueA(hKey, "ManufacturerID");
+
+				// 4. Force override of Model and Serial if cached elsewhere
+				RegSetValueExA(hKey, "SerialNumber", 0, REG_SZ, (const BYTE*)fake_edid, (DWORD)strlen(fake_edid) + 1);
 			}
 		}
 		RegCloseKey(hKey);
