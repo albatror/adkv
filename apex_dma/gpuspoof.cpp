@@ -123,103 +123,77 @@ namespace GPUSpoof {
             printf("[GPUSpoof] g_system: 0x%lX\n", g_system);
         }
 
-        uint64_t gpu_sys = 0;
-        uint32_t gpu_mask = 0;
+        bool spoofed = false;
+        std::vector<uint64_t> gpu_devices;
 
-        // Deep discovery: scan g_system structure for gpu_sys pointer
-        std::vector<uint8_t> system_buffer(0x1000);
-        if (mem.ReadKernelRobust(g_system, system_buffer.data(), 0x1000)) {
-             for (uint32_t i = 0; i < 0x1000; i += 8) {
-                  uint64_t candidate = 0;
-                  memcpy(&candidate, &system_buffer[i], 8);
+        // Discovery Strategy: Direct Pointer Scan
+        // We scan a large block of g_system for anything that looks like a gpu_device
+        std::vector<uint8_t> system_block(0x4000);
+        if (mem.ReadKernelRobust(g_system, system_block.data(), 0x4000)) {
+             for (uint32_t i = 0; i < 0x4000; i += 8) {
+                  uint64_t ptr = 0;
+                  memcpy(&ptr, &system_block[i], 8);
 
-                  if (candidate > 0xFFFF000000000000) { // Kernel address range
-                       const uint32_t mask_offsets[] = { 0x754, 0x74C, 0x9E4, 0x764 };
-                       for (uint32_t m_off : mask_offsets) {
-                            uint32_t test_mask = 0;
-                            if (mem.ReadKernel(candidate + m_off, test_mask) && test_mask != 0 && test_mask != 0xFFFFFFFF) {
-                                 // Basic sanity check for mask: should have some bits set but not all (usually)
-                                 // Also checking for some common bit patterns if possible
-                                 gpu_sys = candidate;
-                                 gpu_mask = test_mask;
-                                 printf("[GPUSpoof] Discovered gpu_sys at g_system offset 0x%X: 0x%lX (mask 0x%X at 0x%X)\n", i, gpu_sys, gpu_mask, m_off);
-                                 goto found_gpu_sys;
+                  if (ptr > 0xFFFF000000000000) {
+                       uint8_t valid_flag = 0;
+                       if (mem.ReadKernel(ptr + uuid_valid_offset, valid_flag) && valid_flag == 1) {
+                            // Verify it's not a duplicate
+                            bool duplicate = false;
+                            for (uint64_t existing : gpu_devices) if (existing == ptr) duplicate = true;
+                            if (!duplicate) {
+                                 gpu_devices.push_back(ptr);
+                                 printf("[GPUSpoof] Discovered potential GPU device at 0x%lX (via g_system+0x%X)\n", ptr, i);
                             }
                        }
                   }
              }
         }
 
-        if (gpu_sys == 0) {
-            printf("[GPUSpoof] Failed to discover gpu_sys via deep scan. Logging neighborhood pointers:\n");
-            for (int i = 0; i < 64; i++) {
-                 uint64_t tmp = 0;
-                 memcpy(&tmp, &system_buffer[i*8], 8);
-                 if (tmp != 0) printf("[GPUSpoof] +0x%X: 0x%lX\n", i*8, tmp);
-            }
-            return false;
+        // Fallback: search neighborhood of common gpu_sys offsets for the mask
+        if (gpu_devices.empty()) {
+             printf("[GPUSpoof] Direct scan failed. Trying structural discovery...\n");
+             for (uint32_t i = 0; i < 0x1000; i += 8) {
+                  uint64_t candidate = 0;
+                  memcpy(&candidate, &system_block[i], 8);
+                  if (candidate > 0xFFFF000000000000) {
+                       uint32_t mask = 0;
+                       if (mem.ReadKernel(candidate + 0x754, mask) && mask != 0 && mask != 0xFFFFFFFF) {
+                            printf("[GPUSpoof] Found gpu_sys candidate at +0x%X: 0x%lX (mask 0x%X)\n", i, candidate, mask);
+                            // Try to find devices from this gpu_sys
+                            for (uint32_t iter_off : {0x3C8D0, 0x3C8E0, 0x3CAD0, 0x3CAF0}) {
+                                 uint64_t iter = candidate + iter_off;
+                                 for (int j = 0; j < 64; j++) {
+                                      uint64_t dev = 0;
+                                      if (mem.ReadKernel(iter + (j * 0x10), dev) && dev > 0xFFFF000000000000) {
+                                           uint8_t flag = 0;
+                                           if (mem.ReadKernel(dev + uuid_valid_offset, flag) && flag == 1) {
+                                                gpu_devices.push_back(dev);
+                                           }
+                                      }
+                                 }
+                                 if (!gpu_devices.empty()) break;
+                            }
+                       }
+                  }
+                  if (!gpu_devices.empty()) break;
+             }
         }
 
-found_gpu_sys:
-        printf("[GPUSpoof] Final gpu_mask: 0x%X\n", gpu_mask);
+        for (uint64_t dev : gpu_devices) {
+            uint8_t uuid[16];
+            if (mem.ReadKernelArray(dev + uuid_valid_offset + 1, uuid, 16)) {
+                real_uuid = UUIDToString(uuid);
 
-        uint64_t gpu_sys_iterator = gpu_sys + 0x3C8D0;
-        bool spoofed = false;
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_int_distribution<> dis(0, 255);
 
-        if (gpu_mask == 0) {
-             printf("[GPUSpoof] gpu_mask is 0, no devices to spoof.\n");
-        }
+                for (int j = 0; j < 16; ++j) uuid[j] = dis(gen);
 
-        for (int i = 0; i < 32; i++) {
-            if (!(gpu_mask & (1U << i))) continue;
-            printf("[GPUSpoof] Searching for GPU instance %d...\n", i);
-
-            uint64_t gpu_device = 0;
-            uint32_t found_instance = 0;
-
-            // Try different iterator starting points if the default fails
-            const uint32_t iter_offsets[] = { 0x3C8D0, 0x3C8E0, 0x3CAD0, 0x3CAF0 };
-
-            for (uint32_t iter_off : iter_offsets) {
-                uint64_t current_iterator = gpu_sys + iter_off;
-                bool found_in_this_iter = false;
-
-                while(true) {
-                    if (!mem.ReadKernel(current_iterator + 0x8, found_instance)) break;
-                    if (found_instance == i) {
-                        mem.ReadKernel(current_iterator, gpu_device);
-                        if (gpu_device != 0) {
-                             found_in_this_iter = true;
-                             break;
-                        }
-                    }
-                    current_iterator += 0x10;
-                    if (current_iterator > gpu_sys + iter_off + 0x400) break;
-                }
-
-                if (found_in_this_iter) {
-                     printf("[GPUSpoof] Found device for instance %d at offset 0x%X\n", i, iter_off);
-                     break;
-                }
-            }
-
-            if (gpu_device) {
-                printf("[GPUSpoof] Found GPU device at 0x%lX\n", gpu_device);
-                uint8_t uuid[16];
-                if (mem.ReadKernelArray(gpu_device + uuid_valid_offset + 1, uuid, 16)) {
-                    real_uuid = UUIDToString(uuid);
-
-                    std::random_device rd;
-                    std::mt19937 gen(rd());
-                    std::uniform_int_distribution<> dis(0, 255);
-
-                    for (int j = 0; j < 16; ++j) uuid[j] = dis(gen);
-
-                    if (mem.WriteKernelArray(gpu_device + uuid_valid_offset + 1, uuid, 16)) {
-                         fake_uuid = UUIDToString(uuid);
-                         spoofed = true;
-                         printf("[GPUSpoof] Spoofed GPU %d: %s -> %s\n", i, real_uuid.c_str(), fake_uuid.c_str());
-                    }
+                if (mem.WriteKernelArray(dev + uuid_valid_offset + 1, uuid, 16)) {
+                     fake_uuid = UUIDToString(uuid);
+                     spoofed = true;
+                     printf("[GPUSpoof] Spoofed GPU at 0x%lX: %s -> %s\n", dev, real_uuid.c_str(), fake_uuid.c_str());
                 }
             }
         }
