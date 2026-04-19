@@ -64,6 +64,11 @@ bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
+char real_edid[16] = { 0 };
+char fake_edid[16] = { 0 };
+bool monitor_spoof = false;
+bool client_spoof_complete = false;
+
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
@@ -1191,6 +1196,15 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
 
+uint64_t real_edid_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, real_edid_addr);
+
+uint64_t fake_edid_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, fake_edid_addr);
+
+uint64_t monitor_spoof_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, monitor_spoof_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1201,20 +1215,54 @@ if (check != 0xABCD)
     return;
 }
 
-bool new_client = true;
-vars_t = true;
+	bool new_client = true;
+	vars_t = true;
 
-while (vars_t)
-{
+	while (vars_t)
+	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (new_client && c_Base != 0 && g_Base != 0)
+		if (c_Base == 0) continue;
+
+		// Step 3, 4, 5: Handshake for EDID Spoofing
+		if (!client_spoof_complete)
 		{
-			client_mem.Write<uint32_t>(check_addr, 0);
-			new_client = false;
-			printf("\nReady\n");
+			uint32_t current_check = 0;
+			client_mem.Read<uint32_t>(check_addr, current_check);
+
+			if (current_check == 0xABCD)
+			{
+				printf("Client connected. Requesting EDID Spoof...\n");
+				client_mem.Write<uint32_t>(check_addr, 0xBCDE); // Signal to client to spoof
+			}
+			else if (current_check == 0xCDEF)
+			{
+				printf("Client confirmed EDID Spoof complete.\n");
+				client_mem.ReadArray<char>(real_edid_addr, real_edid, 16);
+				client_mem.ReadArray<char>(fake_edid_addr, fake_edid, 16);
+				printf("Real Serial: %s\n", real_edid[0] ? real_edid : "Unknown");
+				printf("Fake Serial: %s\n", fake_edid[0] ? fake_edid : "None");
+				client_spoof_complete = true;
+			}
+			continue;
 		}
 
-    while (c_Base != 0 && g_Base != 0)
+		// Step 6 & 7: Wait for Apex Legends and signal ready
+		if (g_Base != 0)
+		{
+			if (new_client)
+			{
+				client_mem.Write<uint32_t>(check_addr, 0);
+				new_client = false;
+				printf("\nReady\n");
+			}
+		}
+		else
+		{
+			new_client = true;
+			continue;
+		}
+
+		while (c_Base != 0 && g_Base != 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         if (g_Base_addr) client_mem.Write<uint64_t>(g_Base_addr, g_Base);
@@ -1313,6 +1361,10 @@ while (vars_t)
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+
+        if (real_edid_addr) client_mem.ReadArray<char>(real_edid_addr, real_edid, 16);
+        if (fake_edid_addr) client_mem.ReadArray<char>(fake_edid_addr, fake_edid, 16);
+        if (monitor_spoof_addr) client_mem.Read<bool>(monitor_spoof_addr, monitor_spoof);
 
         if (esp && next)
         {
@@ -1486,61 +1538,82 @@ int main(int argc, char *argv[])
 	bool proc_not_found = false;
 	while (active)
 	{
-		if (apex_mem.get_proc_status() != process_status::FOUND_READY)
+		// Step 6: Wait and detect the Apex Legends process (ONLY after spoof complete)
+		if (client_spoof_complete)
 		{
-			if (aim_t)
+			if (apex_mem.get_proc_status() != process_status::FOUND_READY)
 			{
-				aim_t = false;
-				esp_t = false;
-				actions_t = false;
-				item_t = false;
-				extern bool stuff_t;
-				stuff_t = false;
-				g_Base = 0;
-
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				itemglow_thr.~thread();
-				stuffbot_thr.~thread();
-
-			}
-
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			printf("Searching for apex process...\n");
-			proc_not_found = apex_mem.get_proc_status() == process_status::NOT_FOUND;
-			if (proc_not_found)
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-				printf("Searching for apex process...\n");
-			}
-
-			apex_mem.open_proc(ap_proc);
-
-			if (apex_mem.get_proc_status() == process_status::FOUND_READY)
-			{
-				g_Base = apex_mem.get_proc_baseaddr();
-				if (proc_not_found)
+				if (aim_t)
 				{
-					printf("\nApex process found\n");
-					printf("Base: %lx\n", g_Base);
+					aim_t = false;
+					esp_t = false;
+					actions_t = false;
+					item_t = false;
+					extern bool stuff_t;
+					stuff_t = false;
+					g_Base = 0;
+
+					aimbot_thr.~thread();
+					esp_thr.~thread();
+					actions_thr.~thread();
+					itemglow_thr.~thread();
+					stuffbot_thr.~thread();
+
 				}
 
-				aimbot_thr = std::thread(AimbotLoop);
-				esp_thr = std::thread(EspLoop);
-				actions_thr = std::thread(DoActions);
-				stuffbot_thr = std::thread(StuffBotLoop);
-				itemglow_thr = std::thread(item_glow_t);
-				aimbot_thr.detach();
-				esp_thr.detach();
-				actions_thr.detach();
-				stuffbot_thr.detach();
-				itemglow_thr.detach();
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				printf("Searching for apex process...\n");
+				proc_not_found = apex_mem.get_proc_status() == process_status::NOT_FOUND;
+				if (proc_not_found)
+				{
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+					printf("Searching for apex process...\n");
+				}
+
+				apex_mem.open_proc(ap_proc);
+
+				if (apex_mem.get_proc_status() == process_status::FOUND_READY)
+				{
+					g_Base = apex_mem.get_proc_baseaddr();
+					if (proc_not_found)
+					{
+						printf("\nApex process found\n");
+						printf("Base: %lx\n", g_Base);
+					}
+
+					aimbot_thr = std::thread(AimbotLoop);
+					esp_thr = std::thread(EspLoop);
+					actions_thr = std::thread(DoActions);
+					stuffbot_thr = std::thread(StuffBotLoop);
+					itemglow_thr = std::thread(item_glow_t);
+					aimbot_thr.detach();
+					esp_thr.detach();
+					actions_thr.detach();
+					stuffbot_thr.detach();
+					itemglow_thr.detach();
+				}
+			}
+			else
+			{
+				apex_mem.check_proc();
 			}
 		}
-		else
+		else if (g_Base != 0)
 		{
-			apex_mem.check_proc();
+			// Reset game state if spoof is lost
+			aim_t = false;
+			esp_t = false;
+			actions_t = false;
+			item_t = false;
+			extern bool stuff_t;
+			stuff_t = false;
+			g_Base = 0;
+
+			aimbot_thr.~thread();
+			esp_thr.~thread();
+			actions_thr.~thread();
+			itemglow_thr.~thread();
+			stuffbot_thr.~thread();
 		}
 
 		if (client_mem.get_proc_status() != process_status::FOUND_READY)
@@ -1549,6 +1622,7 @@ int main(int argc, char *argv[])
 			{
 				vars_t = false;
 				c_Base = 0;
+				client_spoof_complete = false;
 
 				vars_thr.~thread();
 			}

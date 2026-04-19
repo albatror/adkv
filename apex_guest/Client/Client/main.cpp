@@ -2,12 +2,21 @@
 #include "config.h"
 #include <random>
 #include <Windows.h>
+#include <SetupAPI.h>
+#include <devguid.h>
+#include <cfgmgr32.h>
+#include <numeric>
+#include <algorithm>
+#include <cctype>
 //#include <chrono>
 //test
 #include <string>
 #include <vector>
 #include <fstream>
 #include <iostream>
+
+#pragma comment(lib, "setupapi.lib")
+#pragma comment(lib, "cfgmgr32.lib")
 //test contraste texte
 #include ".\imgui\imgui.h"
 
@@ -92,6 +101,10 @@ bool update_offsets = false;
 
 //1v1
 bool onevone = false;
+
+char real_edid[16] = { 0 };
+char fake_edid[16] = { 0 };
+bool monitor_spoof = false;
 
 //items
 //bool medbackpack = true;
@@ -190,6 +203,258 @@ bool IsKeyDown(int vk)
 }
 
 player players[100];
+
+bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
+	if (edid.size() < 128) return false;
+
+	bool modified = false;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	// 1. Spoof Manufacturer ID (offsets 0x08-0x09)
+	// Characters are 5 bits each, 'A'=1, ..., 'Z'=26.
+	uint16_t m_id = 0;
+	m_id |= ((gen() % 26) + 1) << 10;
+	m_id |= ((gen() % 26) + 1) << 5;
+	m_id |= ((gen() % 26) + 1);
+	edid[8] = (m_id >> 8) & 0xFF;
+	edid[9] = m_id & 0xFF;
+
+	// 2. Spoof Product Code (offsets 0x0A-0x0B)
+	// Make it very different from common models
+	edid[10] = (gen() % 200) + 50;
+	edid[11] = (gen() % 200) + 50;
+
+	// 3. Spoof Serial Number (numeric, offsets 0x0C-0x0F)
+	edid[12] = gen() % 256;
+	edid[13] = gen() % 256;
+	edid[14] = gen() % 256;
+	edid[15] = gen() % 256;
+
+	// 4. Spoof Week/Year of manufacture (offsets 0x10, 0x11)
+	edid[16] = (gen() % 54); // Week 0-53
+	edid[17] = (gen() % 35) + 10; // Year 2000 + (10 to 45)
+
+	modified = true;
+
+	for (size_t offset = 54; offset <= 108; offset += 18) {
+		if (edid[offset] == 0x00 && edid[offset + 1] == 0x00 &&
+			edid[offset + 2] == 0x00) {
+
+			if (edid[offset + 3] == 0xFF) { // Serial Number descriptor string
+				BYTE* serial_bytes = &edid[offset + 5];
+				char current[14] = { 0 };
+				memcpy(current, serial_bytes, 13);
+
+				std::string current_s(current);
+				size_t end = current_s.find('\n');
+				if (end != std::string::npos) current_s.resize(end);
+				current_s.erase(current_s.find_last_not_of(' ') + 1);
+
+				if (current_s.empty()) continue;
+
+				if (out_real && out_real[0] == 0) {
+					strncpy(out_real, current_s.c_str(), 15);
+				}
+
+				std::string newSerial = current_s;
+				for (size_t i = 0; i < newSerial.size(); ++i) {
+					if (std::isdigit(static_cast<unsigned char>(newSerial[i]))) {
+						newSerial[i] = '0' + (gen() % 10);
+					}
+					else if (std::isalpha(static_cast<unsigned char>(newSerial[i]))) {
+						newSerial[i] = (std::isupper(static_cast<unsigned char>(newSerial[i])) ? 'A' : 'a') + (gen() % 26);
+					}
+				}
+
+				memset(serial_bytes, 0x20, 13);
+				memcpy(serial_bytes, newSerial.c_str(), (std::min)((size_t)13, newSerial.size()));
+				if (newSerial.size() < 13) serial_bytes[newSerial.size()] = 0x0A;
+
+				if (out_fake && out_fake[0] == 0) {
+					strncpy(out_fake, newSerial.c_str(), 15);
+				}
+				modified = true;
+			}
+			else if (edid[offset + 3] == 0xFC || edid[offset + 3] == 0xFE) { // Monitor Name or Unspecified Text descriptor string
+				BYTE* name_bytes = &edid[offset + 5];
+				for (int i = 0; i < 13; i++) {
+					if (name_bytes[i] == 0x0A) break;
+					if (std::isalnum(name_bytes[i])) {
+						if (std::isdigit(name_bytes[i])) name_bytes[i] = '0' + (gen() % 10);
+						else name_bytes[i] = (std::isupper(name_bytes[i]) ? 'A' : 'a') + (gen() % 26);
+					}
+				}
+				modified = true;
+			}
+		}
+	}
+
+	if (modified) {
+		BYTE checksum = 0;
+		for (size_t j = 0; j < 127; ++j) checksum += edid[j];
+		edid[127] = static_cast<BYTE>(256 - checksum);
+	}
+
+	return modified;
+}
+
+bool RestartDevice(HDEVINFO hDevInfo, SP_DEVINFO_DATA* pDevInfoData) {
+	SP_PROPCHANGE_PARAMS pcp;
+	pcp.ClassInstallHeader.cbSize = sizeof(SP_CLASSINSTALL_HEADER);
+	pcp.ClassInstallHeader.InstallFunction = DIF_PROPERTYCHANGE;
+	pcp.StateChange = DICS_PROPCHANGE;
+	pcp.Scope = DICS_FLAG_GLOBAL;
+	pcp.HwProfile = 0;
+
+	if (!SetupDiSetClassInstallParams(hDevInfo, pDevInfoData, &pcp.ClassInstallHeader, sizeof(pcp))) {
+		return false;
+	}
+
+	if (!SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, hDevInfo, pDevInfoData)) {
+		return false;
+	}
+
+	return true;
+}
+
+void PatchGraphicsDrivers(const std::vector<BYTE>& edid) {
+	const char* paths[] = {
+		"SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Configuration",
+		"SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Connectivity"
+	};
+
+	for (auto path : paths) {
+		HKEY hRootKey;
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, path, 0, KEY_ALL_ACCESS, &hRootKey) == ERROR_SUCCESS) {
+			char subKeyName[MAX_PATH];
+			DWORD subKeyNameSize = MAX_PATH;
+			for (DWORD i = 0; RegEnumKeyExA(hRootKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+				HKEY hSubKey;
+				if (RegOpenKeyExA(hRootKey, subKeyName, 0, KEY_ALL_ACCESS, &hSubKey) == ERROR_SUCCESS) {
+					RegSetValueExA(hSubKey, "EDID", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+					printf("Patched EDID in %s\\%s\n", path, subKeyName);
+					RegCloseKey(hSubKey);
+				}
+				subKeyNameSize = MAX_PATH;
+			}
+			RegCloseKey(hRootKey);
+		}
+	}
+}
+
+void PatchAllDisplayRegistry(const std::vector<BYTE>& edid) {
+	HKEY hDisplay;
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\DISPLAY", 0, KEY_ALL_ACCESS, &hDisplay) == ERROR_SUCCESS) {
+		char modelName[MAX_PATH];
+		DWORD modelNameSize = MAX_PATH;
+		for (DWORD i = 0; RegEnumKeyExA(hDisplay, i, modelName, &modelNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+			HKEY hModel;
+			if (RegOpenKeyExA(hDisplay, modelName, 0, KEY_ALL_ACCESS, &hModel) == ERROR_SUCCESS) {
+				char instName[MAX_PATH];
+				DWORD instNameSize = MAX_PATH;
+				for (DWORD j = 0; RegEnumKeyExA(hModel, j, instName, &instNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
+					HKEY hInst;
+					if (RegOpenKeyExA(hModel, instName, 0, KEY_ALL_ACCESS, &hInst) == ERROR_SUCCESS) {
+						HKEY hParams;
+						if (RegOpenKeyExA(hInst, "Device Parameters", 0, KEY_ALL_ACCESS, &hParams) == ERROR_SUCCESS) {
+							RegSetValueExA(hParams, "EDID", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+
+							HKEY hOverride;
+							if (RegCreateKeyExA(hParams, "EDID_OVERRIDE", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hOverride, NULL) == ERROR_SUCCESS) {
+								RegSetValueExA(hOverride, "0", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+								RegCloseKey(hOverride);
+							}
+
+							RegDeleteValueA(hParams, "HardwareID");
+							RegDeleteValueA(hParams, "ManufacturerID");
+							RegSetValueExA(hParams, "SerialNumber", 0, REG_SZ, (const BYTE*)fake_edid, (DWORD)strlen(fake_edid) + 1);
+
+							printf("Deep patched DISPLAY\\%s\\%s\n", modelName, instName);
+							RegCloseKey(hParams);
+						}
+						RegCloseKey(hInst);
+					}
+					instNameSize = MAX_PATH;
+				}
+				RegCloseKey(hModel);
+			}
+			modelNameSize = MAX_PATH;
+		}
+		RegCloseKey(hDisplay);
+	}
+}
+
+bool IsUserAdmin() {
+	BOOL bRet = FALSE;
+	HANDLE hToken = NULL;
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+		TOKEN_ELEVATION elevation;
+		DWORD dwSize;
+		if (GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &dwSize)) {
+			bRet = elevation.TokenIsElevated;
+		}
+	}
+	if (hToken) CloseHandle(hToken);
+	return bRet;
+}
+
+void spoofmonitor() {
+	if (!IsUserAdmin()) {
+		printf("Error: Client is NOT running as Admin. Registry spoofing will likely fail.\n");
+	}
+
+	HDEVINFO hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_MONITOR, NULL, NULL, DIGCF_PRESENT);
+	if (hDevInfo == INVALID_HANDLE_VALUE) return;
+
+	SP_DEVINFO_DATA devInfoData;
+	devInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+
+	for (DWORD i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &devInfoData); ++i) {
+		char szInstanceId[MAX_DEVICE_ID_LEN];
+		if (SetupDiGetDeviceInstanceIdA(hDevInfo, &devInfoData, szInstanceId, MAX_DEVICE_ID_LEN, NULL)) {
+			printf("Processing monitor %d: %s\n", i, szInstanceId);
+		}
+
+		HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_ALL_ACCESS);
+		if (hKey == INVALID_HANDLE_VALUE) {
+			DWORD err = GetLastError();
+			printf("Failed to open registry key for monitor %d (Error: %d). Trying fallback...\n", i, err);
+
+			// Fallback: Manually open the key in Enum\DISPLAY
+			char szRegPath[MAX_PATH];
+			sprintf(szRegPath, "SYSTEM\\CurrentControlSet\\Enum\\%s\\Device Parameters", szInstanceId);
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, szRegPath, 0, KEY_ALL_ACCESS, &hKey) != ERROR_SUCCESS) {
+				printf("Fallback failed for monitor %d. Skipping.\n", i);
+				continue;
+			}
+		}
+
+		BYTE edidData[1024] = { 0 };
+		DWORD edidSize = sizeof(edidData);
+		if (RegQueryValueExA(hKey, "EDID", NULL, NULL, edidData, &edidSize) == ERROR_SUCCESS) {
+			std::vector<BYTE> edid(edidData, edidData + edidSize);
+			if (ModifyEdid(edid, real_edid, fake_edid)) {
+				// Deep patch everything
+				PatchAllDisplayRegistry(edid);
+				PatchGraphicsDrivers(edid);
+				monitor_spoof = true;
+			}
+		}
+		RegCloseKey(hKey);
+
+		// Restart device to force Windows to re-read the EDID
+		if (RestartDevice(hDevInfo, &devInfoData)) {
+			printf("Monitor %d restarted successfully.\n", i);
+		} else {
+			printf("Failed to restart monitor %d (Error: %d)\n", i, GetLastError());
+		}
+	}
+	SetupDiDestroyDeviceInfoList(hDevInfo);
+
+	printf("Real Serial: %s\n", real_edid[0] ? real_edid : "Unknown");
+	printf("Spoofed Serial: %s\n", fake_edid[0] ? fake_edid : "None");
+}
 
 void randomBone()
 {
@@ -485,12 +750,17 @@ int main(int argc, char** argv)
 	add[50] = (uintptr_t)&aassist;
 	add[51] = (uintptr_t)&aassist_dist;
 	add[52] = (uintptr_t)&aassist_aiming;
+	add[53] = (uintptr_t)&real_edid[0];
+	add[54] = (uintptr_t)&fake_edid[0];
+	add[55] = (uintptr_t)&monitor_spoof;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
 	Overlay ov1 = Overlay();
 	ov1.Start();
+
 	printf(XorStr("Waiting for host process...\n"));
+	// Step 3: Establish connection between client and server
 	while (check == 0xABCD)
 	{
 		if (IsKeyDown(VK_F4))
@@ -500,6 +770,31 @@ int main(int argc, char** argv)
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+
+	if (active)
+	{
+		// Step 4: Execute EDID spoof automatically (Host signal: 0xBCDE)
+		if (check == 0xBCDE)
+		{
+			printf(XorStr("Executing EDID Spoof...\n"));
+			spoofmonitor();
+			// Step 5: Inform host that spoof is complete
+			check = 0xCDEF;
+		}
+
+		// Step 6 & 7: Wait for host to detect Apex Legends and signal 0
+		printf(XorStr("Waiting for Apex Legends...\n"));
+		while (check == 0xCDEF)
+		{
+			if (IsKeyDown(VK_F4))
+			{
+				active = false;
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+	}
+
 	if (active)
 	{
 		ready = true;
