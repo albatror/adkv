@@ -294,6 +294,24 @@ uint32_t Memory::GetKernelModuleSize(const char *name)
 	return info.size;
 }
 
+bool Memory::ReadKernelRobust(uint64_t address, uint8_t* out, size_t len)
+{
+	if (!kernel)
+		return false;
+
+	const size_t chunkSize = 0x1000; // 4KB chunks
+	for (size_t offset = 0; offset < len; offset += chunkSize)
+	{
+		size_t size = (len - offset < chunkSize) ? len - offset : chunkSize;
+		if (kernel->read_raw_into(address + offset, CSliceMut<uint8_t>((char *)out + offset, size)) != 0)
+		{
+			// If read fails, zero the buffer for this chunk and continue
+			memset(out + offset, 0, size);
+		}
+	}
+	return true;
+}
+
 
 bool Memory::Dump(const char *filename)
 {

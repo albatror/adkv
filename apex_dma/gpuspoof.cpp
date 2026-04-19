@@ -29,7 +29,7 @@ namespace GPUSpoof {
         // Pattern for GpuMgr: 48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9
         // This is from M4L1's post.
         std::vector<uint8_t> buffer(nv_size);
-        if (!mem.ReadKernelArray(nv_base, buffer.data(), nv_size)) {
+        if (!mem.ReadKernelRobust(nv_base, buffer.data(), nv_size)) {
             printf("[GPUSpoof] Failed to read nvlddmkm.sys\n");
             return false;
         }

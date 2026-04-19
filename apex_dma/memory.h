@@ -118,6 +118,8 @@ public:
 
 	template <typename T>
 	bool WriteKernelArray(uint64_t address, const T value[], size_t len);
+
+	bool ReadKernelRobust(uint64_t address, uint8_t* out, size_t len);
 };
 
 template <typename T>
