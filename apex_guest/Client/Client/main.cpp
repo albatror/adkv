@@ -221,8 +221,9 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 	edid[9] = m_id & 0xFF;
 
 	// 2. Spoof Product Code (offsets 0x0A-0x0B)
-	edid[10] = gen() % 256;
-	edid[11] = gen() % 256;
+	// Make it very different from common models
+	edid[10] = (gen() % 200) + 50;
+	edid[11] = (gen() % 200) + 50;
 
 	// 3. Spoof Serial Number (numeric, offsets 0x0C-0x0F)
 	edid[12] = gen() % 256;
@@ -317,6 +318,73 @@ bool RestartDevice(HDEVINFO hDevInfo, SP_DEVINFO_DATA* pDevInfoData) {
 	return true;
 }
 
+void PatchGraphicsDrivers(const std::vector<BYTE>& edid) {
+	const char* paths[] = {
+		"SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Configuration",
+		"SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Connectivity"
+	};
+
+	for (auto path : paths) {
+		HKEY hRootKey;
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, path, 0, KEY_ALL_ACCESS, &hRootKey) == ERROR_SUCCESS) {
+			char subKeyName[MAX_PATH];
+			DWORD subKeyNameSize = MAX_PATH;
+			for (DWORD i = 0; RegEnumKeyExA(hRootKey, i, subKeyName, &subKeyNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+				HKEY hSubKey;
+				if (RegOpenKeyExA(hRootKey, subKeyName, 0, KEY_ALL_ACCESS, &hSubKey) == ERROR_SUCCESS) {
+					RegSetValueExA(hSubKey, "EDID", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+					printf("Patched EDID in %s\\%s\n", path, subKeyName);
+					RegCloseKey(hSubKey);
+				}
+				subKeyNameSize = MAX_PATH;
+			}
+			RegCloseKey(hRootKey);
+		}
+	}
+}
+
+void PatchAllDisplayRegistry(const std::vector<BYTE>& edid) {
+	HKEY hDisplay;
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Enum\\DISPLAY", 0, KEY_ALL_ACCESS, &hDisplay) == ERROR_SUCCESS) {
+		char modelName[MAX_PATH];
+		DWORD modelNameSize = MAX_PATH;
+		for (DWORD i = 0; RegEnumKeyExA(hDisplay, i, modelName, &modelNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++i) {
+			HKEY hModel;
+			if (RegOpenKeyExA(hDisplay, modelName, 0, KEY_ALL_ACCESS, &hModel) == ERROR_SUCCESS) {
+				char instName[MAX_PATH];
+				DWORD instNameSize = MAX_PATH;
+				for (DWORD j = 0; RegEnumKeyExA(hModel, j, instName, &instNameSize, NULL, NULL, NULL, NULL) == ERROR_SUCCESS; ++j) {
+					HKEY hInst;
+					if (RegOpenKeyExA(hModel, instName, 0, KEY_ALL_ACCESS, &hInst) == ERROR_SUCCESS) {
+						HKEY hParams;
+						if (RegOpenKeyExA(hInst, "Device Parameters", 0, KEY_ALL_ACCESS, &hParams) == ERROR_SUCCESS) {
+							RegSetValueExA(hParams, "EDID", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+
+							HKEY hOverride;
+							if (RegCreateKeyExA(hParams, "EDID_OVERRIDE", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hOverride, NULL) == ERROR_SUCCESS) {
+								RegSetValueExA(hOverride, "0", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+								RegCloseKey(hOverride);
+							}
+
+							RegDeleteValueA(hParams, "HardwareID");
+							RegDeleteValueA(hParams, "ManufacturerID");
+							RegSetValueExA(hParams, "SerialNumber", 0, REG_SZ, (const BYTE*)fake_edid, (DWORD)strlen(fake_edid) + 1);
+
+							printf("Deep patched DISPLAY\\%s\\%s\n", modelName, instName);
+							RegCloseKey(hParams);
+						}
+						RegCloseKey(hInst);
+					}
+					instNameSize = MAX_PATH;
+				}
+				RegCloseKey(hModel);
+			}
+			modelNameSize = MAX_PATH;
+		}
+		RegCloseKey(hDisplay);
+	}
+}
+
 bool IsUserAdmin() {
 	BOOL bRet = FALSE;
 	HANDLE hToken = NULL;
@@ -367,27 +435,10 @@ void spoofmonitor() {
 		if (RegQueryValueExA(hKey, "EDID", NULL, NULL, edidData, &edidSize) == ERROR_SUCCESS) {
 			std::vector<BYTE> edid(edidData, edidData + edidSize);
 			if (ModifyEdid(edid, real_edid, fake_edid)) {
-				// 1. Update the original EDID value
-				if (RegSetValueExA(hKey, "EDID", 0, REG_BINARY, edid.data(), (DWORD)edid.size()) == ERROR_SUCCESS) {
-					printf("Successfully patched EDID in registry.\n");
-				}
-
-				// 2. Apply EDID_OVERRIDE
-				HKEY hOverrideKey;
-				if (RegCreateKeyExA(hKey, "EDID_OVERRIDE", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hOverrideKey, NULL) == ERROR_SUCCESS) {
-					if (RegSetValueExA(hOverrideKey, "0", 0, REG_BINARY, edid.data(), (DWORD)edid.size()) == ERROR_SUCCESS) {
-						printf("Successfully applied EDID_OVERRIDE.\n");
-						monitor_spoof = true;
-					}
-					RegCloseKey(hOverrideKey);
-				}
-
-				// 3. Spoof additional values if they exist
-				RegDeleteValueA(hKey, "HardwareID");
-				RegDeleteValueA(hKey, "ManufacturerID");
-
-				// 4. Force override of Model and Serial if cached elsewhere
-				RegSetValueExA(hKey, "SerialNumber", 0, REG_SZ, (const BYTE*)fake_edid, (DWORD)strlen(fake_edid) + 1);
+				// Deep patch everything
+				PatchAllDisplayRegistry(edid);
+				PatchGraphicsDrivers(edid);
+				monitor_spoof = true;
 			}
 		}
 		RegCloseKey(hKey);
