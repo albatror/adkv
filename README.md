@@ -41,6 +41,7 @@ GameVersion v3.0.2.49
 - **DirectX 12 Support:** Fully compatible with DX12 game mode.
 - **Offset Dumper:** Built-in dumper to keep the hack updated with game patches (dump will be on host side /build).
 - **1V1:** Battle in training against friends.
+- **Monitor EDID Spoof:** Automated hardware identification spoofing (Serial, Name, Vendor) using the `EDID_OVERRIDE` registry method. Execution is forced at startup before any game connection for maximum safety.
 
 ---
 
@@ -97,16 +98,19 @@ GameVersion v3.0.2.49
 
 ## 📖 Usage
 
-1.  **Guest Side:** Start the **Overlay** (obfuscated) and **Client** (obfuscated).
-2.  **Guest Side:** Nothing is showed from Client/Overlay at start to prevent screenshoot detection.
-3.  **Game:** Start Apex Legends.
-4.  **Host Side:** Run the server with root privileges:
-5.  ```bash
-    cd build
-    ```
+### 🔄 Execution Flow (Automated Spoofing)
+The project enforces a strict initialization sequence to ensure your monitor HWID is spoofed before Apex Legends is even detected:
+
+1.  **Start Guest:** Run **Overlay.exe** and **Client.exe** on the game PC.
+2.  **Start Host:** Run the server on the DMA PC:
     ```bash
-    sudo -E ./apex_dma
+    cd build && sudo -E ./apex_dma
     ```
+3.  **Handshake:** The Server connects to the Client and automatically triggers the **EDID Spoof**.
+4.  **Verification:** Once the Client confirms the spoof is applied, the Server begins searching for the **Apex Legends** process.
+5.  **Game Start:** You can now start Apex Legends (if not already running). The hack will only connect once the spoof is confirmed.
+
+> **Note:** The "Spoof" tab in the overlay menu shows your Real vs. Fake serials for verification.
 6. **Guest Side:** Press INSERT to active the menu and save your config. You can aswell choose to show Overlay Base Infos and/or Spectators's List at start by selecting them in menu. 
 
 ### Hotkeys
