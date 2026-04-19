@@ -72,6 +72,16 @@ namespace GPUSpoof {
         }
 
         if (uuid_valid_offset == 0) {
+            // Try to extract from the pattern itself: 44 8B 80 XX XX XX XX
+            // The pattern was: E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 44 8B 80 ? ? ? ? 48 8D 15
+            // Offset from start of pattern to 44 8B 80 is 17 bytes. Displacement is at 20.
+            if (off + 23 < nv_size && buffer[off + 17] == 0x44 && buffer[off + 18] == 0x8B && buffer[off + 19] == 0x80) {
+                 memcpy(&uuid_valid_offset, &buffer[off + 20], 4);
+                 printf("[GPUSpoof] Extracted UUID offset from pattern: 0x%X\n", uuid_valid_offset);
+            }
+        }
+
+        if (uuid_valid_offset == 0) {
             uuid_valid_offset = 0x848; // Common hardcoded fallback
             printf("[GPUSpoof] Using hardcoded offset 0x848\n");
         } else {
@@ -82,8 +92,15 @@ namespace GPUSpoof {
         // M4L1: 48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9
         size_t sys_off = findPattern(buffer.data(), nv_size, "48 8B 05 ? ? ? ? 4C 8B F2 44 8B E9");
         if (sys_off == (size_t)-1) {
-            printf("[GPUSpoof] Failed to find system pattern\n");
-            return false;
+            // Try another pattern for g_system
+            sys_off = findPattern(buffer.data(), nv_size, "48 8B 05 ? ? ? ? 48 85 C0 74 ? 48 8B 80");
+            if (sys_off == (size_t)-1) {
+                printf("[GPUSpoof] Failed to find system pattern\n");
+                return false;
+            }
+            printf("[GPUSpoof] Found system pattern (alternate) at offset 0x%lX\n", sys_off);
+        } else {
+             printf("[GPUSpoof] Found system pattern at offset 0x%lX\n", sys_off);
         }
 
         int32_t disp = 0;
@@ -100,7 +117,13 @@ namespace GPUSpoof {
 
         uint64_t gpu_sys = 0;
         if (!mem.ReadKernel(g_system + 0x1C0, gpu_sys) || !gpu_sys) {
-            printf("[GPUSpoof] Failed to read gpu_sys (offset 0x1C0)\n");
+            printf("[GPUSpoof] Failed to read gpu_sys (offset 0x1C0). Trying neighbors...\n");
+            for (int i = -4; i <= 4; i++) {
+                 uint64_t tmp = 0;
+                 if (mem.ReadKernel(g_system + 0x1C0 + (i*8), tmp) && tmp != 0) {
+                      printf("[GPUSpoof] Found potential gpu_sys at offset 0x%X: 0x%lX\n", 0x1C0 + (i*8), tmp);
+                 }
+            }
             return false;
         }
         printf("[GPUSpoof] gpu_sys: 0x%lX\n", gpu_sys);
@@ -115,6 +138,10 @@ namespace GPUSpoof {
         uint64_t gpu_sys_iterator = gpu_sys + 0x3C8D0;
         bool spoofed = false;
 
+        if (gpu_mask == 0) {
+             printf("[GPUSpoof] gpu_mask is 0, no devices to spoof.\n");
+        }
+
         for (int i = 0; i < 32; i++) {
             if (!(gpu_mask & (1U << i))) continue;
             printf("[GPUSpoof] Searching for GPU instance %d...\n", i);
@@ -122,16 +149,28 @@ namespace GPUSpoof {
             uint64_t gpu_device = 0;
             uint32_t found_instance = 0;
 
-            uint64_t current_iterator = gpu_sys_iterator;
-            while(true) {
-                if (!mem.ReadKernel(current_iterator + 0x8, found_instance)) break;
-                if (found_instance == i) {
-                    mem.ReadKernel(current_iterator, gpu_device);
-                    break;
+            // Try different iterator starting points if the default fails
+            const uint32_t iter_offsets[] = { 0x3C8D0, 0x3C8E0, 0x3CAD0, 0x3CAF0 };
+
+            for (uint32_t iter_off : iter_offsets) {
+                uint64_t current_iterator = gpu_sys + iter_off;
+                bool found_in_this_iter = false;
+
+                while(true) {
+                    if (!mem.ReadKernel(current_iterator + 0x8, found_instance)) break;
+                    if (found_instance == i) {
+                        mem.ReadKernel(current_iterator, gpu_device);
+                        if (gpu_device != 0) {
+                             found_in_this_iter = true;
+                             break;
+                        }
+                    }
+                    current_iterator += 0x10;
+                    if (current_iterator > gpu_sys + iter_off + 0x400) break;
                 }
-                current_iterator += 0x10;
-                if (current_iterator > gpu_sys_iterator + 0x1000) {
-                     printf("[GPUSpoof] Iterator exceeded safety limit for instance %d\n", i);
+
+                if (found_in_this_iter) {
+                     printf("[GPUSpoof] Found device for instance %d at offset 0x%X\n", i, iter_off);
                      break;
                 }
             }
