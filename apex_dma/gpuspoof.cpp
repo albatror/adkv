@@ -109,29 +109,56 @@ namespace GPUSpoof {
         printf("[GPUSpoof] g_system_ptr: 0x%lX\n", g_system_ptr);
 
         uint64_t g_system = 0;
-        if (!mem.ReadKernel(g_system_ptr, g_system) || !g_system) {
-            printf("[GPUSpoof] Failed to read g_system\n");
-            return false;
+        // Try to read from buffer first if within range
+        if (g_system_ptr >= nv_base && g_system_ptr + 8 <= nv_base + nv_size) {
+             memcpy(&g_system, &buffer[g_system_ptr - nv_base], 8);
+             printf("[GPUSpoof] Read g_system from buffer: 0x%lX\n", g_system);
         }
-        printf("[GPUSpoof] g_system: 0x%lX\n", g_system);
+
+        if (g_system == 0) {
+            if (!mem.ReadKernel(g_system_ptr, g_system) || !g_system) {
+                printf("[GPUSpoof] Failed to read g_system from memory at 0x%lX\n", g_system_ptr);
+                return false;
+            }
+            printf("[GPUSpoof] g_system: 0x%lX\n", g_system);
+        }
 
         uint64_t gpu_sys = 0;
-        if (!mem.ReadKernel(g_system + 0x1C0, gpu_sys) || !gpu_sys) {
-            printf("[GPUSpoof] Failed to read gpu_sys (offset 0x1C0). Trying neighbors...\n");
-            for (int i = -4; i <= 4; i++) {
+        const uint32_t gpu_sys_offsets[] = { 0x1C0, 0x1B8, 0x1C8, 0x1D0 };
+        for (uint32_t sys_off_candidate : gpu_sys_offsets) {
+            if (mem.ReadKernel(g_system + sys_off_candidate, gpu_sys) && gpu_sys != 0) {
+                // Verify by reading gpu_mask
+                uint32_t test_mask = 0;
+                if (mem.ReadKernel(gpu_sys + 0x754, test_mask) && test_mask != 0) {
+                    printf("[GPUSpoof] Successfully identified gpu_sys at offset 0x%X: 0x%lX\n", sys_off_candidate, gpu_sys);
+                    break;
+                }
+                // Try other mask offsets if 0x754 fails
+                if (mem.ReadKernel(gpu_sys + 0x74C, test_mask) && test_mask != 0) {
+                     printf("[GPUSpoof] Successfully identified gpu_sys at offset 0x%X (mask at 0x74C): 0x%lX\n", sys_off_candidate, gpu_sys);
+                     break;
+                }
+            }
+            gpu_sys = 0;
+        }
+
+        if (gpu_sys == 0) {
+            printf("[GPUSpoof] Failed to discover gpu_sys. Logging neighborhood of g_system+0x1C0:\n");
+            for (int i = -16; i <= 16; i++) {
                  uint64_t tmp = 0;
                  if (mem.ReadKernel(g_system + 0x1C0 + (i*8), tmp) && tmp != 0) {
-                      printf("[GPUSpoof] Found potential gpu_sys at offset 0x%X: 0x%lX\n", 0x1C0 + (i*8), tmp);
+                      printf("[GPUSpoof] Ptr at g_system + 0x%X: 0x%lX\n", 0x1C0 + (i*8), tmp);
                  }
             }
             return false;
         }
-        printf("[GPUSpoof] gpu_sys: 0x%lX\n", gpu_sys);
 
         uint32_t gpu_mask = 0;
         if (!mem.ReadKernel(gpu_sys + 0x754, gpu_mask)) {
-            printf("[GPUSpoof] Failed to read gpu_mask (offset 0x754)\n");
-            return false;
+            if (!mem.ReadKernel(gpu_sys + 0x74C, gpu_mask)) {
+                 printf("[GPUSpoof] Failed to read gpu_mask (tried 0x754, 0x74C)\n");
+                 return false;
+            }
         }
         printf("[GPUSpoof] gpu_mask: 0x%X\n", gpu_mask);
 

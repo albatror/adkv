@@ -306,6 +306,7 @@ bool Memory::ReadKernelRobust(uint64_t address, uint8_t* out, size_t len)
 		if (kernel->read_raw_into(address + offset, CSliceMut<uint8_t>((char *)out + offset, size)) != 0)
 		{
 			// If read fails, zero the buffer for this chunk and continue
+			// printf("[Memory] ReadKernelRobust failed at 0x%lX\n", address + offset);
 			memset(out + offset, 0, size);
 		}
 	}
