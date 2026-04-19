@@ -1237,6 +1237,10 @@ if (check != 0xABCD)
 			else if (current_check == 0xCDEF)
 			{
 				printf("Client confirmed EDID Spoof complete.\n");
+				client_mem.ReadArray<char>(real_edid_addr, real_edid, 16);
+				client_mem.ReadArray<char>(fake_edid_addr, fake_edid, 16);
+				printf("Real Serial: %s\n", real_edid[0] ? real_edid : "Unknown");
+				printf("Fake Serial: %s\n", fake_edid[0] ? fake_edid : "None");
 				client_spoof_complete = true;
 			}
 			continue;

@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <SetupAPI.h>
 #include <devguid.h>
+#include <cfgmgr32.h>
 #include <numeric>
 #include <algorithm>
 #include <cctype>
@@ -15,6 +16,7 @@
 #include <iostream>
 
 #pragma comment(lib, "setupapi.lib")
+#pragma comment(lib, "cfgmgr32.lib")
 //test contraste texte
 #include ".\imgui\imgui.h"
 
@@ -206,17 +208,39 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 	if (edid.size() < 128) return false;
 
 	bool modified = false;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	// 1. Spoof Manufacturer ID (offsets 0x08-0x09)
+	// Characters are 5 bits each, 'A'=1, ..., 'Z'=26.
+	uint16_t m_id = 0;
+	m_id |= ((gen() % 26) + 1) << 10;
+	m_id |= ((gen() % 26) + 1) << 5;
+	m_id |= ((gen() % 26) + 1);
+	edid[8] = (m_id >> 8) & 0xFF;
+	edid[9] = m_id & 0xFF;
+
+	// 2. Spoof Product Code (offsets 0x0A-0x0B)
+	edid[10] = gen() % 256;
+	edid[11] = gen() % 256;
+
+	// 3. Spoof Serial Number (numeric, offsets 0x0C-0x0F)
+	edid[12] = gen() % 256;
+	edid[13] = gen() % 256;
+	edid[14] = gen() % 256;
+	edid[15] = gen() % 256;
+
+	modified = true;
 
 	for (size_t offset = 54; offset <= 108; offset += 18) {
 		if (edid[offset] == 0x00 && edid[offset + 1] == 0x00 &&
 			edid[offset + 2] == 0x00) {
 
-			if (edid[offset + 3] == 0xFF) { // Serial Number
+			if (edid[offset + 3] == 0xFF) { // Serial Number descriptor string
 				BYTE* serial_bytes = &edid[offset + 5];
 				char current[14] = { 0 };
 				memcpy(current, serial_bytes, 13);
 
-				// Cleanup current
 				std::string current_s(current);
 				size_t end = current_s.find('\n');
 				if (end != std::string::npos) current_s.resize(end);
@@ -229,10 +253,6 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 				}
 
 				std::string newSerial = current_s;
-				std::random_device rd;
-				std::mt19937 gen(rd());
-
-				// Simple randomization like first link
 				for (size_t i = 0; i < newSerial.size(); ++i) {
 					if (std::isdigit(static_cast<unsigned char>(newSerial[i]))) {
 						newSerial[i] = '0' + (gen() % 10);
@@ -244,9 +264,21 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 
 				memset(serial_bytes, 0x20, 13);
 				memcpy(serial_bytes, newSerial.c_str(), (std::min)((size_t)13, newSerial.size()));
+				if (newSerial.size() < 13) serial_bytes[newSerial.size()] = 0x0A;
 
 				if (out_fake && out_fake[0] == 0) {
 					strncpy(out_fake, newSerial.c_str(), 15);
+				}
+				modified = true;
+			}
+			else if (edid[offset + 3] == 0xFC) { // Monitor Name descriptor string
+				BYTE* name_bytes = &edid[offset + 5];
+				for (int i = 0; i < 13; i++) {
+					if (name_bytes[i] == 0x0A) break;
+					if (std::isalnum(name_bytes[i])) {
+						if (std::isdigit(name_bytes[i])) name_bytes[i] = '0' + (gen() % 10);
+						else name_bytes[i] = (std::isupper(name_bytes[i]) ? 'A' : 'a') + (gen() % 26);
+					}
 				}
 				modified = true;
 			}
@@ -262,6 +294,25 @@ bool ModifyEdid(std::vector<BYTE>& edid, char* out_real, char* out_fake) {
 	return modified;
 }
 
+bool RestartDevice(HDEVINFO hDevInfo, SP_DEVINFO_DATA* pDevInfoData) {
+	SP_PROPCHANGE_PARAMS pcp;
+	pcp.ClassInstallHeader.cbSize = sizeof(SP_CLASSINSTALL_HEADER);
+	pcp.ClassInstallHeader.InstallFunction = DIF_PROPERTYCHANGE;
+	pcp.StateChange = DICS_PROPCHANGE;
+	pcp.Scope = DICS_FLAG_GLOBAL;
+	pcp.HwProfile = 0;
+
+	if (!SetupDiSetClassInstallParams(hDevInfo, pDevInfoData, &pcp.ClassInstallHeader, sizeof(pcp))) {
+		return false;
+	}
+
+	if (!SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, hDevInfo, pDevInfoData)) {
+		return false;
+	}
+
+	return true;
+}
+
 void spoofmonitor() {
 	HDEVINFO hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_MONITOR, NULL, NULL, DIGCF_PRESENT);
 	if (hDevInfo == INVALID_HANDLE_VALUE) return;
@@ -271,24 +322,49 @@ void spoofmonitor() {
 
 	for (DWORD i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &devInfoData); ++i) {
 		HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ | KEY_WRITE);
-		if (hKey == INVALID_HANDLE_VALUE) continue;
+		if (hKey == INVALID_HANDLE_VALUE) {
+			printf("Failed to open registry key for monitor %d (Try running as Admin)\n", i);
+			continue;
+		}
 
 		BYTE edidData[1024] = { 0 };
 		DWORD edidSize = sizeof(edidData);
 		if (RegQueryValueExA(hKey, "EDID", NULL, NULL, edidData, &edidSize) == ERROR_SUCCESS) {
 			std::vector<BYTE> edid(edidData, edidData + edidSize);
 			if (ModifyEdid(edid, real_edid, fake_edid)) {
+				// 1. Update the original EDID value
+				if (RegSetValueExA(hKey, "EDID", 0, REG_BINARY, edid.data(), (DWORD)edid.size()) == ERROR_SUCCESS) {
+					printf("Successfully patched EDID in registry.\n");
+				}
+
+				// 2. Apply EDID_OVERRIDE
 				HKEY hOverrideKey;
 				if (RegCreateKeyExA(hKey, "EDID_OVERRIDE", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hOverrideKey, NULL) == ERROR_SUCCESS) {
-					RegSetValueExA(hOverrideKey, "0", 0, REG_BINARY, edid.data(), (DWORD)edid.size());
+					if (RegSetValueExA(hOverrideKey, "0", 0, REG_BINARY, edid.data(), (DWORD)edid.size()) == ERROR_SUCCESS) {
+						printf("Successfully applied EDID_OVERRIDE.\n");
+						monitor_spoof = true;
+					}
 					RegCloseKey(hOverrideKey);
-					monitor_spoof = true;
 				}
+
+				// 3. Spoof additional values if they exist
+				RegDeleteValueA(hKey, "HardwareID");
+				RegDeleteValueA(hKey, "ManufacturerID");
 			}
 		}
 		RegCloseKey(hKey);
+
+		// Restart device to force Windows to re-read the EDID
+		if (RestartDevice(hDevInfo, &devInfoData)) {
+			printf("Monitor %d restarted successfully.\n", i);
+		} else {
+			printf("Failed to restart monitor %d (Error: %d)\n", i, GetLastError());
+		}
 	}
 	SetupDiDestroyDeviceInfoList(hDevInfo);
+
+	printf("Real Serial: %s\n", real_edid[0] ? real_edid : "Unknown");
+	printf("Spoofed Serial: %s\n", fake_edid[0] ? fake_edid : "None");
 }
 
 void randomBone()
