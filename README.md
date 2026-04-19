@@ -52,7 +52,7 @@ GameVersion v3.0.2.49
 - **Dependencies:** Cargo, Rust, Memflow.
 
 ### Guest (Windows)
-- **OS:** Windows 10 (Version 20H1 or newer).
+- **OS:** Windows 10 (Version 20H1 or less than 23H2).
 - **Tested:** Stable on 22H2 with CR3 fix.
 - **Resolution:** 2560x1440 (Default) | 1920x1080 (Manual change required in `apex_dma.cpp`).
 
