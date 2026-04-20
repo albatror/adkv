@@ -34,6 +34,10 @@ extern float triggerbot_fov;
 extern bool aassist;
 extern float aassist_dist;
 
+extern bool rcs;
+extern float rcs_pitch;
+extern float rcs_yaw;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
