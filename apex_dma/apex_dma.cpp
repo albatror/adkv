@@ -984,6 +984,7 @@ static void AimbotLoop()
 
 			// RCS
 			static QAngle oldPunch = { 0, 0, 0 };
+			static bool wasAttacking = false;
 			QAngle currentPunch = LPlayer.GetRecoil();
 			if (rcs) {
 				kbutton_t in_attack_button;
@@ -991,17 +992,36 @@ static void AimbotLoop()
 				bool attacking = (in_attack_button.state & 1) != 0;
 
 				if (attacking) {
-					QAngle punchDelta = currentPunch - oldPunch;
-					if (currentPunch.x < 0) {
-						QAngle viewAngles = LPlayer.GetViewAngles();
-						viewAngles.x -= punchDelta.x * rcs_pitch;
-						viewAngles.y -= punchDelta.y * rcs_yaw;
-						Math::NormalizeAngles(viewAngles);
-						LPlayer.SetViewAngles(viewAngles);
+					if (!wasAttacking) {
+						oldPunch = currentPunch;
+						wasAttacking = true;
+					}
+					else {
+						QAngle punchDelta = currentPunch - oldPunch;
+						if (currentPunch.x < 0 && (punchDelta.x != 0 || punchDelta.y != 0)) {
+							QAngle viewAngles = LPlayer.GetViewAngles();
+
+							// Only compensate if pitch is increasing (going more negative)
+							float pitchComp = punchDelta.x;
+							if (pitchComp > 0) pitchComp = 0;
+
+							viewAngles.x -= pitchComp * rcs_pitch;
+							viewAngles.y -= punchDelta.y * rcs_yaw;
+
+							Math::NormalizeAngles(viewAngles);
+							LPlayer.SetViewAngles(viewAngles);
+
+							// Update local buffer so aimbot uses updated angles
+							*(QAngle*)(LPlayer.buffer + OFFSET_VIEWANGLES) = viewAngles;
+						}
+						oldPunch = currentPunch;
 					}
 				}
+				else {
+					wasAttacking = false;
+					oldPunch = currentPunch;
+				}
 			}
-			oldPunch = currentPunch;
 
 			if (aim > 0)
 			{
