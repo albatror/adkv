@@ -9,9 +9,9 @@
 #define OFFSET_GLOBAL_VARS 0x1d0b8b0 //[Miscellaneous].GlobalVars updated 2026/04/014
  
 #define OFFSET_LEVELNAME 0x1d0bd34 //[Miscellaneous].LevelName updated 2026/04/14
-#define OFFSET_CLIENTSTATE OFFSET_LEVELNAME - 0x1c0 //ClientState  ClientState = LevelName - 0x1C0  //updated 1/10/2024
+#define OFFSET_CLIENTSTATE 0x3090a0 //OFFSET_LEVELNAME - 0x1c0 //ClientState  ClientState = LevelName - 0x1C0  //updated 1/10/2024
 //#define OFFSET_CLIENTSTATE 0x3090a0 //[Miscellaneous].ClientState updated 2026/04/14
-#define OFFSET_SIGNONSTATE OFFSET_CLIENTSTATE + 0xAC //SignonState (ClientState + 0xAC)  //updated 1/10/2024
+#define OFFSET_SIGNONSTATE 0x1d0bc1c //OFFSET_CLIENTSTATE + 0xAC //SignonState (ClientState + 0xAC)  //updated 1/10/2024
 //#define OFFSET_SIGNONSTATE OFFSET_CLIENTSTATE 0x16d699c
 #define OFFSET_HOST_MAP 0x1b66060 + 0x58 //[ConVars].host_map + 0x58 updated 2026/04/14
 //#define OFFSET_GAME_MODE  0x259e8d8 #[ConVars]mp_gamemode + 0x48
@@ -33,11 +33,11 @@
 #define OFFSET_ZOOMING 0x1cb1 //[RecvTable.DT_Player].m_bZooming updated 2026/04/14
 
 #define OFFSET_VIEW_OFFSET 0xe8 //[DataMap.DT_BaseEntity].m_currentFrame.viewOffset updated 2026/04/14
-#define OFFSET_ACTIVE_WEAPON 0x1958 + 0x0058 //[RecvTable.DT_Player].m_inventory + WeaponInventory_Client>activeWeapons updated 2026/04/14
+#define OFFSET_ACTIVE_WEAPON 0x19b0 //0x1958 + 0x0058 //[RecvTable.DT_Player].m_inventory + WeaponInventory_Client>activeWeapons updated 2026/04/14
 
 #define OFFSET_SPECTATOR_LIST OFFSET_OBSERVER_LIST //? updated 2024/11/15
 #define OFFSET_OBSERVER_LIST 0x612e688 //[Miscellaneous].observerList updated 2026/04/14
-#define OFFSET_OBSERVER_ARRAY 0x968 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2026/04/14
+#define OFFSET_OBSERVER_ARRAY 0x964 //[DataMapTypes.DT_GlobalNonRewinding].m_playerObserver - [DataMap.C_ObserverMode].m_observerTarget updated 2026/04/14
 
 #define OFFSET_IN_DUCKSTATE 0x2abc //[RecvTable.DT_Player].m_duckState updated 2026/04/14
 
@@ -49,7 +49,7 @@
 #define OFFSET_IN_JUMP 0x3c754c0 //[Buttons].in_jump updated 2026/04/14
 #define OFFSET_IN_TOGGLE_DUCK 0x3c753e8 //[Buttons].in_toggle_duck updated 2026/04/14
  
-#define OFFSET_WEAPON_NAME 0x15f0 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
+#define OFFSET_WEAPON_NAME 0x1888 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
 #define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/04/14
 #define OFFSET_WALL_RUN_START_TIME 0x370c //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunStartTime updated 2026/04/14
 #define OFFSET_WALL_RUN_CLEAR_TIME 0x3710 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/04/14
@@ -77,14 +77,14 @@
 #define OFFSET_MATRIX 0x11a350 //[Miscellaneous].ViewMatrix updated 2026/04/14
 #define OFFSET_RENDER 0x3c739a0 //[Miscellaneous].ViewRender updated 2026/04/14
  
-#define OFFSET_WEAPON 0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
+#define OFFSET_WEAPON 0x19b0 //0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
 //#define OFFSET_BULLET_SPEED 0x28a8 //[Miscellaneous].CWeaponX!m_flProjectileSpeed updated 2026/04/14
 //#define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x28b0 //[Miscellaneous].CWeaponX!m_flProjectileScale updated 2026/04/14
 #define OFFSET_BULLET_SPEED 0x1b20 + 0xd80 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_launch_speed updated 2026/04/14
 #define OFFSET_BULLET_SCALE 0x1b20 + 0xd88 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/04/14
 
 #define OFFSET_ZOOM_FOV 0x1724 //[DataMap.CWeaponX]m_playerData + [RecvTable.DT_WeaponPlayerData]m_targetZoomFOV updated 2025/02/25
-#define OFFSET_AMMO 0x15e0 //[RecvTable.DT_PropSurvival].m_ammoInClip updated 2026/04/14
+#define OFFSET_AMMO 0x1610 //[RecvTable.DT_PropSurvival].m_ammoInClip updated 2026/04/14
  
 //#define OFFSET_ITEM_GLOW 0x02f0 //m_highlightFunctionBits
 #define OFFSET_ITEM_ID 0x15e4 //[RecvTable.DT_PropSurvival].m_customScriptInt updated 2026/04/14
