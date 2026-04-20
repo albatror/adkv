@@ -15,3 +15,7 @@ extern float hip_fov;
 extern float hip_smooth;
 extern bool aassist;
 extern float aassist_dist;
+
+extern char real_edid[16];
+extern char fake_edid[16];
+extern bool monitor_spoof;
