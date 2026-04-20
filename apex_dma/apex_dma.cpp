@@ -68,6 +68,10 @@ bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
+bool rcs = false;
+float rcs_pitch = 1.0f;
+float rcs_yaw = 1.0f;
+
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
@@ -978,6 +982,26 @@ static void AimbotLoop()
 			int zoomElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - zoomStartTime).count();
 			wasZooming = isZooming;
 
+			// RCS
+			static QAngle oldPunch = { 0, 0, 0 };
+			QAngle currentPunch = LPlayer.GetRecoil();
+			if (rcs) {
+				kbutton_t in_attack_button;
+				apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
+				bool attacking = (in_attack_button.state & 1) != 0;
+
+				if (attacking) {
+					QAngle punchDelta = currentPunch - oldPunch;
+					if (currentPunch.x < 0) {
+						QAngle viewAngles = LPlayer.GetViewAngles();
+						viewAngles.x -= punchDelta.x * rcs_pitch;
+						viewAngles.y -= punchDelta.y * rcs_yaw;
+						Math::NormalizeAngles(viewAngles);
+						LPlayer.SetViewAngles(viewAngles);
+					}
+				}
+			}
+			oldPunch = currentPunch;
 
 			if (aim > 0)
 			{
@@ -1230,6 +1254,15 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aassist_aiming_addr);
 
+uint64_t rcs_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, rcs_addr);
+
+uint64_t rcs_pitch_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, rcs_pitch_addr);
+
+uint64_t rcs_yaw_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, rcs_yaw_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1354,6 +1387,10 @@ while (vars_t)
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+
+        if (rcs_addr) client_mem.Read<bool>(rcs_addr, rcs);
+        if (rcs_pitch_addr) client_mem.Read<float>(rcs_pitch_addr, rcs_pitch);
+        if (rcs_yaw_addr) client_mem.Read<float>(rcs_yaw_addr, rcs_yaw);
 
         if (esp && next)
         {

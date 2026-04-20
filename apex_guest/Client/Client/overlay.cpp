@@ -194,6 +194,11 @@ void Overlay::RenderMenu()
 
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
 
+			ImGui::Separator();
+			ImGui::Checkbox(XorStr("Recoil Control (RCS)"), &rcs);
+			ImGui::SliderFloat(XorStr("RCS Pitch"), &rcs_pitch, 0.0f, 2.0f, "%.2f");
+			ImGui::SliderFloat(XorStr("RCS Yaw"), &rcs_yaw, 0.0f, 2.0f, "%.2f");
+
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem(XorStr("Misc")))
@@ -380,6 +385,9 @@ void Overlay::RenderInfo()
 	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(240);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
+
+	// Row 4: - RCS
+	ImGui::TextColored(rcs ? GREEN : RED, XorStr("- RCS"));
 
 	float windowWidth = ImGui::GetWindowSize().x;
 	ImGui::Unindent(12);

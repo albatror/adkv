@@ -79,6 +79,10 @@ bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
+bool rcs = false;
+float rcs_pitch = 1.0f;
+float rcs_yaw = 1.0f;
+
 int bone = 2;
 // Declare constants for key detection
 int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
@@ -488,6 +492,9 @@ int main(int argc, char** argv)
 	add[51] = (uintptr_t)&aassist;
 	add[52] = (uintptr_t)&aassist_dist;
 	add[53] = (uintptr_t)&aassist_aiming;
+	add[54] = (uintptr_t)&rcs;
+	add[55] = (uintptr_t)&rcs_pitch;
+	add[56] = (uintptr_t)&rcs_yaw;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

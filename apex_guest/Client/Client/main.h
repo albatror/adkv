@@ -18,3 +18,7 @@ extern float vel_multiplier;
 
 extern bool aassist;
 extern float aassist_dist;
+
+extern bool rcs;
+extern float rcs_pitch;
+extern float rcs_yaw;
