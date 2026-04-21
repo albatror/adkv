@@ -32,6 +32,7 @@ struct DynamicOffsets {
     uint64_t InDuckState;
     uint64_t InDuck;
     uint64_t TraversalProgress;
+    uint64_t MantleBoostState;
     uint64_t TraversalStartTime;
     uint64_t InJump;
     uint64_t InToggleDuck;

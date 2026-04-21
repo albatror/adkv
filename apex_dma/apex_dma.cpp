@@ -409,73 +409,27 @@ if (walljump) {
 }
 //walljump ++///////////////
 
-    // SUPERGLIDE
+    // MANTLE BOOST (Superglide replacement)
+    static bool boost_fired = false;
+    static float last_prog = 0.0f;
 
-       static float startjumpTime = 0;
-       static bool startSg = false;
-       static float traversalProgressTmp = 0.0;
-        
-       float worldtime;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, worldtime)) {
-         // error handling 
-       }
-        
-       float traversalStartTime;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_STARTTIME, traversalStartTime)) {
-         // error handling
-       }
-        
-       float traversalProgress;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversalProgress)) {
-         // error handling
-       }
-        
-       auto HangOnWall = -(traversalStartTime - worldtime);
-        
-       // Adjust thresholds and delays based on frame rate
-       float wallHangThreshold = 0.1f;
-       float wallHangMax = 1.5f;
-       float traversalProgressThreshold = 0.87f;
-       float jumpPressLoopTime = 0.011f;
-       int duckActionDelay = 50;
-       int jumpResetDelay = 800;
-        
-       // Check if SPACEBAR is pressed and held
-       if (superglide && SuperKey) {
-           if (HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
-             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-           }
-            
-           if (traversalProgress > traversalProgressThreshold && !startSg && HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
-             // Start SG
-             startjumpTime = worldtime; 
-             startSg = true;
-           }
-            
-           if (startSg) {
-             // Press button
-             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-            
-             float currentTime;
-             while (true) {
-               if (apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, currentTime)) {
-                 if (currentTime - startjumpTime < jumpPressLoopTime) {
-                   // Keep looping
-                 } else {
-                   break; 
-                 }
-               }
-             }
-             
-             // Execute actions during SG
-             apex_mem.Write<int>(g_Base + OFFSET_IN_DUCK + 0x8, 6);
-             std::this_thread::sleep_for(std::chrono::milliseconds(duckActionDelay));
-             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-             std::this_thread::sleep_for(std::chrono::milliseconds(jumpResetDelay));
-            
-             startSg = false;
-           }
-       }
+    if (superglide && SuperKey) {
+        float traversal_prog;
+        if (apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversal_prog)) {
+            if (traversal_prog >= 0.91f && last_prog < 0.91f && !boost_fired) {
+                apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+                boost_fired = true;
+            }
+
+            if (traversal_prog < 0.1f && last_prog >= 0.1f) {
+                boost_fired = false;
+            }
+
+            last_prog = traversal_prog;
+        }
+    }
        //////////////////////////////
 
 ////////////////////////////////

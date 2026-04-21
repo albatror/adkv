@@ -198,7 +198,7 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Misc")))
 		{
-			ImGui::Checkbox(XorStr("Superglide"), &superglide);
+			ImGui::Checkbox(XorStr("Mantle Boost"), &superglide);
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);
 			ImGui::Checkbox(XorStr("Firing Range"), &firing_range);

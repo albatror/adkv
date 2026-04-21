@@ -43,6 +43,7 @@
 
 #define OFFSET_IN_DUCK 0x3c755b8 //[Buttons].in_duck updated 2026/04/14
 #define OFFSET_TRAVERSAL_PROGRESS 0x2bcc //[DataMap.DT_Player].m_traversalProgress updated 2026/04/14
+#define OFFSET_MANTLE_BOOST_STATE 0x2c04 //[RecvTable.DT_Player].m_mantleBoostState
 #define OFFSET_TRAVERSAL_STARTTIME 0x2bd4 //[DataMap.DT_Player].m_traversalStartTime updated 2026/04/14
 #define OFFSET_TRAVERSAL_RELEASE_TIME 0x2bdc //[RecvTable.DT_LocalPlayerExclusive].m_traversalReleaseTime updated 2026/04/14
 

@@ -66,6 +66,7 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
 
     if (off_data.count("[RecvTable.DT_Player]m_duckState")) offsets.InDuckState = off_data["[RecvTable.DT_Player]m_duckState"];
     if (off_data.count("[DataMap.DT_Player]m_traversalProgress")) offsets.TraversalProgress = off_data["[DataMap.DT_Player]m_traversalProgress"];
+    if (off_data.count("[RecvTable.DT_Player]m_mantleBoostState")) offsets.MantleBoostState = off_data["[RecvTable.DT_Player]m_mantleBoostState"];
     if (off_data.count("[DataMap.DT_Player]m_traversalStartTime")) offsets.TraversalStartTime = off_data["[DataMap.DT_Player]m_traversalStartTime"];
 
     if (off_data.count("[RecvTable.DT_Player]m_lifeState")) offsets.LifeState = off_data["[RecvTable.DT_Player]m_lifeState"];
