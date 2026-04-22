@@ -70,6 +70,7 @@ void SaveConfig(const std::string& filename) {
     file << "lock_target " << std::boolalpha << lock_target << "\n";
     file << "max_dist " << max_dist << "\n";
     file << "aim_dist " << aim_dist << "\n";
+    file << "vel_multiplier " << vel_multiplier << "\n";
     file << "ads_fov " << ads_fov << "\n";
     file << "ads_smooth " << ads_smooth << "\n";
     file << "hip_fov " << hip_fov << "\n";
@@ -139,6 +140,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "lock_target") ss >> std::boolalpha >> lock_target;
         else if (key == "max_dist") ss >> max_dist;
         else if (key == "aim_dist") ss >> aim_dist;
+        else if (key == "vel_multiplier") ss >> vel_multiplier;
         else if (key == "ads_fov") ss >> ads_fov;
         else if (key == "ads_smooth") ss >> ads_smooth;
         else if (key == "hip_fov") ss >> hip_fov;

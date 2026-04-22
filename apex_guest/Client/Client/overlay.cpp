@@ -232,6 +232,9 @@ void Overlay::RenderMenu()
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(aassist_dist / 40));
 
+			ImGui::Text(XorStr("Aim Velocity Multiplier:"));
+			ImGui::SliderFloat(XorStr("##vel_multiplier"), &vel_multiplier, 0.0f, 10.0f, "%.2f");
+
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
 

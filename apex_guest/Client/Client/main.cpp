@@ -73,6 +73,8 @@ float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
 
+float vel_multiplier = 1.4f;
+
 bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
@@ -482,9 +484,10 @@ int main(int argc, char** argv)
 	add[47] = (uintptr_t)&hip_fov;
 	add[48] = (uintptr_t)&hip_smooth;
 	add[49] = (uintptr_t)&v.skeleton_thickness;
-	add[50] = (uintptr_t)&aassist;
-	add[51] = (uintptr_t)&aassist_dist;
-	add[52] = (uintptr_t)&aassist_aiming;
+	add[50] = (uintptr_t)&vel_multiplier;
+	add[51] = (uintptr_t)&aassist;
+	add[52] = (uintptr_t)&aassist_dist;
+	add[53] = (uintptr_t)&aassist_aiming;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

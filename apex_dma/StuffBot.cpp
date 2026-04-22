@@ -10,6 +10,10 @@
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
+extern const int toRead;
+extern uint64_t player_ptr[];
+extern Vector player_velocity[];
+extern float vel_multiplier;
 extern bool triggerbot;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
@@ -123,7 +127,21 @@ void StuffBotLoop()
                             // Scale bullet speed and gravity for prediction offset
                             Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
                             Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
-                            Ctx.TargetVel = Target.getAbsVelocity();
+
+                            Vector manual_vel = Vector(0, 0, 0);
+                            bool found = false;
+                            for (int v_idx = 0; v_idx < toRead; v_idx++) {
+                                if (player_ptr[v_idx] == centity) {
+                                    manual_vel = player_velocity[v_idx] * vel_multiplier;
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            if (!found) {
+                                manual_vel = Target.getAbsVelocity();
+                            }
+                            Ctx.TargetVel = manual_vel;
 
                             if (BulletPredict(Ctx)) {
                                 QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
