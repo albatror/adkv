@@ -34,8 +34,7 @@ bool is_valid_kernel_ptr(uint64_t ptr) {
 uint64_t find_list_head(uint64_t driver_base, uint64_t driver_size) {
     printf("[*] Scanning for ListHead global variable...\n");
     const uint8_t pattern[] = {0x48, 0x8B, 0x15};
-    size_t scan_size = 0x800000;
-    if (scan_size > driver_size) scan_size = driver_size;
+    size_t scan_size = driver_size;
 
     std::vector<uint8_t> data(scan_size);
     if (kernel->read_raw_into(driver_base, CSliceMut<uint8_t>((char*)data.data(), scan_size)) != 0) {
@@ -169,8 +168,7 @@ std::vector<GpuDevice> enumerate_legacy(uint64_t driver_base) {
 
 uint32_t find_uuid_valid_offset(uint64_t driver_base, uint64_t driver_size) {
     printf("[*] Scanning for UuidValidOffset...\n");
-    size_t scan_size = 0x1000000;
-    if (scan_size > driver_size) scan_size = driver_size;
+    size_t scan_size = driver_size;
 
     std::vector<uint8_t> data(scan_size);
     if (kernel->read_raw_into(driver_base, CSliceMut<uint8_t>((char*)data.data(), scan_size)) != 0) return 0;
@@ -199,8 +197,7 @@ uint32_t find_uuid_valid_offset(uint64_t driver_base, uint64_t driver_size) {
 uint64_t find_gpu_manager_array(uint64_t driver_base, uint64_t driver_size) {
     // Method 1: Original pattern
     const uint8_t pattern1[] = {0x33, 0xC9, 0x4C, 0x8D, 0x05};
-    size_t scan_size = 0x1000000; // Increased scan size
-    if (scan_size > driver_size) scan_size = driver_size;
+    size_t scan_size = driver_size;
 
     std::vector<uint8_t> data(scan_size);
     if (kernel->read_raw_into(driver_base, CSliceMut<uint8_t>((char*)data.data(), scan_size)) != 0) return 0;
@@ -607,4 +604,92 @@ bool physical_spoof(const std::string& target_uuid, std::string& fake_uuid, bool
     if (!verbose) print_progress(max_addr, max_addr, found_count);
     printf("\nPhysical spoofing completed. Found and patched %zu occurrences.\n", found_count);
     return found_count > 0;
+}
+
+bool manual_driver_spoof(const std::string& target_uuid, uint64_t system_addr, uint64_t gpu_addr, uint32_t valid_offset, std::string &real_uuid, std::string &fake_uuid) {
+    if (!kernel) return false;
+
+    std::vector<uint8_t> target_bin = string_to_binary(target_uuid);
+    std::vector<uint8_t> target_guid = to_guid_bin(target_bin);
+
+    if (target_bin.size() != 16) {
+        printf("[-] Invalid target UUID format\n");
+        return false;
+    }
+
+    std::vector<uint64_t> scan_targets;
+    if (is_valid_kernel_ptr(gpu_addr)) scan_targets.push_back(gpu_addr);
+    if (is_valid_kernel_ptr(system_addr)) scan_targets.push_back(system_addr);
+
+    if (scan_targets.empty()) {
+        printf("[-] No valid manual addresses provided\n");
+        return false;
+    }
+
+    bool any_success = false;
+    std::set<uint64_t> checked_ptrs;
+
+    auto scan_and_patch = [&](uint64_t addr, const std::vector<uint8_t>& buf, bool is_gpu_obj) -> bool {
+        bool found_any = false;
+        for (size_t i = 0; i <= buf.size() - 16; i++) {
+            if (memcmp(&buf[i], target_bin.data(), 16) == 0 || memcmp(&buf[i], target_guid.data(), 16) == 0) {
+                real_uuid = guid_to_string(&buf[i]);
+                uint8_t new_uuid[16];
+                std::random_device rd; std::mt19937 gen(rd()); std::uniform_int_distribution<> dis(0, 255);
+                for (int j = 0; j < 16; j++) new_uuid[j] = dis(gen);
+                fake_uuid = guid_to_string(new_uuid);
+
+                if (kernel->write_raw(addr + i, CSliceRef<uint8_t>((char*)new_uuid, 16)) == 0) {
+                    printf("[+] Successfully patched Binary UUID at 0x%lx: %s -> %s\n", addr + i, real_uuid.c_str(), fake_uuid.c_str());
+                    found_any = true;
+                }
+            }
+        }
+
+        std::string raw_uuid_str = target_uuid;
+        if (raw_uuid_str.find("GPU-") == 0) raw_uuid_str = raw_uuid_str.substr(4);
+        auto patch_ascii = [&](const std::string& target_str) {
+            for (size_t i = 0; i <= buf.size() - target_str.length(); i++) {
+                if (memcmp(&buf[i], target_str.c_str(), target_str.length()) == 0) {
+                    std::string f_uuid = target_str;
+                    const char* hex_chars = "0123456789abcdef";
+                    std::random_device rd; std::mt19937 gen(rd()); std::uniform_int_distribution<> dis(0, 15);
+                    for (char &c : f_uuid) if (isxdigit((unsigned char)c)) c = hex_chars[dis(gen)];
+                    if (kernel->write_raw(addr + i, CSliceRef<uint8_t>((char*)f_uuid.c_str(), f_uuid.length())) == 0) {
+                        printf("[+] Successfully patched ASCII UUID at 0x%lx: %s -> %s\n", addr + i, target_str.c_str(), f_uuid.c_str());
+                        found_any = true;
+                    }
+                }
+            }
+        };
+        patch_ascii(target_uuid);
+        patch_ascii(raw_uuid_str);
+
+        if (found_any && is_gpu_obj && valid_offset > 0) {
+            uint8_t valid = 1;
+            kernel->write_raw(addr + valid_offset, CSliceRef<uint8_t>((char*)&valid, 1));
+            printf("[+] Set UuidValid bit at 0x%lx\n", addr + valid_offset);
+        }
+        return found_any;
+    };
+
+    for (uint64_t start_addr : scan_targets) {
+        bool is_gpu_obj = (start_addr == gpu_addr);
+        std::vector<uint8_t> data(0x2000);
+        if (kernel->read_raw_into(start_addr, CSliceMut<uint8_t>((char*)data.data(), data.size())) == 0) {
+            if (scan_and_patch(start_addr, data, is_gpu_obj)) any_success = true;
+
+            for (size_t i = 0; i <= data.size() - 8; i += 8) {
+                uint64_t child_ptr = *(uint64_t*)&data[i];
+                if (!is_valid_kernel_ptr(child_ptr) || checked_ptrs.count(child_ptr)) continue;
+                checked_ptrs.insert(child_ptr);
+                std::vector<uint8_t> child_data(0x1000);
+                if (kernel->read_raw_into(child_ptr, CSliceMut<uint8_t>((char*)child_data.data(), child_data.size())) == 0) {
+                    if (scan_and_patch(child_ptr, child_data, false)) any_success = true;
+                }
+            }
+        }
+    }
+
+    return any_success;
 }

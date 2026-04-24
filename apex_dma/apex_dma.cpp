@@ -1470,10 +1470,11 @@ int main(int argc, char *argv[])
 				bool done = false;
 				while (!done) {
 					printf("\n--- GPU Spoofing Menu ---\n");
-					printf("1. Try spoofing by Driver (NVIDIA internal structures) (deactivated)\n");
+					printf("1. Try spoofing by Driver (NVIDIA internal structures)\n");
 					printf("2. Try spoofing by Physical Memory Patching (Full RAM scan)\n");
-					printf("3. Continue without spoofing\n");
-					printf("4. Quit\n");
+					printf("3. Manual Driver Spoofing (Enter addresses)\n");
+					printf("4. Continue without spoofing\n");
+					printf("5. Quit\n");
 					printf("Choice: ");
 
 					int choice = 0;
@@ -1483,8 +1484,6 @@ int main(int argc, char *argv[])
 					}
 
 					if (choice == 1) {
-						printf("[*] Choice 1 is currently deactivated.\n");
-						/*
 						gpu_spoofed = spoof_gpu_uuid(target_uuid, real_gpu_uuid, fake_gpu_uuid);
 						if (gpu_spoofed) {
 							printf("[+] Driver spoofing successful!\n");
@@ -1492,7 +1491,6 @@ int main(int argc, char *argv[])
 						} else {
 							printf("[-] Driver spoofing failed.\n");
 						}
-						*/
 					} else if (choice == 2) {
 						bool sub_done = false;
 						bool verbose = false;
@@ -1521,9 +1519,27 @@ int main(int argc, char *argv[])
 							printf("[-] Physical memory spoofing failed.\n");
 						}
 					} else if (choice == 3) {
+						uint64_t manual_system = 0;
+						uint64_t manual_address = 0;
+						uint32_t manual_offset = 0;
+						printf("Enter system (GPU Manager) address (hex): ");
+						scanf("%lx", &manual_system);
+						printf("Enter address (GPU Object) address (hex): ");
+						scanf("%lx", &manual_address);
+						printf("Enter UuidValidOffset (hex, e.g. c7c): ");
+						scanf("%x", &manual_offset);
+
+						gpu_spoofed = manual_driver_spoof(target_uuid, manual_system, manual_address, manual_offset, real_gpu_uuid, fake_gpu_uuid);
+						if (gpu_spoofed) {
+							printf("[+] Manual driver spoofing successful!\n");
+							done = true;
+						} else {
+							printf("[-] Manual driver spoofing failed.\n");
+						}
+					} else if (choice == 4) {
 						printf("[*] Continuing without spoofing.\n");
 						done = true;
-					} else if (choice == 4) {
+					} else if (choice == 5) {
 						printf("[*] Quitting...\n");
 						exit(0);
 					}
