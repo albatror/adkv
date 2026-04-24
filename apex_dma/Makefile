@@ -1,6 +1,6 @@
 CXX=g++
-CXXFLAGS=-I./memflow_lib/memflow-ffi/ -L./memflow_lib/target/release -Wno-multichar
-LIBS=-lm -ldl -lpthread -l:libmemflow_ffi.a
+CXXFLAGS=-I./memflow_lib/memflow-ffi/ -Wno-multichar
+LIBS=./memflow_lib/target/release/libmemflow_ffi.a -lm -ldl -lpthread
 
 OUTDIR=./build
 OBJDIR=$(OUTDIR)/obj
