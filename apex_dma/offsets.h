@@ -25,6 +25,7 @@
 #define OFFSET_ARMORTYPE 0x4854 //[RecvTable.DT_Player].m_armorType updated updated 2026/04/14
 #define OFFSET_NAME 0x479 //[RecvTable.DT_BaseEntity].m_iName updated 2026/04/14
 #define OFFSET_SIGN_NAME 0x470 //[RecvTable.DT_BaseEntity].m_iSignifierName updated 2026/04/14
+#define OFFSET_NET_FLAGS 0x02d8 //[RecvTable.DT_BaseEntity].m_networkedFlags
 #define OFFSET_ABS_VELOCITY 0x170 //[DataMap.DT_BaseEntity].m_vecAbsVelocity updated 2026/04/14
 //#define OFFSET_VISIBLE_TIME 0x1a64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/04/14
 //#define OFFSET_LAST_AIMEDAT_TIME 0x1a64 //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
