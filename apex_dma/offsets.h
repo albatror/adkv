@@ -43,6 +43,7 @@
 
 #define OFFSET_IN_DUCK 0x3c755b8 //[Buttons].in_duck updated 2026/04/14
 #define OFFSET_TRAVERSAL_PROGRESS 0x2bcc //[DataMap.DT_Player].m_traversalProgress updated 2026/04/14
+#define OFFSET_MANTLE_BOOST_STATE 0x2c04 //[RecvTable.DT_Player].m_mantleBoostState
 #define OFFSET_TRAVERSAL_STARTTIME 0x2bd4 //[DataMap.DT_Player].m_traversalStartTime updated 2026/04/14
 #define OFFSET_TRAVERSAL_RELEASE_TIME 0x2bdc //[RecvTable.DT_LocalPlayerExclusive].m_traversalReleaseTime updated 2026/04/14
 
@@ -50,7 +51,7 @@
 #define OFFSET_IN_TOGGLE_DUCK 0x3c753e8 //[Buttons].in_toggle_duck updated 2026/04/14
  
 #define OFFSET_WEAPON_NAME 0x1888 //?0x19c4 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/04/14
-#define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/04/14
+#define OFFSET_OFF_WEAPON 0x19d4 //[DataMap.vvvvvvvvvvvvvvvvvDT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/04/14
 #define OFFSET_WALL_RUN_START_TIME 0x370c //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunStartTime updated 2026/04/14
 #define OFFSET_WALL_RUN_CLEAR_TIME 0x3710 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/04/14
 
@@ -68,7 +69,7 @@
 #define OFFSET_STUDIOHDR 0x1000 //[Miscellaneous].CBaseAnimating!m_pStudioHdr updated 2026/04/14
 #define OFFSET_AIMPUNCH 0x2518 //[DataMap.DT_Player].m_currentFrameLocalPlayer.m_vecPunchWeapon_Angle updated 2026/04/14
 #define OFFSET_CAMERAPOS 0x1fc4 //[Miscellaneous].CPlayer!camera_origin updated 2026/04/14
-#define OFFSET_VIEWANGLES 0x2614 - 0x104 //[RecvTable.DT_Player]m_ammoPoolCapacity - 0x104 updated 2026/02/11
+#define OFFSET_VIEWANGLES 0x2600 //[RecvTable.DT_Player]m_ammoPoolCapacity - 0x14 updated 2026/02/11
 #define OFFSET_BREATH_ANGLES OFFSET_VIEWANGLES - 0x10 //updated 01/10/2024
 #define OFFSET_OBSERVER_MODE 0x35f4 //[RecvTable.DT_LocalPlayerExclusive].m_iObserverMode updated 2026/03/24
 #define OFFSET_OBSERVING_TARGET 0x3600 //[RecvTable.DT_LocalPlayerExclusive].m_hObserverTarget updated 2026/03/24
