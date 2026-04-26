@@ -409,73 +409,49 @@ if (walljump) {
 }
 //walljump ++///////////////
 
-    // SUPERGLIDE
+    // MANTLE BOOST (Superglide) - apex detection, EMA smoothing, non-blocking release
+    static bool boost_fired    = false;
+    static bool pending_release = false;
+    static float last_prog      = 0.0f;
+    static float last_velocity  = 0.0f;
+    static float smooth_vel     = 0.0f;
+    static std::chrono::steady_clock::time_point release_at;
 
-       static float startjumpTime = 0;
-       static bool startSg = false;
-       static float traversalProgressTmp = 0.0;
-        
-       float worldtime;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, worldtime)) {
-         // error handling 
-       }
-        
-       float traversalStartTime;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_STARTTIME, traversalStartTime)) {
-         // error handling
-       }
-        
-       float traversalProgress;
-       if (!apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversalProgress)) {
-         // error handling
-       }
-        
-       auto HangOnWall = -(traversalStartTime - worldtime);
-        
-       // Adjust thresholds and delays based on frame rate
-       float wallHangThreshold = 0.1f;
-       float wallHangMax = 1.5f;
-       float traversalProgressThreshold = 0.87f;
-       float jumpPressLoopTime = 0.011f;
-       int duckActionDelay = 50;
-       int jumpResetDelay = 800;
-        
-       // Check if SPACEBAR is pressed and held
-       if (superglide && SuperKey) {
-           if (HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
-             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-           }
-            
-           if (traversalProgress > traversalProgressThreshold && !startSg && HangOnWall > wallHangThreshold && HangOnWall < wallHangMax) {
-             // Start SG
-             startjumpTime = worldtime; 
-             startSg = true;
-           }
-            
-           if (startSg) {
-             // Press button
-             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-            
-             float currentTime;
-             while (true) {
-               if (apex_mem.Read<float>(LocalPlayer + OFFSET_TIME_BASE, currentTime)) {
-                 if (currentTime - startjumpTime < jumpPressLoopTime) {
-                   // Keep looping
-                 } else {
-                   break; 
-                 }
-               }
-             }
-             
-             // Execute actions during SG
-             apex_mem.Write<int>(g_Base + OFFSET_IN_DUCK + 0x8, 6);
-             std::this_thread::sleep_for(std::chrono::milliseconds(duckActionDelay));
-             apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-             std::this_thread::sleep_for(std::chrono::milliseconds(jumpResetDelay));
-            
-             startSg = false;
-           }
-       }
+    // fire the deferred release without blocking
+    if (pending_release && std::chrono::steady_clock::now() >= release_at) {
+        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+        pending_release = false;
+    }
+
+    if (superglide && SuperKey) {
+        float traversal_prog;
+        if (apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, traversal_prog)) {
+            float raw_vel = traversal_prog - last_prog;
+            // EMA smoothing to suppress memory-read noise
+            smooth_vel = smooth_vel * 0.7f + raw_vel * 0.3f;
+
+            // apex detection: velocity was rising, now falling = peak of mantle
+            bool at_apex = (last_velocity > 0.0f && smooth_vel < last_velocity && smooth_vel > 0.0f);
+
+            if (at_apex && !boost_fired) {
+                // adaptive hold: fast mantle -> 8 ms, slow -> 16 ms
+                int hold_ms = (smooth_vel > 0.02f) ? 8 : 16;
+                apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+                release_at    = std::chrono::steady_clock::now() + std::chrono::milliseconds(hold_ms);
+                pending_release = true;
+                boost_fired   = true;
+            }
+
+            if (traversal_prog < 0.1f && last_prog >= 0.1f) {
+                boost_fired   = false;
+                smooth_vel    = 0.0f;
+                last_velocity = 0.0f;
+            }
+
+            last_velocity = smooth_vel;
+            last_prog     = traversal_prog;
+        }
+    }
        //////////////////////////////
 
 ////////////////////////////////
@@ -989,14 +965,19 @@ static void AimbotLoop()
 				float current_max_fov = is_zooming ? ads_fov : hip_fov;
 
 				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-				if (elapsed < 500) {
-					current_smooth *= 2.0f;
-				}
+			if (elapsed < 500) {
+				current_smooth *= 0.5f;
+			}
 
 
 				float fov = CalculateFov(LPlayer, Target);
 				float dist = LPlayer.getPosition().DistTo(Target.getPosition());
 				float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
+
+				float distanceFactor = 2.0f - (dist / 5000.0f);
+				if (distanceFactor < 0.5f) distanceFactor = 0.5f;
+				if (distanceFactor > 2.0f) distanceFactor = 2.0f;
+				current_max_fov *= distanceFactor;
 
 				if (fov > current_max_fov || dist > active_dist)
 				{
@@ -1475,7 +1456,7 @@ int main(int argc, char *argv[])
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x000000;
+	uint64_t add_off = 0x2eec00;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;

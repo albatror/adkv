@@ -549,17 +549,18 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 		max_fov *= zoom_fov/90.0f;
 	}
 
+	QAngle ViewAngles = from.GetViewAngles();
+
   // Find best bone
   if (bone_auto) {
-    float NearestBoneDistance = FLT_MAX;
+    float NearestBoneFov = FLT_MAX;
     for (int i = 0; i < 4; i++) {
       Vector currentBonePosition = target.getBonePositionByHitbox(i);
-      float DistanceFromCrosshair =
-          (currentBonePosition - LocalCamera).Length();
-      if (DistanceFromCrosshair < NearestBoneDistance) {
+      float DistanceFromCrosshair = Math::GetFov(ViewAngles, Math::CalcAngle(LocalCamera, currentBonePosition));
+      if (DistanceFromCrosshair < NearestBoneFov) {
         TargetBonePosition = currentBonePosition;
-        distanceToTarget = DistanceFromCrosshair;
-        NearestBoneDistance = DistanceFromCrosshair;
+        distanceToTarget = (currentBonePosition - LocalCamera).Length();
+        NearestBoneFov = DistanceFromCrosshair;
       }
     }
   } else {
@@ -595,7 +596,6 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 
 	if (CalculatedAngles == QAngle(0, 0, 0))
     	CalculatedAngles = Math::CalcAngle(LocalCamera, TargetBonePosition);
-	QAngle ViewAngles = from.GetViewAngles();
 	QAngle SwayAngles = from.GetSwayAngles();
 	//remove sway and recoil
 	if(aim_no_recoil)
@@ -604,6 +604,12 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	QAngle Delta = CalculatedAngles - ViewAngles;
 
 	Math::NormalizeAngles(Delta);
+
+	float maxDelta = 15.0f;
+	if (Delta.x >  maxDelta) Delta.x =  maxDelta;
+	if (Delta.x < -maxDelta) Delta.x = -maxDelta;
+	if (Delta.y >  maxDelta) Delta.y =  maxDelta;
+	if (Delta.y < -maxDelta) Delta.y = -maxDelta;
 
 	QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
 	return SmoothedAngles;
