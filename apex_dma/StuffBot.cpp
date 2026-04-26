@@ -5,6 +5,8 @@
 #include <random>
 #include <cfloat>
 #include "offsets.h"
+#include "Weapon.h"
+#include "prediction.h"
 
 extern Memory apex_mem;
 extern uint64_t g_Base;
@@ -25,7 +27,7 @@ void TriggerBotRun(bool shoot = false)
 
     if (shoot && !trigger_active) {
         apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 5);
-        trigger_release_time = now + std::chrono::milliseconds(60);
+        trigger_release_time = now + std::chrono::milliseconds(30);
         trigger_active = true;
     } else if (trigger_active && now >= trigger_release_time) {
         apex_mem.Write<int>(g_Base + OFFSET_IN_ATTACK + 0x8, 4);
@@ -109,7 +111,30 @@ void StuffBotLoop()
                     }
 
                     if (fov <= triggerbot_fov) {
-                        can_shoot = true;
+                        WeaponXEntity curweap = WeaponXEntity();
+                        curweap.update(LPlayer.ptr);
+                        float BulletSpeed = curweap.get_projectile_speed();
+                        float BulletGrav = curweap.get_projectile_gravity();
+
+                        if (BulletSpeed > 1.f) {
+                            PredictCtx Ctx;
+                            Ctx.StartPos = LPlayer.GetCamPos();
+                            Ctx.TargetPos = HeadPos;
+                            // Scale bullet speed and gravity for prediction offset
+                            Ctx.BulletSpeed = BulletSpeed - (BulletSpeed * 0.08f);
+                            Ctx.BulletGravity = BulletGrav + (BulletGrav * 0.05f);
+                            Ctx.TargetVel = Target.getAbsVelocity();
+
+                            if (BulletPredict(Ctx)) {
+                                QAngle PredictedAngles = QAngle{ Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f };
+                                float predicted_fov = Math::GetFov(LPlayer.GetViewAngles(), PredictedAngles);
+                                if (predicted_fov <= triggerbot_fov) {
+                                    can_shoot = true;
+                                }
+                            }
+                        } else {
+                            can_shoot = true;
+                        }
                     }
 
                     if (can_shoot) {
@@ -118,6 +143,8 @@ void StuffBotLoop()
                         last_crosshair_times[centity] = now_crosshair_target_time;
                         break;
                     }
+                    // Responsive logic: only update last_crosshair_times if the target is invalid or we shot.
+                    // If FOV/prediction fails, we don't update so we retry immediately next tick if still in crosshair.
                 } else {
                     last_crosshair_times[centity] = now_crosshair_target_time;
                 }

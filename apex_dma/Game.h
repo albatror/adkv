@@ -85,9 +85,16 @@ public:
 	bool Observing(uint64_t local);
 	void get_name(uint64_t g_Base, char* name);
 	//void get_name(char *name);
+        void getModelName(char* name, int max_len);
 	void getWeaponModelName(char* name, int max_len);
 	float lastCrossHairTime();
 	int getCurrentWeaponId();
+        uint32_t getNetFlags();
+        bool isGibraltarShield();
+        bool isRampartCover();
+        bool isNewcastleShield();
+        bool isLifelineDrone();
+        bool isCryptoDrone();
 	////test////
 	int xp_level();
 
