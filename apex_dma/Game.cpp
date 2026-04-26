@@ -209,6 +209,61 @@ int Entity::getCurrentWeaponId()
 	apex_mem.Read<int>(wep_entity + OFFSET_WEAPON_NAME, weaponId);
 	return weaponId;
 }
+
+uint32_t Entity::getNetFlags()
+{
+	return *(uint32_t*)(buffer + OFFSET_NET_FLAGS);
+}
+
+bool Entity::isGibraltarShield()
+{
+	char signifier[33] = {};
+	apex_mem.ReadArray<char>(ptr + OFFSET_SIGN_NAME, signifier, 32);
+	if (strcmp(signifier, "prop_script") != 0) return false;
+	uint32_t netFlags;
+	apex_mem.Read<uint32_t>(ptr + OFFSET_NET_FLAGS, netFlags);
+	return netFlags == 286269440;
+}
+
+bool Entity::isRampartCover()
+{
+	char signifier[33] = {};
+	apex_mem.ReadArray<char>(ptr + OFFSET_SIGN_NAME, signifier, 32);
+	if (strcmp(signifier, "prop_script") != 0) return false;
+	char modelName[256] = { 0 };
+	getModelName(modelName, 256);
+	return (strstr(modelName, "rampart_cover_wall.rmdl") != nullptr);
+}
+
+bool Entity::isNewcastleShield()
+{
+	char signifier[33] = {};
+	apex_mem.ReadArray<char>(ptr + OFFSET_SIGN_NAME, signifier, 32);
+	if (strcmp(signifier, "prop_script") != 0) return false;
+	char modelName[256] = { 0 };
+	getModelName(modelName, 256);
+	return (strstr(modelName, "newcastle_mobile_shield.rmdl") != nullptr || strstr(modelName, "newcastle_castle_wall.rmdl") != nullptr);
+}
+
+bool Entity::isLifelineDrone()
+{
+	char signifier[33] = {};
+	apex_mem.ReadArray<char>(ptr + OFFSET_SIGN_NAME, signifier, 32);
+	if (strcmp(signifier, "prop_script") != 0) return false;
+	char modelName[256] = { 0 };
+	getModelName(modelName, 256);
+	return (strstr(modelName, "lifeline_drone.rmdl") != nullptr);
+}
+
+bool Entity::isCryptoDrone()
+{
+	char signifier[33] = {};
+	apex_mem.ReadArray<char>(ptr + OFFSET_SIGN_NAME, signifier, 32);
+	if (strcmp(signifier, "player_vehicle") != 0) return false;
+	char modelName[256] = { 0 };
+	getModelName(modelName, 256);
+	return (strstr(modelName, "crypto_drone.rmdl") != nullptr);
+}
 ///////////////////////////////
 
 Vector Entity::getBonePosition(int id)
@@ -385,6 +440,18 @@ void Entity::get_name(uint64_t g_Base, char* name)
     uint64_t name_ptr = 0;
     apex_mem.Read<uint64_t>(g_Base + OFFSET_NAME_LIST + ((name_index - 1) * 24), name_ptr);
 	apex_mem.ReadArray<char>(name_ptr, name, 32);
+}
+
+void Entity::getModelName(char* name, int max_len)
+{
+	uint64_t model_name_ptr = 0;
+	apex_mem.Read<uint64_t>(ptr + OFFSET_MODELNAME, model_name_ptr);
+	if (model_name_ptr) {
+		apex_mem.ReadArray<char>(model_name_ptr, name, max_len);
+	}
+	else {
+		strncpy(name, "unknown", max_len);
+	}
 }
 
 void Entity::getWeaponModelName(char* name, int max_len)

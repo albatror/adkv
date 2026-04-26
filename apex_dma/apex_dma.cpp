@@ -110,6 +110,13 @@ bool valid = false;
 bool lock = false;
 bool is_aimentity_visible = false;
 
+struct Shield {
+	Vector origin;
+	float radius;
+	int type; // 0: Gibraltar, 1: Rampart, 2: Newcastle
+};
+std::vector<Shield> active_shields;
+
 int screen_width = 2560;
 int screen_height = 1440;
 
@@ -236,6 +243,20 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	
 	bool visible = (target.lastVisTime() > lastvis_aim[index]);
 
+	if (visible)
+	{
+		Vector camPos = LPlayer.GetCamPos();
+		Vector targetHead = target.getBonePositionByHitbox(0);
+		for (const auto& shield : active_shields)
+		{
+			if (Math::IsLineIntersectingSphere(camPos, targetHead, shield.origin, shield.radius))
+			{
+				visible = false;
+				break;
+			}
+		}
+	}
+
 	// Use head position for FOV calculation to be more accurate at close range
 	Vector HeadPos = target.getBonePositionByHitbox(0);
 	float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
@@ -350,6 +371,48 @@ Entity LPlayer = getEntity(LocalPlayer);
 			}
 
 			uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+
+			static auto last_shield_update = std::chrono::steady_clock::now();
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_shield_update).count() > 500) {
+				active_shields.clear();
+				for (int i = 0; i < 1000; i++)
+				{
+					uint64_t centity = 0;
+					apex_mem.Read<uint64_t>(entitylist + ((uint64_t)i << 5), centity);
+					if (centity == 0 || centity == LocalPlayer) continue;
+
+					char signifier[33] = {};
+					apex_mem.ReadArray<char>(centity + OFFSET_SIGN_NAME, signifier, 32);
+
+					if (strcmp(signifier, "prop_script") == 0) {
+						uint32_t netFlags = 0;
+						apex_mem.Read<uint32_t>(centity + OFFSET_NET_FLAGS, netFlags);
+						if (netFlags == 286269440) {
+							Vector pos;
+							apex_mem.Read<Vector>(centity + OFFSET_ORIGIN, pos);
+							active_shields.push_back({ pos, 220.0f, 0 });
+						} else {
+							// Check Rampart and Newcastle via model name (less frequent, so we only read if it's prop_script)
+							char modelName[256] = { 0 };
+							uint64_t model_name_ptr = 0;
+							apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
+							if (model_name_ptr) {
+								apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
+								if (strstr(modelName, "rampart_cover_wall.rmdl")) {
+									Vector pos;
+									apex_mem.Read<Vector>(centity + OFFSET_ORIGIN, pos);
+									active_shields.push_back({ pos, 80.0f, 1 });
+								} else if (strstr(modelName, "newcastle_mobile_shield.rmdl") || strstr(modelName, "newcastle_castle_wall.rmdl")) {
+									Vector pos;
+									apex_mem.Read<Vector>(centity + OFFSET_ORIGIN, pos);
+									active_shields.push_back({ pos, 100.0f, 2 });
+								}
+							}
+						}
+					}
+				}
+				last_shield_update = std::chrono::steady_clock::now();
+			}
 
 //////////////////////////////////
 
@@ -529,7 +592,23 @@ if (bhop && SuperKey) {
 						continue;
 
 					Entity Target = getEntity(centity);
-					if (!Target.isDummy())
+
+					bool isDrone = false;
+					char signifier[33] = {};
+					apex_mem.ReadArray<char>(centity + OFFSET_SIGN_NAME, signifier, 32);
+					if (strcmp(signifier, "player_vehicle") == 0 || strcmp(signifier, "prop_script") == 0) {
+						char modelName[256] = { 0 };
+						uint64_t model_name_ptr = 0;
+						apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
+						if (model_name_ptr) {
+							apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
+							if (strstr(modelName, "crypto_drone.rmdl")) {
+								isDrone = true;
+							}
+						}
+					}
+
+					if (!Target.isDummy() && !isDrone)
 					{
 						continue;
 					}
@@ -557,8 +636,25 @@ if (bhop && SuperKey) {
 						continue;
 					if (LocalPlayer == centity)
 						continue;
+
 					Entity Target = getEntity(centity);
-					if (!Target.isPlayer())
+
+					bool isDrone = false;
+					char signifier[33] = {};
+					apex_mem.ReadArray<char>(centity + OFFSET_SIGN_NAME, signifier, 32);
+					if (strcmp(signifier, "player_vehicle") == 0 || strcmp(signifier, "prop_script") == 0) {
+						char modelName[256] = { 0 };
+						uint64_t model_name_ptr = 0;
+						apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
+						if (model_name_ptr) {
+							apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
+							if (strstr(modelName, "crypto_drone.rmdl")) {
+								isDrone = true;
+							}
+						}
+					}
+
+					if (!Target.isPlayer() && !isDrone)
 					{
 						continue;
 					}
@@ -662,7 +758,22 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 						Entity Target = getEntity(centity);
 
-						if (!Target.isDummy())
+						bool isDrone = false;
+						char signifier[33] = {};
+						apex_mem.ReadArray<char>(centity + OFFSET_SIGN_NAME, signifier, 32);
+						if (strcmp(signifier, "player_vehicle") == 0 || strcmp(signifier, "prop_script") == 0) {
+							char modelName[256] = { 0 };
+							uint64_t model_name_ptr = 0;
+							apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
+							if (model_name_ptr) {
+								apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
+							if (strstr(modelName, "crypto_drone.rmdl")) {
+									isDrone = true;
+								}
+							}
+						}
+
+						if (!Target.isDummy() && !isDrone)
 						{
 							continue;
 						}
@@ -748,7 +859,11 @@ Entity LPlayer = getEntity(LocalPlayer);
 								}
 							}
 
-							Target.get_name(g_Base, &players[c].name[0]);
+							if (isDrone) {
+								strncpy(players[c].name, "Crypto Drone", 32);
+							} else {
+								Target.get_name(g_Base, &players[c].name[0]);
+							}
 
 							char weaponModel[256] = { 0 };
 							Target.getWeaponModelName(weaponModel, 256);
@@ -782,8 +897,23 @@ Entity LPlayer = getEntity(LocalPlayer);
 						}
 
 						Entity Target = getEntity(centity);
+
+						bool isDrone = false;
+						char signifier[33] = {};
+						apex_mem.ReadArray<char>(centity + OFFSET_SIGN_NAME, signifier, 32);
+						if (strcmp(signifier, "player_vehicle") == 0 || strcmp(signifier, "prop_script") == 0) {
+							char modelName[256] = { 0 };
+							uint64_t model_name_ptr = 0;
+							apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
+							if (model_name_ptr) {
+								apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
+							if (strstr(modelName, "crypto_drone.rmdl")) {
+									isDrone = true;
+								}
+							}
+						}
 						
-						if (!Target.isPlayer())
+						if (!Target.isPlayer() && !isDrone)
 						{
 							continue;
 						}
@@ -867,7 +997,11 @@ Entity LPlayer = getEntity(LocalPlayer);
 								}
 							}
 
-							Target.get_name(g_Base, &players[i].name[0]);
+							if (isDrone) {
+								strncpy(players[i].name, "Crypto Drone", 32);
+							} else {
+								Target.get_name(g_Base, &players[i].name[0]);
+							}
 
 							char weaponModel[256] = { 0 };
 							Target.getWeaponModelName(weaponModel, 256);
@@ -965,19 +1099,15 @@ static void AimbotLoop()
 				float current_max_fov = is_zooming ? ads_fov : hip_fov;
 
 				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-			if (elapsed < 500) {
-				current_smooth *= 0.5f;
-			}
+				if (elapsed < 500) {
+					current_smooth *= 2.0f;
+				}
 
 
 				float fov = CalculateFov(LPlayer, Target);
 				float dist = LPlayer.getPosition().DistTo(Target.getPosition());
 				float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
 
-				float distanceFactor = 2.0f - (dist / 5000.0f);
-				if (distanceFactor < 0.5f) distanceFactor = 0.5f;
-				if (distanceFactor > 2.0f) distanceFactor = 2.0f;
-				current_max_fov *= distanceFactor;
 
 				if (fov > current_max_fov || dist > active_dist)
 				{
