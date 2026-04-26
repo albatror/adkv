@@ -767,7 +767,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
 							if (model_name_ptr) {
 								apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
-							if (strstr(modelName, "crypto_drone.rmdl")) {
+								if (strstr(modelName, "crypto_drone.rmdl")) {
 									isDrone = true;
 								}
 							}
@@ -907,7 +907,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 							apex_mem.Read<uint64_t>(centity + OFFSET_MODELNAME, model_name_ptr);
 							if (model_name_ptr) {
 								apex_mem.ReadArray<char>(model_name_ptr, modelName, 256);
-							if (strstr(modelName, "crypto_drone.rmdl")) {
+								if (strstr(modelName, "crypto_drone.rmdl")) {
 									isDrone = true;
 								}
 							}
@@ -1099,15 +1099,19 @@ static void AimbotLoop()
 				float current_max_fov = is_zooming ? ads_fov : hip_fov;
 
 				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-				if (elapsed < 500) {
-					current_smooth *= 2.0f;
-				}
+			if (elapsed < 500) {
+				current_smooth *= 0.5f;
+			}
 
 
 				float fov = CalculateFov(LPlayer, Target);
 				float dist = LPlayer.getPosition().DistTo(Target.getPosition());
 				float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
 
+				float distanceFactor = 2.0f - (dist / 5000.0f);
+				if (distanceFactor < 0.5f) distanceFactor = 0.5f;
+				if (distanceFactor > 2.0f) distanceFactor = 2.0f;
+				current_max_fov *= distanceFactor;
 
 				if (fov > current_max_fov || dist > active_dist)
 				{
