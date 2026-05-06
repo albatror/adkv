@@ -1,7 +1,7 @@
 #pragma once
 #include "offsets_dynamic.h"
 
-#define GameVersion v3.0.2.49 //[Miscellaneous].GameVersion updated 2026/04/14
+#define GameVersion v3.0.3.29 //[Miscellaneous].GameVersion updated 2026/05/05
 #define OFFSET_ENTITYLIST 0x6266928 //[Miscellaneous].cl_entitylist updated 2026/05/05
 #define OFFSET_LOCAL_ENT 0x268fa08 //[Miscellaneous].LocalPlayer updated 2026/05/05
 #define OFFSET_LOCAL_ENTITY_HANDLE 0x251E5D0 //[Miscellaneous].localplayerHandle updated 2026/04/14
@@ -28,8 +28,8 @@
 #define OFFSET_ABS_VELOCITY 0x170 //[DataMap.DT_BaseEntity].m_vecAbsVelocity updated 2026/05/05
 //#define OFFSET_VISIBLE_TIME 0x1a64 //[Miscellaneous].CPlayer!lastVisibleTime updated 2026/04/14
 //#define OFFSET_LAST_AIMEDAT_TIME 0x1a64 //0x1a5c   //[Miscellaneous].CPlayer!lastVisibleTime + 0x8
-#define OFFSET_VISIBLE_TIME 0x1A64 //0x1a62 + 0x02 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02
-#define OFFSET_LAST_AIMEDAT_TIME   0x1a6c //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)
+#define OFFSET_VISIBLE_TIME 0x1a72 + 0x02 //[DataMap.C_BaseCombatCharacter]m_hudInfo_visibilityTestAlwaysPasses + 0x02  updated 2026/05/05
+#define OFFSET_LAST_AIMEDAT_TIME  0x1a72 + 0x8 //[Miscellaneous]CWeaponX!lastCrosshairTargetTime (CPlayer!lastVisibleTime relative)  updated 2026/05/05
 #define OFFSET_ZOOMING 0x1cc1 //[RecvTable.DT_Player].m_bZooming updated 2026/05/05
 
 #define OFFSET_VIEW_OFFSET 0xe8 //[DataMap.DT_BaseEntity].m_currentFrame.viewOffset updated 2026/05/05
