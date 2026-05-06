@@ -1326,14 +1326,40 @@ vars_t = false;
 void HeirloomChangerLoop()
 {
 	heirloom_t = true;
+
+	std::string last_model = "";
+	int last_sequence = -1;
+	int last_model_index = -1;
+	int last_frame = -1;
+
 	while (heirloom_t)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		if (g_Base == 0 || c_Base == 0 || !heirloom_changer) continue;
+		// Default: low CPU
+		int sleep_time = 50;
+
+		if (g_Base == 0 || !heirloom_changer)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			continue;
+		}
+
+		// 🎯 Tick/frame detection
+		int current_frame = 0;
+		apex_mem.Read<int>(g_Base + OFFSET_GLOBAL_VARS + 0x0008, current_frame);
+		if (current_frame == last_frame)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			continue;
+		}
+		last_frame = current_frame;
 
 		uint64_t LocalPlayer = 0;
 		apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
-		if (LocalPlayer == 0) continue;
+		if (!LocalPlayer)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			continue;
+		}
 
 		uint32_t view_model_handle = 0;
 		apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_VIEWMODEL, view_model_handle);
@@ -1341,52 +1367,91 @@ void HeirloomChangerLoop()
 
 		uint64_t view_model_ptr = 0;
 		apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (view_model_handle << 5), view_model_ptr);
-		if (view_model_ptr == 0) continue;
+		if (!view_model_ptr)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			continue;
+		}
 
-		char modelName[256];
 		uint64_t name_ptr = 0;
 		apex_mem.Read<uint64_t>(view_model_ptr + OFFSET_MODELNAME, name_ptr);
-		if (name_ptr == 0) continue;
+		if (!name_ptr)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			continue;
+		}
 
-		apex_mem.ReadArray<char>(name_ptr, modelName, 256);
-		std::string model_name_str = std::string(modelName);
+		char modelName[128] = { 0 };
+		apex_mem.ReadArray<char>(name_ptr, modelName, sizeof(modelName));
+		std::string model_name_str(modelName);
 
 		int cur_sequence = 0;
 		apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, cur_sequence);
+
 		int modelAniIndex = 0;
 		apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, modelAniIndex);
 
+		// 🔁 Skip if nothing changed
+		if (model_name_str == last_model &&
+			cur_sequence == last_sequence &&
+			modelAniIndex == last_model_index)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			continue;
+		}
+
+		last_model = model_name_str;
+		last_sequence = cur_sequence;
+		last_model_index = modelAniIndex;
+
+		// ⚡ FAST MODE (active updates)
+		sleep_time = 5;
+
+		// --- MODEL SWAP ---
 		if (model_name_str.find("empty_handed") != std::string::npos)
 		{
-			// "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl"
-			const char* karambit_path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
-			apex_mem.WriteArray<char>(name_ptr, (char*)karambit_path, strlen(karambit_path) + 1);
+			const char* path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
+
+			apex_mem.WriteArray<char>(name_ptr, (char*)path, strlen(path) + 1);
 			apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, 5329);
 		}
-		else if (model_name_str.find("heirloom_karambit_v24_cosmicmerc_v") != std::string::npos)
+		else if (model_name_str.find("heirloom_karambit") != std::string::npos)
 		{
+			// 🎯 Only read inputs when needed
 			uint32_t m_fFlags = 0;
 			apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_FLAGS, m_fFlags);
-			int in_forward = 0;
-			apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD + 0x8, in_forward);
-			int in_attack = 0;
-			apex_mem.Read<int>(g_Base + OFFSET_IN_ATTACK + 0x8, in_attack);
-			int in_speed = 0;
-			apex_mem.Read<int>(g_Base + OFFSET_IN_SPEED + 0x8, in_speed);
 
 			int seq = 60;
-			if (m_fFlags == 65) seq = 60;
+
 			if (m_fFlags == 64) seq = 61;
-			if (in_forward) seq = 13;
 			if (m_fFlags == 67) seq = 74;
+
+			int in_forward = 0;
+			apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD + 0x8, in_forward);
+			if (in_forward) seq = 13;
+
+			int in_attack = 0;
+			apex_mem.Read<int>(g_Base + OFFSET_IN_ATTACK + 0x8, in_attack);
 			if (in_attack == 5) seq = 55;
+
+			int in_speed = 0;
+			apex_mem.Read<int>(g_Base + OFFSET_IN_SPEED + 0x8, in_speed);
 			if (in_speed == 5) seq = 73;
 
+			// ✅ Only write if needed
+			if (cur_sequence != seq)
+			{
+				apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, seq);
+			}
+
+			// fallback fix
 			if (cur_sequence == 0 && modelAniIndex == 5329)
 			{
 				apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, 82);
 			}
 		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
 	}
 	heirloom_t = false;
 }
