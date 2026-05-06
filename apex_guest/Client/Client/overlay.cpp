@@ -32,6 +32,7 @@ extern bool triggerbot;
 extern float triggerbot_fov;
 
 extern bool heirloom_changer;
+extern bool debug;
 
 extern bool aassist;
 extern float aassist_dist;
@@ -197,6 +198,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
 
 			ImGui::Checkbox(XorStr("Heirloom Changer"), &heirloom_changer);
+			ImGui::Checkbox(XorStr("Debug Logging"), &debug);
 
 			ImGui::EndTabItem();
 		}

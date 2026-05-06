@@ -127,7 +127,7 @@
 #define OFFSET_GRADE 0x344 //[RecvTable.DT_BaseEntity].m_grade updated 2026/05/05
 #define OFFSET_PLATFORM 0x2630 //[DT_Player].m_hardware updated 2026/05/05
 
-#define OFFSET_VIEWMODEL 0x2e00 //[RecvTable.DT_Player].m_hViewModels updated 2026/05/05
+#define OFFSET_VIEWMODEL 0x2e28 //[RecvTable.DT_Player].m_hViewModels updated 2026/05/05
 #define OFFSET_CURFRAME 0xd8 //[DataMap.CBaseViewModel].m_currentFrame.modelIndex updated 2026/05/05
 #define OFFSET_ANIM_SEQUENCE 0xe48 //m_currentFrameBaseAnimating.animSequence
 #define OFFSET_ANIM_MODEL_INDEX 0xe40 //m_currentFrameBaseAnimating.animModelIndex

@@ -78,6 +78,7 @@ float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
 bool heirloom_changer = false;
+bool debug = false;
 
 int bone = 2;
 // Declare constants for key detection
@@ -488,6 +489,7 @@ int main(int argc, char** argv)
 	add[51] = (uintptr_t)&aassist_dist;
 	add[52] = (uintptr_t)&aassist_aiming;
 	add[53] = (uintptr_t)&heirloom_changer;
+	add[54] = (uintptr_t)&debug;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -611,6 +613,16 @@ int main(int argc, char** argv)
 		else if (!IsKeyDown(VK_F10) && k_f10 == 1)
 		{
 			k_f10 = 0;
+		}
+
+		if (IsKeyDown(VK_F11) && k_f11 == 0)
+		{
+			k_f11 = 1;
+			debug = !debug;
+		}
+		else if (!IsKeyDown(VK_F11) && k_f11 == 1)
+		{
+			k_f11 = 0;
 		}
 
 		if (IsKeyDown(VK_LEFT))

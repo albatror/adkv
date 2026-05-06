@@ -73,6 +73,7 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 bool heirloom_changer = false;
+bool debug = false;
 
 ///////////////////////////
 //Player Glow Color and Brightness.
@@ -1177,6 +1178,9 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr)
 uint64_t heirloom_changer_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, heirloom_changer_addr);
 
+uint64_t debug_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, debug_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1301,6 +1305,7 @@ while (vars_t)
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
 
         if (heirloom_changer_addr) client_mem.Read<bool>(heirloom_changer_addr, heirloom_changer);
+        if (debug_addr) client_mem.Read<bool>(debug_addr, debug);
 
         if (esp && next)
         {
@@ -1343,15 +1348,20 @@ void HeirloomChangerLoop()
 			continue;
 		}
 
-		// 🎯 Tick/frame detection
+		// 🎯 GlobalVars Frame Count
+		uint64_t globalVarsPtr = 0;
+		apex_mem.Read<uint64_t>(g_Base + OFFSET_GLOBAL_VARS, globalVarsPtr);
 		int current_frame = 0;
-		apex_mem.Read<int>(g_Base + OFFSET_GLOBAL_VARS + 0x0008, current_frame);
-		if (current_frame == last_frame)
+		if (globalVarsPtr)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
-			continue;
+			apex_mem.Read<int>(globalVarsPtr + 0x0004, current_frame);
+			if (current_frame == last_frame)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				continue;
+			}
+			last_frame = current_frame;
 		}
-		last_frame = current_frame;
 
 		uint64_t LocalPlayer = 0;
 		apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
@@ -1361,60 +1371,51 @@ void HeirloomChangerLoop()
 			continue;
 		}
 
-		uint32_t view_model_handle = 0;
-		apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_VIEWMODEL, view_model_handle);
-		view_model_handle &= 0xFFFF;
-
-		uint64_t view_model_ptr = 0;
-		apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (view_model_handle << 5), view_model_ptr);
-		if (!view_model_ptr)
+		for (int i = 0; i < 8; i++)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			continue;
-		}
+			uint32_t view_model_handle = 0;
+			if (!apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_VIEWMODEL + (i * 4), view_model_handle)) continue;
+			if (view_model_handle == 0 || view_model_handle == 0xFFFFFFFF) continue;
 
-		uint64_t name_ptr = 0;
-		apex_mem.Read<uint64_t>(view_model_ptr + OFFSET_MODELNAME, name_ptr);
-		if (!name_ptr)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			continue;
-		}
+			view_model_handle &= 0xFFFF;
 
-		char modelName[128] = { 0 };
-		apex_mem.ReadArray<char>(name_ptr, modelName, sizeof(modelName));
-		std::string model_name_str(modelName);
+			uint64_t view_model_ptr = 0;
+			apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (view_model_handle << 5), view_model_ptr);
+			if (!view_model_ptr) continue;
 
-		int cur_sequence = 0;
-		apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, cur_sequence);
+			uint64_t name_ptr = 0;
+			apex_mem.Read<uint64_t>(view_model_ptr + OFFSET_MODELNAME, name_ptr);
+			if (!name_ptr) continue;
 
-		int modelAniIndex = 0;
-		apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, modelAniIndex);
+			char modelName[128] = { 0 };
+			apex_mem.ReadArray<char>(name_ptr, modelName, sizeof(modelName));
+			std::string model_name_str(modelName);
 
-		// 🔁 Skip if nothing changed
-		if (model_name_str == last_model &&
-			cur_sequence == last_sequence &&
-			modelAniIndex == last_model_index)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			continue;
-		}
+			int cur_sequence = 0;
+			apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, cur_sequence);
 
-		last_model = model_name_str;
-		last_sequence = cur_sequence;
-		last_model_index = modelAniIndex;
+			int modelAniIndex = 0;
+			apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, modelAniIndex);
 
-		// ⚡ FAST MODE (active updates)
-		sleep_time = 5;
+			if (debug)
+			{
+				printf("VM[%d] Name: %s | Seq: %d | Index: %d\n", i, model_name_str.c_str(), cur_sequence, modelAniIndex);
+			}
 
-		// --- MODEL SWAP ---
-		if (model_name_str.find("empty_handed") != std::string::npos)
-		{
-			const char* path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
+			// ⚡ FAST MODE (active updates)
+			sleep_time = 2;
 
-			apex_mem.WriteArray<char>(name_ptr, (char*)path, strlen(path) + 1);
-			apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, 5329);
-		}
+			// --- MODEL SWAP ---
+			if (model_name_str.find("hand") != std::string::npos ||
+				model_name_str.find("melee") != std::string::npos ||
+				model_name_str.find("empty") != std::string::npos ||
+				model_name_str.find("survival") != std::string::npos)
+			{
+				const char* path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
+
+				apex_mem.WriteArray<char>(name_ptr, (char*)path, strlen(path) + 1);
+				apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, 5329);
+			}
 		else if (model_name_str.find("heirloom_karambit") != std::string::npos)
 		{
 			// 🎯 Only read inputs when needed
@@ -1449,6 +1450,7 @@ void HeirloomChangerLoop()
 			{
 				apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, 82);
 			}
+		}
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
