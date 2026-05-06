@@ -60,6 +60,7 @@
 #define OFFSET_IN_ZOOM 0x3d9afa0 //[Buttons].in_zoom updated 2026/05/05
 #define OFFSET_IN_FORWARD 0x3d9b048 //[Buttons].in_forward updated 2026/05/05
 #define OFFSET_IN_BACKWARD 0x3d9b070 //[Buttons].in_backward updated 2026/05/05
+#define OFFSET_IN_SPEED 0x3d9a5e0 //[Buttons].in_speed updated 2026/05/05
  
 #define OFFSET_LIFE_STATE 0x690 //[RecvTable.DT_Player].m_lifeState updated 2026/05/05
 #define OFFSET_BLEED_OUT_STATE 0x27e0 //[RecvTable.DT_Player].m_bleedoutState updated 2026/05/05
@@ -125,3 +126,8 @@
 #define OFFSET_m_xp		    0x384c //[RecvTable.DT_Player].m_xp updated 2026/05/05
 #define OFFSET_GRADE 0x344 //[RecvTable.DT_BaseEntity].m_grade updated 2026/05/05
 #define OFFSET_PLATFORM 0x2630 //[DT_Player].m_hardware updated 2026/05/05
+
+#define OFFSET_VIEWMODEL 0x2e00 //[RecvTable.DT_Player].m_hViewModels updated 2026/05/05
+#define OFFSET_CURFRAME 0xd8 //[DataMap.CBaseViewModel].m_currentFrame.modelIndex updated 2026/05/05
+#define OFFSET_ANIM_SEQUENCE 0xe48 //m_currentFrameBaseAnimating.animSequence
+#define OFFSET_ANIM_MODEL_INDEX 0xe40 //m_currentFrameBaseAnimating.animModelIndex

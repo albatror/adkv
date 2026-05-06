@@ -39,6 +39,7 @@ extern bool onevone;
 extern bool triggerbot;
 extern bool aassist;
 extern float aassist_dist;
+extern bool heirloom_changer;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -107,6 +108,7 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
     file << "aassist " << std::boolalpha << aassist << "\n";
     file << "aassist_dist " << aassist_dist << "\n";
+    file << "heirloom_changer " << std::boolalpha << heirloom_changer << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
     file << "bhop " << std::boolalpha << bhop << "\n";
     file << "walljump " << std::boolalpha << walljump << "\n";
@@ -176,6 +178,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
         else if (key == "aassist") ss >> std::boolalpha >> aassist;
         else if (key == "aassist_dist") ss >> aassist_dist;
+        else if (key == "heirloom_changer") ss >> std::boolalpha >> heirloom_changer;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;
         else if (key == "bhop") ss >> std::boolalpha >> bhop;
         else if (key == "walljump") ss >> std::boolalpha >> walljump;

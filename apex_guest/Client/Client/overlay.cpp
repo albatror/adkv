@@ -31,6 +31,8 @@ extern bool firing_range;
 extern bool triggerbot;
 extern float triggerbot_fov;
 
+extern bool heirloom_changer;
+
 extern bool aassist;
 extern float aassist_dist;
 
@@ -193,6 +195,8 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
+
+			ImGui::Checkbox(XorStr("Heirloom Changer"), &heirloom_changer);
 
 			ImGui::EndTabItem();
 		}
@@ -377,6 +381,9 @@ void Overlay::RenderInfo()
 	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(240);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
+
+	// Row 4: - Heirloom
+	ImGui::TextColored(heirloom_changer ? GREEN : RED, XorStr("- Heirloom"));
 
 	float windowWidth = ImGui::GetWindowSize().x;
 	ImGui::Unindent(12);

@@ -72,6 +72,7 @@ float triggerbot_fov = 10.0f;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool heirloom_changer = false;
 
 ///////////////////////////
 //Player Glow Color and Brightness.
@@ -100,6 +101,7 @@ float glowbknocked = 1; //Blue 0-255, higher is brighter color.
 
 bool actions_t = false;
 bool esp_t = false;
+bool heirloom_t = false;
 bool aim_t = false;
 bool vars_t = false;
 bool item_t = false;
@@ -1172,6 +1174,9 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
 
+uint64_t heirloom_changer_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, heirloom_changer_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1295,6 +1300,8 @@ while (vars_t)
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
 
+        if (heirloom_changer_addr) client_mem.Read<bool>(heirloom_changer_addr, heirloom_changer);
+
         if (esp && next)
         {
             if (valid)
@@ -1314,6 +1321,74 @@ while (vars_t)
     }
 }
 vars_t = false;
+}
+
+void HeirloomChangerLoop()
+{
+	heirloom_t = true;
+	while (heirloom_t)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		if (g_Base == 0 || c_Base == 0 || !heirloom_changer) continue;
+
+		uint64_t LocalPlayer = 0;
+		apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
+		if (LocalPlayer == 0) continue;
+
+		uint32_t view_model_handle = 0;
+		apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_VIEWMODEL, view_model_handle);
+		view_model_handle &= 0xFFFF;
+
+		uint64_t view_model_ptr = 0;
+		apex_mem.Read<uint64_t>(g_Base + OFFSET_ENTITYLIST + (view_model_handle << 5), view_model_ptr);
+		if (view_model_ptr == 0) continue;
+
+		char modelName[256];
+		uint64_t name_ptr = 0;
+		apex_mem.Read<uint64_t>(view_model_ptr + OFFSET_MODELNAME, name_ptr);
+		if (name_ptr == 0) continue;
+
+		apex_mem.ReadArray<char>(name_ptr, modelName, 256);
+		std::string model_name_str = std::string(modelName);
+
+		int cur_sequence = 0;
+		apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, cur_sequence);
+		int modelAniIndex = 0;
+		apex_mem.Read<int>(view_model_ptr + OFFSET_ANIM_MODEL_INDEX, modelAniIndex);
+
+		if (model_name_str.find("empty_handed") != std::string::npos)
+		{
+			// "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl"
+			const char* karambit_path = "mdl/techart/mshop/weapons/class/heirloom/agnostic/v24_cosmicmerc/heirloom_karambit_v24_cosmicmerc_v.rmdl";
+			apex_mem.WriteArray<char>(name_ptr, (char*)karambit_path, strlen(karambit_path) + 1);
+			apex_mem.Write<int>(view_model_ptr + OFFSET_CURFRAME, 5329);
+		}
+		else if (model_name_str.find("heirloom_karambit_v24_cosmicmerc_v") != std::string::npos)
+		{
+			uint32_t m_fFlags = 0;
+			apex_mem.Read<uint32_t>(LocalPlayer + OFFSET_FLAGS, m_fFlags);
+			int in_forward = 0;
+			apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD + 0x8, in_forward);
+			int in_attack = 0;
+			apex_mem.Read<int>(g_Base + OFFSET_IN_ATTACK + 0x8, in_attack);
+			int in_speed = 0;
+			apex_mem.Read<int>(g_Base + OFFSET_IN_SPEED + 0x8, in_speed);
+
+			int seq = 60;
+			if (m_fFlags == 65) seq = 60;
+			if (m_fFlags == 64) seq = 61;
+			if (in_forward) seq = 13;
+			if (m_fFlags == 67) seq = 74;
+			if (in_attack == 5) seq = 55;
+			if (in_speed == 5) seq = 73;
+
+			if (cur_sequence == 0 && modelAniIndex == 5329)
+			{
+				apex_mem.Write<int>(view_model_ptr + OFFSET_ANIM_SEQUENCE, 82);
+			}
+		}
+	}
+	heirloom_t = false;
 }
 
 // Item Glow Stuff
@@ -1462,6 +1537,7 @@ int main(int argc, char *argv[])
 	std::thread actions_thr;
 	std::thread itemglow_thr;
 	std::thread stuffbot_thr;
+	std::thread heirloom_thr;
 
 	std::thread vars_thr;
 	bool proc_not_found = false;
@@ -1475,15 +1551,17 @@ int main(int argc, char *argv[])
 				esp_t = false;
 				actions_t = false;
 				item_t = false;
+				heirloom_t = false;
 				extern bool stuff_t;
 				stuff_t = false;
 				g_Base = 0;
 
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				itemglow_thr.~thread();
-				stuffbot_thr.~thread();
+				if (aimbot_thr.joinable()) aimbot_thr.detach();
+				if (esp_thr.joinable()) esp_thr.detach();
+				if (actions_thr.joinable()) actions_thr.detach();
+				if (itemglow_thr.joinable()) itemglow_thr.detach();
+				if (stuffbot_thr.joinable()) stuffbot_thr.detach();
+				if (heirloom_thr.joinable()) heirloom_thr.detach();
 
 			}
 
@@ -1512,11 +1590,13 @@ int main(int argc, char *argv[])
 				actions_thr = std::thread(DoActions);
 				stuffbot_thr = std::thread(StuffBotLoop);
 				itemglow_thr = std::thread(item_glow_t);
+				heirloom_thr = std::thread(HeirloomChangerLoop);
 				aimbot_thr.detach();
 				esp_thr.detach();
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
+				heirloom_thr.detach();
 			}
 		}
 		else
@@ -1531,7 +1611,7 @@ int main(int argc, char *argv[])
 				vars_t = false;
 				c_Base = 0;
 
-				vars_thr.~thread();
+				if (vars_thr.joinable()) vars_thr.detach();
 			}
 			
 			std::this_thread::sleep_for(std::chrono::seconds(1));
