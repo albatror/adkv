@@ -34,7 +34,7 @@
 
 #define OFFSET_SPECTATOR_LIST OFFSET_OBSERVER_LIST //? updated 2024/11/15
 #define OFFSET_OBSERVER_LIST 0x6268948 //[Miscellaneous].observerList updated 2026/05/05
-#define OFFSET_OBSERVER_ARRAY 0x964 //[RecvTable.DT_GlobalNonRewinding]m_gameTimescale updated 2026/05/05
+#define OFFSET_OBSERVER_ARRAY 0x964 //[RecvTable.DT_GlobalNonRewinding].m_gameTimescale updated 2026/05/05
 
 #define OFFSET_IN_DUCKSTATE 0x2ae4 //[RecvTable.DT_Player].m_duckState updated 2026/05/05
 
@@ -47,11 +47,14 @@
 #define OFFSET_IN_JUMP 0x3d9af10 //[Buttons].in_jump updated 2026/05/05
 #define OFFSET_IN_TOGGLE_DUCK 0x3d9ae28 //[Buttons].in_toggle_duck updated 2026/05/05
 
-#define OFFSET_ACTIVE_WEAPON 0x1968 + 0x0058 //[RecvTable.DT_Player].m_inventory + [DataMap.WeaponInventory_Client]activeWeapons updated 2026/05/05
-#define OFFSET_WEAPON_NAME 0x1888 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/05/05
+#define OFFSET_WEAPON 0x1888 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/05/05
+#define OFFSET_ACTIVE_WEAPON 0x1968 + 0x58 //[RecvTable.DT_Player].m_inventory + [DataMap.WeaponInventory_Client]activeWeapons updated 2026/05/05
+#define OFFSET_WEAPON_NAME 0x1888 //[Miscellaneous].WeaponNames updated 2026/05/11
 #define OFFSET_OFF_WEAPON 0x19e4 //[DataMap.DT_BaseCombatCharacter].m_latestNonOffhandWeapons updated 2026/05/05
-#define OFFSET_WALL_RUN_START_TIME 0x3734 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunStartTime updated 2026/05/05
-#define OFFSET_WALL_RUN_CLEAR_TIME 0x3738 //[RecvTable.DT_LocalPlayerExclusive]->m_wallRunClearTime updated 2026/05/05
+#define OFFSET_WALL_RUN_START_TIME 0x3734 //[RecvTable.DT_LocalPlayerExclusive].m_wallRunStartTime updated 2026/05/05
+#define OFFSET_WALL_RUN_CLEAR_TIME 0x3738 //[RecvTable.DT_LocalPlayerExclusive].m_wallRunClearTime updated 2026/05/05
+
+//#OFFSET_GRENADE_HANDLE 0x19e4 #[RecvTable.DT_BaseCombatCharacter]m_latestNonOffhandWeapons
 
 #define OFFSET_FLAGS 0xc8 //[DataMap.DT_Player].m_fFlags updated 2026/05/05
 #define OFFSET_IN_ATTACK 0x3d9a658 //[Buttons].in_attack updated 2026/05/05
@@ -76,7 +79,6 @@
 #define OFFSET_MATRIX 0x11a350 //[Miscellaneous].ViewMatrix updated 2026/05/05
 #define OFFSET_RENDER 0x3d97d78 //[Miscellaneous].ViewRender updated 2026/05/05
  
-#define OFFSET_WEAPON 0x1888 //0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/05/05
 #define OFFSET_BULLET_SPEED 0x1af8 + 0xd80 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_launch_speed updated 2026/05/05
 #define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x08 //0x1af8 + 0xd88 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/05/05
 
