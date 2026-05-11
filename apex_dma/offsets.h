@@ -76,7 +76,7 @@
 #define OFFSET_MATRIX 0x11a350 //[Miscellaneous].ViewMatrix updated 2026/05/05
 #define OFFSET_RENDER 0x3d97d78 //[Miscellaneous].ViewRender updated 2026/05/05
  
-#define OFFSET_WEAPON 0x1888 //0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/05/05
+#define OFFSET_WEAPON 0x19e4 //0x1888 //0x15f0 //[RecvTable.DT_WeaponX].m_weaponNameIndex updated 2026/05/05
 #define OFFSET_BULLET_SPEED 0x1af8 + 0xd80 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_launch_speed updated 2026/05/05
 #define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x08 //0x1af8 + 0xd88 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/05/05
 

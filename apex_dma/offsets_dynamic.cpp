@@ -63,6 +63,8 @@ bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, c
     if (off_data.count("[.Miscellaneous]CPlayer!lastVisibleTime")) offsets.VisibleTime = off_data["[.Miscellaneous]CPlayer!lastVisibleTime"];
     if (off_data.count("[RecvTable.DT_Player]m_bZooming")) offsets.Zooming = off_data["[RecvTable.DT_Player]m_bZooming"];
     if (off_data.count("[DataMap.DT_BaseEntity]m_currentFrame.viewOffset")) offsets.ViewOffset = off_data["[DataMap.DT_BaseEntity]m_currentFrame.viewOffset"];
+    if (off_data.count("[.Miscellaneous]m_latestNonOffhandWeapons")) offsets.Weapon = off_data["[.Miscellaneous]m_latestNonOffhandWeapons"];
+    if (off_data.count("[RecvTable.DT_WeaponX]m_weaponNameIndex")) offsets.WeaponName = off_data["[RecvTable.DT_WeaponX]m_weaponNameIndex"];
 
     if (off_data.count("[RecvTable.DT_Player]m_duckState")) offsets.InDuckState = off_data["[RecvTable.DT_Player]m_duckState"];
     if (off_data.count("[DataMap.DT_Player]m_traversalProgress")) offsets.TraversalProgress = off_data["[DataMap.DT_Player]m_traversalProgress"];

@@ -200,13 +200,16 @@ float Entity::lastCrossHairTime()
 int Entity::getCurrentWeaponId()
 {
 	uint64_t wep_handle = 0;
-	apex_mem.Read<uint64_t>(ptr + OFFSET_WEAPON, wep_handle);
+	uint64_t wep_off = (offsets.Weapon > 0) ? offsets.Weapon : OFFSET_WEAPON;
+	apex_mem.Read<uint64_t>(ptr + wep_off, wep_handle);
 	wep_handle &= 0xffff;
 	uint64_t wep_entity = 0;
-	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + (wep_handle << 5), wep_entity);
+	uint64_t entity_list_off = (offsets.EntityList > 0) ? offsets.EntityList : OFFSET_ENTITYLIST;
+	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + entity_list_off + (wep_handle << 5), wep_entity);
 	if (!wep_entity) return -1;
 	int weaponId = 0;
-	apex_mem.Read<int>(wep_entity + OFFSET_WEAPON_NAME, weaponId);
+	uint64_t wep_name_off = (offsets.WeaponName > 0) ? offsets.WeaponName : OFFSET_WEAPON_NAME;
+	apex_mem.Read<int>(wep_entity + wep_name_off, weaponId);
 	return weaponId;
 }
 ///////////////////////////////
@@ -383,17 +386,20 @@ void Entity::get_name(uint64_t g_Base, char* name)
      int name_index;
     apex_mem.Read<int>(ptr + 0x38, name_index);
     uint64_t name_ptr = 0;
-    apex_mem.Read<uint64_t>(g_Base + OFFSET_NAME_LIST + ((name_index - 1) * 24), name_ptr);
+	uint64_t name_list_off = (offsets.NameList > 0) ? offsets.NameList : OFFSET_NAME_LIST;
+    apex_mem.Read<uint64_t>(g_Base + name_list_off + ((name_index - 1) * 24), name_ptr);
 	apex_mem.ReadArray<char>(name_ptr, name, 32);
 }
 
 void Entity::getWeaponModelName(char* name, int max_len)
 {
 	uint64_t wep_handle = 0;
-	apex_mem.Read<uint64_t>(ptr + OFFSET_WEAPON, wep_handle);
+	uint64_t wep_off = (offsets.Weapon > 0) ? offsets.Weapon : OFFSET_WEAPON;
+	apex_mem.Read<uint64_t>(ptr + wep_off, wep_handle);
 	wep_handle &= 0xffff;
 	uint64_t wep_entity = 0;
-	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + (wep_handle << 5), wep_entity);
+	uint64_t entity_list_off = (offsets.EntityList > 0) ? offsets.EntityList : OFFSET_ENTITYLIST;
+	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + entity_list_off + (wep_handle << 5), wep_entity);
 	if (!wep_entity) {
 		strncpy(name, "unknown", max_len);
 		return;
@@ -665,9 +671,11 @@ bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHei
 void WeaponXEntity::update(uint64_t LocalPlayer)
 {
     extern uint64_t g_Base;
-	uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
+	uint64_t entity_list_off = (offsets.EntityList > 0) ? offsets.EntityList : OFFSET_ENTITYLIST;
+	uint64_t entitylist = g_Base + entity_list_off;
 	uint64_t wephandle = 0;
-    apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_WEAPON, wephandle);
+	uint64_t wep_off = (offsets.Weapon > 0) ? offsets.Weapon : OFFSET_WEAPON;
+    apex_mem.Read<uint64_t>(LocalPlayer + wep_off, wephandle);
 	
 	wephandle &= 0xffff;
 
