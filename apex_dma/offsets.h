@@ -80,7 +80,8 @@
 #define OFFSET_RENDER 0x3d9a008 //[Miscellaneous].ViewRender updated 2026/05/17
  
 #define OFFSET_BULLET_SPEED 0x1af8 + 0xda8 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_launch_speed updated 2026/05/17
-#define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x1af8 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/05/17
+#define OFFSET_BULLET_SCALE 0x1af8 + 0xdb0 //[Miscellaneous].WeaponSettingsMeta_base + [weaponSettings].projectile_gravity_scale updated 2026/05/17
+//#define OFFSET_BULLET_SCALE OFFSET_BULLET_SPEED + 0x08
 
 #define OFFSET_ZOOM_FOV 0x1660 + 0xc4 //0x1724 //[DataMap.CWeaponX]m_playerData + [RecvTable.DT_WeaponPlayerData]m_targetZoomFOV updated 2025/05/14
 #define OFFSET_AMMO 0x15e0 //[RecvTable.C_WeaponX].m_ammoInClip updated 2026/05/17
