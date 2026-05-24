@@ -192,6 +192,21 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
+			const char* trigger_hitboxes[] = { "NONE", "Head (0)", "Neck (1)", "Upper Chest (2)", "Lower Chest (3)", "Stomach (4)", "Hip (11)", "NEAR3", "NEAR6", "NEAR12", "ALL" };
+			int current_trigger_hitbox = 0;
+			if (triggerbot_hitbox == -1) current_trigger_hitbox = 0;
+			else if (triggerbot_hitbox >= 0 && triggerbot_hitbox <= 4) current_trigger_hitbox = triggerbot_hitbox + 1;
+			else if (triggerbot_hitbox == 11) current_trigger_hitbox = 6;
+			else if (triggerbot_hitbox >= 101 && triggerbot_hitbox <= 104) current_trigger_hitbox = triggerbot_hitbox - 101 + 7;
+
+			if (ImGui::Combo(XorStr("Trigger Hitbox"), &current_trigger_hitbox, trigger_hitboxes, IM_ARRAYSIZE(trigger_hitboxes)))
+			{
+				if (current_trigger_hitbox == 0) triggerbot_hitbox = -1;
+				else if (current_trigger_hitbox >= 1 && current_trigger_hitbox <= 5) triggerbot_hitbox = current_trigger_hitbox - 1;
+				else if (current_trigger_hitbox == 6) triggerbot_hitbox = 11;
+				else if (current_trigger_hitbox >= 7) triggerbot_hitbox = current_trigger_hitbox - 7 + 101;
+			}
+
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
 
 			ImGui::EndTabItem();

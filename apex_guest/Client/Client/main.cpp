@@ -45,6 +45,7 @@ int aim_key = VK_LBUTTON;
 int aim_key2 = VK_RBUTTON;
 
 bool triggerbot = false;
+int triggerbot_hitbox = 2;
 int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
@@ -485,6 +486,7 @@ int main(int argc, char** argv)
 	add[50] = (uintptr_t)&aassist;
 	add[51] = (uintptr_t)&aassist_dist;
 	add[52] = (uintptr_t)&aassist_aiming;
+	add[53] = (uintptr_t)&triggerbot_hitbox;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

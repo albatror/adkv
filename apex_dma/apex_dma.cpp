@@ -65,6 +65,7 @@ float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
 
 bool triggerbot = false;
+int triggerbot_hitbox = 2;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
@@ -1172,6 +1173,9 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
 
+uint64_t triggerbot_hitbox_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, triggerbot_hitbox_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1294,6 +1298,7 @@ while (vars_t)
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+        if (triggerbot_hitbox_addr) client_mem.Read<int>(triggerbot_hitbox_addr, triggerbot_hitbox);
 
         if (esp && next)
         {

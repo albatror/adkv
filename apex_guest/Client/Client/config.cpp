@@ -37,6 +37,7 @@ extern float glowcolorknocked[3];
 extern bool firing_range;
 extern bool onevone;
 extern bool triggerbot;
+extern int triggerbot_hitbox;
 extern bool aassist;
 extern float aassist_dist;
 extern bool superglide;
@@ -105,6 +106,7 @@ void SaveConfig(const std::string& filename) {
     file << "firing_range " << std::boolalpha << firing_range << "\n";
     file << "onevone " << std::boolalpha << onevone << "\n";
     file << "triggerbot " << std::boolalpha << triggerbot << "\n";
+    file << "triggerbot_hitbox " << triggerbot_hitbox << "\n";
     file << "aassist " << std::boolalpha << aassist << "\n";
     file << "aassist_dist " << aassist_dist << "\n";
     file << "superglide " << std::boolalpha << superglide << "\n";
@@ -174,6 +176,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "firing_range") ss >> std::boolalpha >> firing_range;
         else if (key == "onevone") ss >> std::boolalpha >> onevone;
         else if (key == "triggerbot") ss >> std::boolalpha >> triggerbot;
+        else if (key == "triggerbot_hitbox") ss >> triggerbot_hitbox;
         else if (key == "aassist") ss >> std::boolalpha >> aassist;
         else if (key == "aassist_dist") ss >> aassist_dist;
         else if (key == "superglide") ss >> std::boolalpha >> superglide;

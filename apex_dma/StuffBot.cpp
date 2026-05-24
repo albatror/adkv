@@ -9,6 +9,7 @@
 extern Memory apex_mem;
 extern uint64_t g_Base;
 extern bool triggerbot;
+extern int triggerbot_hitbox;
 extern bool triggerbot_aiming;
 extern float triggerbot_fov;
 extern float aim_dist;
@@ -90,26 +91,60 @@ void StuffBotLoop()
                         continue;
                     }
 
-                    // Check FOV using head bone for better accuracy
+                    // Check FOV using selected hitboxes
                     Entity Target = getEntity(centity);
-                    Vector HeadPos = Target.getBonePositionByHitbox(0);
-                    if (HeadPos.IsZero()) {
-                        last_crosshair_times[centity] = now_crosshair_target_time;
-                        continue;
-                    }
-
-                    float fov = Math::GetFov(LPlayer.GetViewAngles(), Math::CalcAngle(LPlayer.GetCamPos(), HeadPos));
-
-                    bool can_shoot = false;
-                    float dist = LPlayer.getPosition().DistTo(Target.getPosition());
+                    Vector LPlayerPos = LPlayer.getPosition();
+                    Vector TargetPos = Target.getPosition();
+                    float dist = LPlayerPos.DistTo(TargetPos);
 
                     if (aim_dist > 0.0f && dist > aim_dist) {
                         last_crosshair_times[centity] = now_crosshair_target_time;
                         continue;
                     }
 
-                    if (fov <= triggerbot_fov) {
-                        can_shoot = true;
+                    bool can_shoot = false;
+                    Vector CamPos = LPlayer.GetCamPos();
+                    QAngle ViewAngles = LPlayer.GetViewAngles();
+
+                    if (triggerbot_hitbox == -1) // NONE mode: uses absOrigin.z + static value
+                    {
+                        Vector targetHitPos = TargetPos;
+                        targetHitPos.z += 60.0f; // Approx chest height
+                        float fov = Math::GetFov(ViewAngles, Math::CalcAngle(CamPos, targetHitPos));
+                        if (fov <= triggerbot_fov) can_shoot = true;
+                    }
+                    else if (triggerbot_hitbox >= 0 && triggerbot_hitbox <= 100) // Static bone mode
+                    {
+                        Vector BonePos = Target.getBonePositionByHitbox(triggerbot_hitbox);
+                        if (!BonePos.IsZero()) {
+                            float fov = Math::GetFov(ViewAngles, Math::CalcAngle(CamPos, BonePos));
+                            if (fov <= triggerbot_fov) can_shoot = true;
+                        }
+                    }
+                    else // Multi-bone modes
+                    {
+                        static const int NEAR3_BONES[] = { 0, 1, 2 };
+                        static const int NEAR6_BONES[] = { 0, 1, 2, 3, 4, 11 };
+                        static const int NEAR12_BONES[] = { 0, 1, 2, 3, 4, 5, 8, 11, 12, 14, 15, 6 };
+
+                        const int* pBones = nullptr;
+                        int boneCount = 0;
+
+                        if (triggerbot_hitbox == 101) { pBones = NEAR3_BONES; boneCount = 3; }
+                        else if (triggerbot_hitbox == 102) { pBones = NEAR6_BONES; boneCount = 6; }
+                        else if (triggerbot_hitbox == 103) { pBones = NEAR12_BONES; boneCount = 12; }
+                        else if (triggerbot_hitbox == 104) { boneCount = 17; } // ALL
+
+                        for (int b = 0; b < boneCount; b++) {
+                            int boneID = (triggerbot_hitbox == 104) ? b : pBones[b];
+                            Vector BonePos = Target.getBonePositionByHitbox(boneID);
+                            if (BonePos.IsZero()) continue;
+                            float fov = Math::GetFov(ViewAngles, Math::CalcAngle(CamPos, BonePos));
+                            if (fov <= triggerbot_fov) {
+                                can_shoot = true;
+                                break;
+                            }
+                        }
                     }
 
                     if (can_shoot) {
