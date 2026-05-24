@@ -150,7 +150,8 @@ Vector Entity::getPosition()
 
 bool Entity::isPlayer()
 {
-	return *(uint64_t*)(buffer + OFFSET_NAME) == 125780153691248;
+	static constexpr uint64_t PLAYER_SIGNATURE = 125780153691248ULL;
+	return *(uint64_t*)(buffer + OFFSET_NAME) == PLAYER_SIGNATURE;
 }
 
 bool Entity::isDummy()
@@ -263,6 +264,37 @@ Vector Entity::getBonePositionByHitbox(int id)
 	return Vector(Matrix.m_flMatVal[0][3] + origin.x, Matrix.m_flMatVal[1][3] + origin.y, Matrix.m_flMatVal[2][3] + origin.z);
 }
 
+void Entity::getBonePositionsByHitboxBatch(int count, Vector* out)
+{
+	Vector origin = getPosition();
+	uint64_t Model = *(uint64_t*)(buffer + OFFSET_STUDIOHDR);
+
+	uint64_t StudioHdr;
+	apex_mem.Read<uint64_t>(Model + 0x8, StudioHdr);
+
+	uint16_t HitboxCache;
+	apex_mem.Read<uint16_t>(StudioHdr + 0x34, HitboxCache);
+	uint64_t HitBoxsArray = StudioHdr + ((uint16_t)(HitboxCache & 0xFFFE) << (4 * (HitboxCache & 1)));
+
+	uint16_t IndexCache;
+	apex_mem.Read<uint16_t>(HitBoxsArray + 0x4, IndexCache);
+	int HitboxIndex = ((uint16_t)(IndexCache & 0xFFFE) << (4 * (IndexCache & 1)));
+
+	uint64_t BoneArray = *(uint64_t*)(buffer + OFFSET_BONES);
+
+	for (int i = 0; i < count; i++) {
+		uint16_t Bone;
+		apex_mem.Read<uint16_t>(HitBoxsArray + HitboxIndex + (i * 0x20), Bone);
+		if (Bone > 255) {
+			out[i] = Vector();
+			continue;
+		}
+		matrix3x4_t Matrix = {};
+		apex_mem.Read<matrix3x4_t>(BoneArray + Bone * sizeof(matrix3x4_t), Matrix);
+		out[i] = Vector(Matrix.m_flMatVal[0][3] + origin.x, Matrix.m_flMatVal[1][3] + origin.y, Matrix.m_flMatVal[2][3] + origin.z);
+	}
+}
+
 QAngle Entity::GetSwayAngles()
 {
 	return *(QAngle*)(buffer + OFFSET_BREATH_ANGLES);
@@ -352,10 +384,8 @@ bool Entity::isZooming()
 
 void Entity::disableGlow()
 {
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_T1, 0);
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_T2, 0);
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 2);
-	//apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 5);
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_ENABLE, 0);
+	apex_mem.Write<int>(ptr + OFFSET_GLOW_THROUGH_WALLS, 0);
 }
 
 void Entity::SetViewAngles(SVector angles)
@@ -532,12 +562,10 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	}
 	
 	Vector LocalCamera = from.GetCamPos();
-	//
 	float distanceToTarget;
-	//
-	Vector TargetBonePosition = target.getBonePositionByHitbox(bone);
+	Vector TargetBonePosition;
 	QAngle CalculatedAngles = QAngle(0, 0, 0);
-	
+
 	WeaponXEntity curweap = WeaponXEntity();
 	curweap.update(from.ptr);
 	float BulletSpeed = curweap.get_projectile_speed();
@@ -551,22 +579,24 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 
 	QAngle ViewAngles = from.GetViewAngles();
 
-  // Find best bone
-  if (bone_auto) {
-    float NearestBoneFov = FLT_MAX;
-    for (int i = 0; i < 4; i++) {
-      Vector currentBonePosition = target.getBonePositionByHitbox(i);
-      float DistanceFromCrosshair = Math::GetFov(ViewAngles, Math::CalcAngle(LocalCamera, currentBonePosition));
-      if (DistanceFromCrosshair < NearestBoneFov) {
-        TargetBonePosition = currentBonePosition;
-        distanceToTarget = (currentBonePosition - LocalCamera).Length();
-        NearestBoneFov = DistanceFromCrosshair;
-      }
-    }
-  } else {
-    TargetBonePosition = target.getBonePositionByHitbox(bone);
-    distanceToTarget = (TargetBonePosition - LocalCamera).Length();
-  }
+	// Find best bone — batch reads shared prefix (StudioHdr, HitboxCache, IndexCache) once
+	if (bone_auto) {
+		Vector bonePositions[4];
+		target.getBonePositionsByHitboxBatch(4, bonePositions);
+		float NearestBoneFov = FLT_MAX;
+		for (int i = 0; i < 4; i++) {
+			if (bonePositions[i].IsZero()) continue;
+			float DistanceFromCrosshair = Math::GetFov(ViewAngles, Math::CalcAngle(LocalCamera, bonePositions[i]));
+			if (DistanceFromCrosshair < NearestBoneFov) {
+				TargetBonePosition = bonePositions[i];
+				distanceToTarget = (bonePositions[i] - LocalCamera).Length();
+				NearestBoneFov = DistanceFromCrosshair;
+			}
+		}
+	} else {
+		TargetBonePosition = target.getBonePositionByHitbox(bone);
+		distanceToTarget = (TargetBonePosition - LocalCamera).Length();
+	}
 	/*
 	//simple aim prediction
 	if (BulletSpeed > 1.f)
@@ -668,8 +698,14 @@ void WeaponXEntity::update(uint64_t LocalPlayer)
 	uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
 	uint64_t wephandle = 0;
     apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_WEAPON, wephandle);
-	
 	wephandle &= 0xffff;
+
+	auto now = std::chrono::steady_clock::now();
+	if (wephandle == cached_wep_handle && now < cache_expiry)
+		return;
+
+	cached_wep_handle = wephandle;
+	cache_expiry = now + std::chrono::milliseconds(100);
 
 	uint64_t wep_entity = 0;
     apex_mem.Read<uint64_t>(entitylist + (wephandle << 5), wep_entity);

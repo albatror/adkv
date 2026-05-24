@@ -13,6 +13,7 @@ extern bool triggerbot_aiming;
 extern float triggerbot_fov;
 extern float aim_dist;
 extern bool firing_range;
+extern const int toRead;
 bool stuff_t = false;
 
 
@@ -58,8 +59,13 @@ void StuffBotLoop()
             if (now < trigger_again_time) continue;
 
             uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
-            int ent_count = firing_range ? 10000 : 1000;
+            int ent_count = firing_range ? 10000 : toRead;
             static std::unordered_map<uint64_t, float> last_crosshair_times;
+            static int crosshair_cleanup_counter = 0;
+            if (++crosshair_cleanup_counter >= 300) {
+                last_crosshair_times.clear();
+                crosshair_cleanup_counter = 0;
+            }
 
             for (int i = 0; i < ent_count; i++) {
                 uint64_t centity = 0;

@@ -11,6 +11,7 @@
 #include "StuffBot.h"
 #include "Weapon.h"
 #include "ItemManager.h"
+#include <atomic>
 #include <thread>
 #include <array>
 #include <vector>
@@ -37,7 +38,7 @@ float ads_smooth = 15.0f;
 float hip_fov = 8.0f;
 float hip_smooth = 25.0f;
 
-const int toRead = 100;
+extern const int toRead = 100;
 
 int aim = false;
 bool esp = false;
@@ -63,6 +64,9 @@ bool onevone = false;
 bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
+float aassist_smooth = 35.0f;
+float aassist_fov = 15.0f;
+float aassist_strength = 0.75f;
 
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
@@ -105,8 +109,8 @@ bool vars_t = false;
 bool item_t = false;
 uint64_t g_Base;
 uint64_t c_Base;
-bool next = false;
-bool valid = false;
+std::atomic<bool> next{false};
+std::atomic<bool> valid{false};
 bool lock = false;
 bool is_aimentity_visible = false;
 
@@ -248,10 +252,6 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 	float active_fov = LPlayer.isZooming() ? ads_fov : hip_fov;
 	float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
 
-	if (triggerbot) {
-		if (triggerbot_fov > active_fov) active_fov = triggerbot_fov;
-	}
-
 	float priority = fov + logf(fmaxf(dist / 40.0f, 1.0f));
 
 	if (aimentity != 0 && lock)
@@ -344,7 +344,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 				spectated_ptr = LPlayer.ptr;
 
 			team_player = LPlayer.getTeamId();
-			if (team_player < 0 || team_player > 50 && !onevone)
+			if (!onevone && (team_player < 0 || team_player > 50))
 			{
 				continue;
 			}
@@ -510,6 +510,13 @@ if (bhop && SuperKey) {
 			apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ATTACK, in_attack_button);
 			shooting = (in_attack_button.state & 1) != 0;
 
+			// Read ADS (right-click) state directly from game for aim assist
+			if (aassist) {
+				kbutton_t in_zoom_button;
+				apex_mem.Read<kbutton_t>(g_Base + OFFSET_IN_ZOOM, in_zoom_button);
+				aassist_aiming = (in_zoom_button.state & 1) != 0;
+			}
+
 			tmp_spec = 0;
 			tmp_all_spec = 0;
 
@@ -545,6 +552,7 @@ if (bhop && SuperKey) {
 
 					ProcessPlayer(LPlayer, Target, entitylist, c, spectated_ptr);
 					c++;
+					if (c >= toRead) break;
 				}
 			}
 			else
@@ -598,17 +606,6 @@ static void EspLoop()
 			uint64_t LocalPlayer = 0;
 			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
 				if (LocalPlayer == 0)
-{
-    next = true;
-    while(next && g_Base != 0 && c_Base != 0 && esp)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    continue;
-}
-
-// Ensure the local player entity is valid
-if (LocalPlayer == 0)
 {
     next = true;
     while(next && g_Base != 0 && c_Base != 0 && esp)
@@ -722,7 +719,7 @@ Entity LPlayer = getEntity(LocalPlayer);
 								height,
 								bs.x,
 								bs.y,
-								0,
+								Target.isKnocked(),
 								(Target.lastVisTime() > lastvis_esp[c]),
 								health,
 								shield,
@@ -762,9 +759,10 @@ Entity LPlayer = getEntity(LocalPlayer);
 							lastvis_esp[c] = Target.lastVisTime();
 							valid = true;
 							c++;
+							if (c >= toRead) break;
 						}
 					}
-				}	
+				}
 				else
 				{
 					for (int i = 0; i < toRead; i++)
@@ -927,7 +925,7 @@ static void AimbotLoop()
 			wasZooming = isZooming;
 
 
-			if (aim > 0)
+			if (aim > 0 || (aassist && aassist_aiming))
 			{
 				bool is_aiming = aiming || (aassist && aassist_aiming);
 				if (aimentity == 0 || !is_aiming)
@@ -961,23 +959,33 @@ static void AimbotLoop()
 				}
 
 				bool is_zooming = LPlayer.isZooming();
-				float current_smooth = is_zooming ? ads_smooth : hip_smooth;
-				float current_max_fov = is_zooming ? ads_fov : hip_fov;
+				// aa_only: aim assist active, regular aimbot NOT simultaneously active
+				bool aa_only = (aassist && aassist_aiming) && !(aim > 0 && aiming);
 
-				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
-			if (elapsed < 500) {
-				current_smooth *= 0.5f;
-			}
-
+				float current_smooth, current_max_fov;
+				if (aa_only) {
+					current_smooth = aassist_smooth;
+					current_max_fov = aassist_fov;
+				} else {
+					current_smooth = is_zooming ? ads_smooth : hip_smooth;
+					current_max_fov = is_zooming ? ads_fov : hip_fov;
+					auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lock_start_time).count();
+					if (elapsed < 500) {
+						current_smooth *= 0.5f;
+					}
+				}
 
 				float fov = CalculateFov(LPlayer, Target);
 				float dist = LPlayer.getPosition().DistTo(Target.getPosition());
 				float active_dist = (aassist && aassist_aiming) ? aassist_dist : aim_dist;
 
-				float distanceFactor = 2.0f - (dist / 5000.0f);
-				if (distanceFactor < 0.5f) distanceFactor = 0.5f;
-				if (distanceFactor > 2.0f) distanceFactor = 2.0f;
-				current_max_fov *= distanceFactor;
+				// distanceFactor only for regular aimbot — aim assist keeps a fixed bubble
+				if (!aa_only) {
+					float distanceFactor = 2.0f - (dist / 5000.0f);
+					if (distanceFactor < 0.5f) distanceFactor = 0.5f;
+					if (distanceFactor > 2.0f) distanceFactor = 2.0f;
+					current_max_fov *= distanceFactor;
+				}
 
 				if (fov > current_max_fov || dist > active_dist)
 				{
@@ -990,7 +998,8 @@ static void AimbotLoop()
 					continue;
 				}
 
-				if (aim == 2 && !is_aimentity_visible)
+				// Visibility check only for regular aimbot with vis-check enabled
+				if (!aa_only && aim == 2 && !is_aimentity_visible)
 				{
 					continue;
 				}
@@ -1001,7 +1010,25 @@ static void AimbotLoop()
 					continue;
 				}
 
-				LPlayer.SetViewAngles(Angles);
+				if (aa_only) {
+					// Controller-style aim assist: graduated pull based on proximity to center
+					// inner zone (35% of bubble) = full strength; outer zone = linear falloff
+					float inner_fov = current_max_fov * 0.35f;
+					float strength = 1.0f;
+					if (fov > inner_fov) {
+						float range = current_max_fov - inner_fov;
+						if (range > 0.f) strength = (current_max_fov - fov) / range;
+					}
+					strength = fmaxf(0.f, fminf(1.f, strength * aassist_strength));
+					QAngle ViewAngles = LPlayer.GetViewAngles();
+					QAngle AA;
+					AA.x = ViewAngles.x + (Angles.x - ViewAngles.x) * strength;
+					AA.y = ViewAngles.y + (Angles.y - ViewAngles.y) * strength;
+					AA.z = 0.f;
+					LPlayer.SetViewAngles(AA);
+				} else {
+					LPlayer.SetViewAngles(Angles);
+				}
 			}
 		}
 	}
@@ -1172,6 +1199,15 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
 
+uint64_t aassist_smooth_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aassist_smooth_addr);
+
+uint64_t aassist_fov_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, aassist_fov_addr);
+
+uint64_t aassist_strength_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, aassist_strength_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1234,7 +1270,11 @@ while (vars_t)
                 if (apex_mem.Dump("dump.bin"))
                 {
                     printf("Running r5dumper...\n");
-                    system("cd r5dumper && ./r5dumper ../dump.bin");
+                    if (access("r5dumper/r5dumper", X_OK) == 0) {
+                        system("cd r5dumper && ./r5dumper ../dump.bin");
+                    } else {
+                        printf("r5dumper not found or not executable\n");
+                    }
                 }
                 client_mem.Write<bool>(dump_req_addr, false);
             }
@@ -1294,6 +1334,9 @@ while (vars_t)
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
+        if (aassist_smooth_addr) client_mem.Read<float>(aassist_smooth_addr, aassist_smooth);
+        if (aassist_fov_addr) client_mem.Read<float>(aassist_fov_addr, aassist_fov);
+        if (aassist_strength_addr) client_mem.Read<float>(aassist_strength_addr, aassist_strength);
 
         if (esp && next)
         {
@@ -1303,11 +1346,13 @@ while (vars_t)
             client_mem.Write<bool>(next_addr, true); //next
 
             bool next_val = false;
+            auto handshake_timeout = std::chrono::steady_clock::now() + std::chrono::seconds(5);
             do
             {
                 client_mem.Read<bool>(next_addr, next_val);
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            } while (next_val && g_Base != 0 && c_Base != 0);
+            } while (next_val && g_Base != 0 && c_Base != 0 && std::chrono::steady_clock::now() < handshake_timeout);
+            if (next_val) printf("Warning: handshake timeout, client may have crashed\n");
 
             next = false;
         }
@@ -1456,7 +1501,7 @@ int main(int argc, char *argv[])
 	//const char* ap_proc = "EasyAntiCheat_launcher.exe";
 
 	//Client "add" offset
-	uint64_t add_off = 0x2eec00;
+	uint64_t add_off = 0x000000;
 	std::thread aimbot_thr;
 	std::thread esp_thr;
 	std::thread actions_thr;
@@ -1478,12 +1523,6 @@ int main(int argc, char *argv[])
 				extern bool stuff_t;
 				stuff_t = false;
 				g_Base = 0;
-
-				aimbot_thr.~thread();
-				esp_thr.~thread();
-				actions_thr.~thread();
-				itemglow_thr.~thread();
-				stuffbot_thr.~thread();
 
 			}
 
@@ -1530,8 +1569,6 @@ int main(int argc, char *argv[])
 			{
 				vars_t = false;
 				c_Base = 0;
-
-				vars_thr.~thread();
 			}
 			
 			std::this_thread::sleep_for(std::chrono::seconds(1));

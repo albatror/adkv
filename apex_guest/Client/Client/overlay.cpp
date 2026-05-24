@@ -33,6 +33,9 @@ extern float triggerbot_fov;
 
 extern bool aassist;
 extern float aassist_dist;
+extern float aassist_smooth;
+extern float aassist_fov;
+extern float aassist_strength;
 
 extern bool superglide;
 extern bool bhop;
@@ -231,6 +234,13 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("##aassist_dist"), &aassist_dist, 1.0f * 40, 150.0f * 40, "%.2f");
 			ImGui::SameLine();
 			ImGui::Text("%d meters", (int)(aassist_dist / 40));
+
+			ImGui::Text(XorStr("AAssist FOV bubble:"));
+			ImGui::SliderFloat(XorStr("##aassist_fov"), &aassist_fov, 1.0f, 50.0f, "%.2f");
+			ImGui::Text(XorStr("AAssist Smooth (higher = softer):"));
+			ImGui::SliderFloat(XorStr("##aassist_smooth"), &aassist_smooth, 1.0f, 100.0f, "%.2f");
+			ImGui::Text(XorStr("AAssist Strength (0=off, 1=full):"));
+			ImGui::SliderFloat(XorStr("##aassist_strength"), &aassist_strength, 0.0f, 1.0f, "%.2f");
 
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
@@ -543,26 +553,14 @@ DWORD Overlay::CreateOverlay()
 
 		RenderSpectator();
 
-		if (v.triggerbot_fov_circle)
 		{
-			ImGui::Begin("##triggercirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 			auto draw = ImGui::GetBackgroundDrawList();
-			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
-			ImGui::End();
-		}
-		if (v.ads_fov_circle)
-		{
-			ImGui::Begin("##adscirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
-			auto draw = ImGui::GetBackgroundDrawList();
-			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), ads_fov * 10.0f, IM_COL32(0, 255, 255, 255), 100, 1.0f);
-			ImGui::End();
-		}
-		if (v.hip_fov_circle)
-		{
-			ImGui::Begin("##hipcirclefov", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
-			auto draw = ImGui::GetBackgroundDrawList();
-			draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), hip_fov * 10.0f, IM_COL32(255, 0, 255, 255), 100, 1.0f);
-			ImGui::End();
+			if (v.triggerbot_fov_circle)
+				draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), triggerbot_fov, IM_COL32(255, 165, 0, 255), 100, 1.0f);
+			if (v.ads_fov_circle)
+				draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), ads_fov * 10.0f, IM_COL32(0, 255, 255, 255), 100, 1.0f);
+			if (v.hip_fov_circle)
+				draw->AddCircle(ImVec2(getWidth() / 2, getHeight() / 2), hip_fov * 10.0f, IM_COL32(255, 0, 255, 255), 100, 1.0f);
 		}
 		RenderEsp();
 
@@ -575,8 +573,6 @@ DWORD Overlay::CreateOverlay()
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		g_pSwapChain->Present(1, 0); // Present with vsync
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	ClickThrough(true);
 
@@ -754,7 +750,10 @@ bool Overlay::LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView
 	subResource.pSysMem = image_data;
 	subResource.SysMemPitch = desc.Width * 4;
 	subResource.SysMemSlicePitch = 0;
-	g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+	if (FAILED(g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture))) {
+		stbi_image_free(image_data);
+		return false;
+	}
 
 	// Create texture view
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -763,7 +762,11 @@ bool Overlay::LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv);
+	if (FAILED(g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv))) {
+		pTexture->Release();
+		stbi_image_free(image_data);
+		return false;
+	}
 	pTexture->Release();
 
 	*out_width = image_width;
@@ -820,13 +823,14 @@ void Overlay::DrawSeerLikeHealth(float x, float y, int shield, int max_shield, i
 		shieldCol = ImColor(39, 178, 255);
 		shieldColDark = ImColor(27, 120, 210);
 	}
-	else if (max_shield == 100) { //purple
-		shieldCol = ImColor(206, 59, 255);
-		shieldColDark = ImColor(136, 36, 220);
-	}
-	else if (max_shield == 100) { //gold
-		shieldCol = ImColor(255, 255, 79);
-		shieldColDark = ImColor(218, 175, 49);
+	else if (max_shield == 100) {
+		if (armorType == 4) { // gold (legendary) armor
+			shieldCol = ImColor(255, 255, 79);
+			shieldColDark = ImColor(218, 175, 49);
+		} else { // purple (epic) armor
+			shieldCol = ImColor(206, 59, 255);
+			shieldColDark = ImColor(136, 36, 220);
+		}
 	}
 	else if (max_shield == 125) { //red
 		shieldCol = ImColor(219, 2, 2);

@@ -290,28 +290,27 @@ bool Memory::Dump(const char *filename)
 	if (SizeOfImage == 0 || SizeOfImage > 0x10000000) // 256MB limit for safety
 		return false;
 
-	char *buffer = (char *)malloc(SizeOfImage);
-	if (!buffer)
+	FILE *f = fopen(filename, "wb");
+	if (!f)
 		return false;
 
-	// Read in chunks of 1MB
-	uint32_t chunkSize = 1024 * 1024;
+	// Stream directly to file in 1MB chunks — no large allocation needed
+	const uint32_t chunkSize = 1024 * 1024;
+	char *chunk = (char *)malloc(chunkSize);
+	if (!chunk) {
+		fclose(f);
+		return false;
+	}
+
 	for (uint32_t offset = 0; offset < SizeOfImage; offset += chunkSize)
 	{
 		uint32_t currentChunk = (SizeOfImage - offset < chunkSize) ? SizeOfImage - offset : chunkSize;
-		ReadArray<char>(proc.baseaddr + offset, buffer + offset, currentChunk);
+		ReadArray<char>(proc.baseaddr + offset, chunk, currentChunk);
+		fwrite(chunk, 1, currentChunk, f);
 	}
 
-	FILE *f = fopen(filename, "wb");
-	if (f)
-	{
-		fwrite(buffer, 1, SizeOfImage, f);
-		fclose(f);
-		free(buffer);
-		printf("Dump complete.\n");
-		return true;
-	}
-
-	free(buffer);
-	return false;
+	free(chunk);
+	fclose(f);
+	printf("Dump complete.\n");
+	return true;
 }

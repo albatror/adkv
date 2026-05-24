@@ -76,6 +76,9 @@ float hip_smooth = 25.0f;
 bool aassist = false;
 float aassist_dist = 50.0f * 40.0f;
 bool aassist_aiming = false;
+float aassist_smooth = 35.0f;
+float aassist_fov = 15.0f;
+float aassist_strength = 0.75f;
 
 int bone = 2;
 // Declare constants for key detection
@@ -151,18 +154,18 @@ unsigned char outlinesize = 32;
 float glowr = 100.0f; //Red Value
 float glowg = 0.0f; //Green Value
 float glowb = 0.0f; //Blue Value
-float glowcolor[3] = { 000.0f, 000.0f, 000.0f };
+float glowcolor[3] = { 100.0f / 250.0f, 0.0f, 0.0f }; // synced with glowr/g/b defaults
 //more glow stuff
 //glow visable
 float glowrviz = 0.0f;
 float glowgviz = 100.0f;
 float glowbviz = 0.0f;
-float glowcolorviz[3] = { 000.0f, 000.0f, 000.0f };
+float glowcolorviz[3] = { 0.0f, 100.0f / 250.0f, 0.0f }; // synced with glowrviz/gviz/bviz defaults
 //knocked
 float glowrknocked = 100.0f;
 float glowgknocked = 100.0f;
 float glowbknocked = 100.0f;
-float glowcolorknocked[3] = { 000.0f, 000.0f, 000.0f };
+float glowcolorknocked[3] = { 100.0f / 250.0f, 100.0f / 250.0f, 100.0f / 250.0f }; // synced with knocked defaults
 
 bool valid = false; //write
 bool next = false; //read write
@@ -191,17 +194,6 @@ bool IsKeyDown(int vk)
 
 player players[100];
 
-void randomBone()
-{
-	int boneArray[3] = { 0, 1, 2 };
-
-	// Seed the random number generator with the current time
-	srand((unsigned int)time(NULL));
-
-	int randVal = rand() % 3;
-	bone = boneArray[randVal];
-	Sleep(500);
-}
 
 spectator spectator_list[100];
 
@@ -248,7 +240,8 @@ void Overlay::RenderEsp()
 	if (g_Base != 0 && esp)
 	{
 		memset(players, 0, sizeof(players));
-		while (!next && esp)
+		auto esp_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+		while (!next && esp && std::chrono::steady_clock::now() < esp_deadline)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
@@ -485,6 +478,9 @@ int main(int argc, char** argv)
 	add[50] = (uintptr_t)&aassist;
 	add[51] = (uintptr_t)&aassist_dist;
 	add[52] = (uintptr_t)&aassist_aiming;
+	add[53] = (uintptr_t)&aassist_smooth;
+	add[54] = (uintptr_t)&aassist_fov;
+	add[55] = (uintptr_t)&aassist_strength;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 
@@ -649,8 +645,7 @@ int main(int argc, char** argv)
 		aassist_aiming = aassist && IsKeyDown(aim_key2);
 		triggerbot_aiming = triggerbot && IsKeyDown(VK_LSHIFT);
 
-		// Shooting can be triggered by either left or right mouse button
-		shooting = IsKeyDown(VK_LBUTTON) || IsKeyDown(VK_RBUTTON);
+		shooting = IsKeyDown(VK_LBUTTON);
 
 	}
 	ready = false;

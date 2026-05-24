@@ -2,6 +2,7 @@
 #include "Math.h"
 #include "offsets.h"
 #include "memory.h"
+#include <chrono>
 
 #define NUM_ENT_ENTRIES			(1 << 12)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
@@ -82,6 +83,7 @@ public:
 	void SetViewAngles(QAngle& angles);
 	Vector getBonePosition(int id);
 	Vector getBonePositionByHitbox(int id);
+	void getBonePositionsByHitboxBatch(int count, Vector* out);
 	bool Observing(uint64_t local);
 	void get_name(uint64_t g_Base, char* name);
 	//void get_name(char *name);
@@ -127,6 +129,8 @@ private:
 	float projectile_speed;
 	float zoom_fov;
 	int ammo;
+	uint64_t cached_wep_handle = 0;
+	std::chrono::steady_clock::time_point cache_expiry{};
 };
 
 struct ClientClass {

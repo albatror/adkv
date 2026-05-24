@@ -15,3 +15,6 @@ extern float hip_fov;
 extern float hip_smooth;
 extern bool aassist;
 extern float aassist_dist;
+extern float aassist_smooth;
+extern float aassist_fov;
+extern float aassist_strength;
