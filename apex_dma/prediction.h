@@ -45,7 +45,7 @@ inline bool SolveTrajectory(PredictCtx& Ctx, const Vector& ExtrPos, float* Trave
 
 inline bool BulletPredict(PredictCtx& Ctx)
 {
-	float MAX_TIME = 1.f, TIME_STEP = (1.f / 256.f);
+	float MAX_TIME = 2.f, TIME_STEP = (1.f / 256.f);
 	for (float CurrentTime = 0.f; CurrentTime <= MAX_TIME; CurrentTime += TIME_STEP)
 	{
 		float TravelTime;

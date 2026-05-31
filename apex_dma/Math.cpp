@@ -23,9 +23,8 @@ QAngle Math::CalcAngle(const Vector& src, const Vector& dst)
 	double hyp = sqrt(delta.x*delta.x + delta.y * delta.y);
 
 	angle.x = atan(delta.z / hyp) * (180.0f / M_PI);
-	angle.y = atan(delta.y / delta.x) * (180.0f / M_PI);
+	angle.y = atan2f(delta.y, delta.x) * (180.0f / M_PI);
 	angle.z = 0;
-	if (delta.x >= 0.0) angle.y += 180.0f;
 
 	return angle;
 }

@@ -13,6 +13,18 @@ extern unsigned char insidevalue;
 extern unsigned char outlinesize;
 extern bool aim_no_recoil;
 extern int bone;
+extern float bulletspeed;
+extern float bulletgrav;
+extern float aimOffsetMultiplier;
+extern int selectedFPSIndex;
+extern bool DeadZone;
+extern float DeadZoneToleranceX;
+extern float DeadZoneToleranceY;
+extern bool BowAdjust;
+extern bool OnSheila;
+extern bool HoldSheila;
+extern int smoothingMode;
+extern int effectiveSmoothingMode;
 //
 bool bone_auto = true;
 extern float max_dist;
@@ -21,9 +33,7 @@ extern float glowr;
 extern float glowg;
 extern float glowb;
 
-extern int glowtype;
-extern int glowtype2;
-extern int glowtype3;
+// glowtype/2/3 removed — declared extern but never defined nor used
 
 // https://github.com/Gerosity/zap-client/blob/master/Core/Player.hpp#L161
 bool Entity::Observing(uint64_t localptr)
@@ -201,7 +211,7 @@ float Entity::lastCrossHairTime()
 int Entity::getCurrentWeaponId()
 {
 	uint64_t wep_handle = 0;
-	apex_mem.Read<uint64_t>(ptr + OFFSET_WEAPON, wep_handle);
+	apex_mem.Read<uint64_t>(ptr + OFFSET_ACTIVE_WEAPON, wep_handle); // OFFSET_ACTIVE_WEAPON = correct entity handle
 	wep_handle &= 0xffff;
 	uint64_t wep_entity = 0;
 	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + (wep_handle << 5), wep_entity);
@@ -252,7 +262,7 @@ Vector Entity::getBonePositionByHitbox(int id)
 	uint16_t Bone;
 	apex_mem.Read<uint16_t>(HitBoxsArray + HitboxIndex + (id * 0x20), Bone);
 
-	if(Bone < 0 || Bone > 255)
+	if (Bone > 255) // B7 FIX: uint16_t is never < 0, check was dead code
 		return Vector();
  
     //hitpos
@@ -326,7 +336,8 @@ float Entity::GetYaw()
 
 bool Entity::isGlowing()
 {
-	return *(int*)(buffer + OFFSET_GLOW_ENABLE) == 7;
+	int v = *(int*)(buffer + OFFSET_GLOW_ENABLE);
+	return (v == 5 || v == 6 || v == 7); // contextId 5=knocked 6=visible 7=not-visible
 }
 
 bool Entity::isZooming()
@@ -345,7 +356,7 @@ bool Entity::isZooming()
     //custom glow colo RGB
     unsigned char outsidevalue = 125;
     extern unsigned char insidevalue;
-    extern unsigned char insidevalueItem;
+    // insidevalueItem removed — declared extern but never defined nor used in this function
     extern unsigned char outlinesize;
 
     void Entity::enableGlow()
@@ -420,7 +431,7 @@ void Entity::get_name(uint64_t g_Base, char* name)
 void Entity::getWeaponModelName(char* name, int max_len)
 {
 	uint64_t wep_handle = 0;
-	apex_mem.Read<uint64_t>(ptr + OFFSET_WEAPON, wep_handle);
+	apex_mem.Read<uint64_t>(ptr + OFFSET_ACTIVE_WEAPON, wep_handle); // OFFSET_ACTIVE_WEAPON = m_inventory.activeWeapons, not OFFSET_WEAPON (m_weaponNameIndex)
 	wep_handle &= 0xffff;
 	uint64_t wep_entity = 0;
 	apex_mem.Read<uint64_t>(apex_mem.get_proc_baseaddr() + OFFSET_ENTITYLIST + (wep_handle << 5), wep_entity);
@@ -543,7 +554,7 @@ float CalculateFov(Entity& from, Entity& target)
 	return Math::GetFov(ViewAngles, Angle);
 }
 
-QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing)
+QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoothing, bool bypass_smooth)
 {
 	Entity target = getEntity(t);
 	if(firing_range)
@@ -597,6 +608,33 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 		TargetBonePosition = target.getBonePositionByHitbox(bone);
 		distanceToTarget = (TargetBonePosition - LocalCamera).Length();
 	}
+
+	// P4: Dead Zone — stop aiming if crosshair is already within tolerance
+	if (DeadZone) {
+		QAngle dzView = from.GetViewAngles();
+		QAngle dzAngle = Math::CalcAngle(LocalCamera, TargetBonePosition);
+		QAngle dzDelta = dzAngle - dzView;
+		Math::NormalizeAngles(dzDelta);
+		if (fabsf(dzDelta.x) <= DeadZoneToleranceX && fabsf(dzDelta.y) <= DeadZoneToleranceY)
+			return QAngle(0, 0, 0);
+	}
+
+	// P5: Weapon-specific vertical adjustments (bow, turret)
+	if (BowAdjust) {
+		Vector entPos = target.getPosition();
+		float hDiff = entPos.z - LocalCamera.z;
+		float bowOffset;
+		if (distanceToTarget > 7500.f)      bowOffset = -80.0f;
+		else if (distanceToTarget > 4754.f) bowOffset = -35.0f;
+		else                                bowOffset =   5.0f;
+		TargetBonePosition.z -= (hDiff / 39.62f) + bowOffset;
+	}
+	if (OnSheila || HoldSheila) {
+		Vector entPos = target.getPosition();
+		float hDiff = entPos.z - LocalCamera.z;
+		TargetBonePosition.z -= (hDiff / 39.62f) + 20.0f;
+	}
+
 	/*
 	//simple aim prediction
 	if (BulletSpeed > 1.f)
@@ -613,23 +651,31 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	//more accurate prediction
 	if (BulletSpeed > 1.f)
 	{
+		Vector targetVel = target.getAbsVelocity();
+		float distToTarget = (TargetBonePosition - LocalCamera).Length();
+		float timeToTarget = (distToTarget / BulletSpeed) * aimOffsetMultiplier;
+
 		PredictCtx Ctx;
-		Ctx.StartPos = LocalCamera;
-		Ctx.TargetPos = TargetBonePosition; 
-		Ctx.BulletSpeed = BulletSpeed - (BulletSpeed*0.08);
-		Ctx.BulletGravity = BulletGrav + (BulletGrav*0.05);
-		Ctx.TargetVel = target.getAbsVelocity();
+		Ctx.StartPos      = LocalCamera;
+		Ctx.TargetPos     = TargetBonePosition + (targetVel * timeToTarget);
+		Ctx.BulletSpeed   = BulletSpeed - (BulletSpeed * bulletspeed);
+		Ctx.BulletGravity = BulletGrav  + (BulletGrav  * bulletgrav);
+		// B1 FIX: pass velocity as-is; BulletPredict handles extrapolation internally
+		Ctx.TargetVel     = targetVel;
 
 		if (BulletPredict(Ctx))
 			CalculatedAngles = QAngle{Ctx.AimAngles.x, Ctx.AimAngles.y, 0.f};
-    }
+	}
 
 	if (CalculatedAngles == QAngle(0, 0, 0))
     	CalculatedAngles = Math::CalcAngle(LocalCamera, TargetBonePosition);
-	QAngle SwayAngles = from.GetSwayAngles();
-	//remove sway and recoil
-	if(aim_no_recoil)
-		CalculatedAngles-=SwayAngles-ViewAngles;
+
+	// B6 FIX: use GetRecoil() (OFFSET_AIMPUNCH) for actual weapon recoil,
+	// not GetSwayAngles() which only covers breath sway
+	if (aim_no_recoil) {
+		QAngle recoil = from.GetRecoil();
+		CalculatedAngles -= recoil;
+	}
 	Math::NormalizeAngles(CalculatedAngles);
 	QAngle Delta = CalculatedAngles - ViewAngles;
 
@@ -641,7 +687,62 @@ QAngle CalculateBestBoneAim(Entity& from, uintptr_t t, float max_fov, float smoo
 	if (Delta.y >  maxDelta) Delta.y =  maxDelta;
 	if (Delta.y < -maxDelta) Delta.y = -maxDelta;
 
-	QAngle SmoothedAngles = ViewAngles + Delta/smoothing;
+	// B3 FIX: reset velocity state when target changes to prevent bleeding
+	static uintptr_t lastAimTarget = 0;
+	static float velX = 0.0f, velY = 0.0f;
+	if (t != lastAimTarget) {
+		velX = velY = 0.0f;
+		lastAimTarget = t;
+	}
+
+	// B5 FIX: measure actual frame delta instead of hardcoding 1ms
+	static auto lastAimFrame = std::chrono::steady_clock::now();
+	auto nowAim = std::chrono::steady_clock::now();
+	float dt = std::chrono::duration<float>(nowAim - lastAimFrame).count();
+	lastAimFrame = nowAim;
+	dt = std::min(dt, 0.05f); // cap at 50ms to prevent runaway on stall
+
+	// B4 FIX: if bypass_smooth requested (aim-assist snap mode), return raw angle
+	if (bypass_smooth) {
+		QAngle raw = CalculatedAngles;
+		Math::NormalizeAngles(raw);
+		return raw;
+	}
+
+	QAngle SmoothedAngles;
+	SmoothedAngles.z = 0.f;
+
+	switch (effectiveSmoothingMode)
+	{
+	case 1: // Linear — constant fraction, direct/raw
+		SmoothedAngles.x = ViewAngles.x + AimLinear(Delta.x, smoothing);
+		SmoothedAngles.y = ViewAngles.y + AimLinear(Delta.y, smoothing);
+		velX = velY = 0.0f;
+		break;
+	case 2: // Bezier quadratic ease-out — fast approach, gentle arrival
+		SmoothedAngles.x = ViewAngles.x + AimBezier(Delta.x, smoothing);
+		SmoothedAngles.y = ViewAngles.y + AimBezier(Delta.y, smoothing);
+		velX = velY = 0.0f;
+		break;
+	case 3: // Cubic Bezier ease-in-out — smooth accel + decel
+		SmoothedAngles.x = ViewAngles.x + AimCubicBezier(Delta.x, smoothing);
+		SmoothedAngles.y = ViewAngles.y + AimCubicBezier(Delta.y, smoothing);
+		velX = velY = 0.0f;
+		break;
+	case 4: // S-Curve (Smootherstep) — ultra-smooth, zero 2nd derivative
+		SmoothedAngles.x = ViewAngles.x + AimSCurve(Delta.x, smoothing);
+		SmoothedAngles.y = ViewAngles.y + AimSCurve(Delta.y, smoothing);
+		velX = velY = 0.0f;
+		break;
+	default: // 0 = SmoothDamp spring-damper (default)
+	{
+		float smoothTime = smoothing * 0.001f;
+		SmoothedAngles.x = SmoothDamp(ViewAngles.x, ViewAngles.x + Delta.x, velX, smoothTime, dt);
+		SmoothedAngles.y = SmoothDamp(ViewAngles.y, ViewAngles.y + Delta.y, velY, smoothTime, dt);
+		break;
+	}
+	}
+
 	return SmoothedAngles;
 }
 
@@ -679,11 +780,11 @@ bool WorldToScreen(Vector from, float* m_vMatrix, int targetWidth, int targetHei
 	x *= invw;
 	y *= invw;
 
-	float screenX = targetWidth / 2;
-	float screenY = targetHeight / 2;
+	float screenX = targetWidth * 0.5f;
+	float screenY = targetHeight * 0.5f;
 
-	screenX += 0.5 * x * targetWidth + 0.5;
-	screenY -= 0.5 * y * targetHeight + 0.5;
+	screenX += 0.5f * x * targetWidth + 0.5f;
+	screenY -= 0.5f * y * targetHeight + 0.5f;
 
 	to.x = screenX;
 	to.y = screenY;
@@ -697,7 +798,7 @@ void WeaponXEntity::update(uint64_t LocalPlayer)
     extern uint64_t g_Base;
 	uint64_t entitylist = g_Base + OFFSET_ENTITYLIST;
 	uint64_t wephandle = 0;
-    apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_WEAPON, wephandle);
+    apex_mem.Read<uint64_t>(LocalPlayer + OFFSET_ACTIVE_WEAPON, wephandle); // OFFSET_ACTIVE_WEAPON = m_inventory.activeWeapons
 	wephandle &= 0xffff;
 
 	auto now = std::chrono::steady_clock::now();

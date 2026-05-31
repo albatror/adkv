@@ -48,6 +48,7 @@ bool triggerbot = false;
 int triggerbot_key = VK_LSHIFT;
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+int triggerbot_hitbox = 2;
 
 bool superglide = false;
 bool bhop = false;
@@ -80,9 +81,33 @@ float aassist_smooth = 35.0f;
 float aassist_fov = 15.0f;
 float aassist_strength = 0.75f;
 
+// Prediction tuning (P2/P3)
+float bulletspeed = 0.08f;
+float bulletgrav = 0.05f;
+float aimOffsetMultiplier = 1.0f;
+int selectedFPSIndex = 0;
+
+// Dead zone (P4)
+bool DeadZone = false;
+float DeadZoneToleranceX = 1.0f;
+float DeadZoneToleranceY = 1.0f;
+
+// Weapon adjustments (P5)
+bool BowAdjust = false;
+bool OnSheila = false;
+bool HoldSheila = false;
+
+// AimSnap targeting (P6)
+bool AimSnapToggle = false;
+int TargetIndexLock = 0;
+int TargetIndex = 0;
+
+// Smoothing mode: 0=SmoothDamp, 1=Linear, 2=Bezier, 3=CubicBezier, 4=SCurve, 5=Auto
+int smoothingMode = 0;
+
 int bone = 2;
 // Declare constants for key detection
-int SuperKey = VK_SPACE;  // VK_SPACE is the spacebar keycode
+int SuperKey = 0;  // int preserved for binary layout; initialized to 0 (not VK_SPACE) so server Read<bool> gets false at startup
 
 bool firing_range = false;
 bool shooting = false; //read
@@ -151,28 +176,28 @@ int screen_height = 1440;
 //Player Glow Color and Brightness
 unsigned char insidevalue = 6;
 unsigned char outlinesize = 32;
-float glowr = 100.0f; //Red Value
+float glowr = 1.0f; //Red Value [0.0-1.0, Apex highlight normalized float]
 float glowg = 0.0f; //Green Value
 float glowb = 0.0f; //Blue Value
-float glowcolor[3] = { 100.0f / 250.0f, 0.0f, 0.0f }; // synced with glowr/g/b defaults
+float glowcolor[3] = { 1.0f, 0.0f, 0.0f }; // synced with glowr/g/b defaults
 //more glow stuff
 //glow visable
 float glowrviz = 0.0f;
-float glowgviz = 100.0f;
+float glowgviz = 1.0f;
 float glowbviz = 0.0f;
-float glowcolorviz[3] = { 0.0f, 100.0f / 250.0f, 0.0f }; // synced with glowrviz/gviz/bviz defaults
+float glowcolorviz[3] = { 0.0f, 1.0f, 0.0f }; // synced with glowrviz/gviz/bviz defaults
 //knocked
-float glowrknocked = 100.0f;
-float glowgknocked = 100.0f;
-float glowbknocked = 100.0f;
-float glowcolorknocked[3] = { 100.0f / 250.0f, 100.0f / 250.0f, 100.0f / 250.0f }; // synced with knocked defaults
+float glowrknocked = 1.0f;
+float glowgknocked = 1.0f;
+float glowbknocked = 1.0f;
+float glowcolorknocked[3] = { 1.0f, 1.0f, 1.0f }; // synced with knocked defaults
 
 bool valid = false; //write
 bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[64];
+uint64_t add[71];
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -478,9 +503,24 @@ int main(int argc, char** argv)
 	add[50] = (uintptr_t)&aassist;
 	add[51] = (uintptr_t)&aassist_dist;
 	add[52] = (uintptr_t)&aassist_aiming;
-	add[53] = (uintptr_t)&aassist_smooth;
+	add[53] = (uintptr_t)&triggerbot_hitbox;
 	add[54] = (uintptr_t)&aassist_fov;
 	add[55] = (uintptr_t)&aassist_strength;
+	add[56] = (uintptr_t)&aassist_smooth;
+	add[57] = (uintptr_t)&bulletspeed;
+	add[58] = (uintptr_t)&bulletgrav;
+	add[59] = (uintptr_t)&aimOffsetMultiplier;
+	add[60] = (uintptr_t)&selectedFPSIndex;
+	add[61] = (uintptr_t)&DeadZone;
+	add[62] = (uintptr_t)&DeadZoneToleranceX;
+	add[63] = (uintptr_t)&DeadZoneToleranceY;
+	add[64] = (uintptr_t)&BowAdjust;
+	add[65] = (uintptr_t)&OnSheila;
+	add[66] = (uintptr_t)&HoldSheila;
+	add[67] = (uintptr_t)&AimSnapToggle;
+	add[68] = (uintptr_t)&TargetIndexLock;
+	add[69] = (uintptr_t)&TargetIndex;
+	add[70] = (uintptr_t)&smoothingMode;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

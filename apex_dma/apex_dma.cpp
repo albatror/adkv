@@ -53,7 +53,7 @@ bool aiming = false;
 int bone = 2;
 bool shooting = false;
 
-int SuperKey = false;
+bool SuperKey = false; // B8 FIX: was int=false (0), now bool; client sends 0/1 via vars bridge
 
 bool isGrappling;
 int grappleAttached;
@@ -68,10 +68,36 @@ float aassist_smooth = 35.0f;
 float aassist_fov = 15.0f;
 float aassist_strength = 0.75f;
 
+// P2/P3: Configurable prediction parameters
+float bulletspeed = 0.08f;
+float bulletgrav = 0.05f;
+float aimOffsetMultiplier = 1.0f;
+int selectedFPSIndex = 0;
+
+// P4: Dead zone system
+bool DeadZone = false;
+float DeadZoneToleranceX = 1.0f;
+float DeadZoneToleranceY = 1.0f;
+
+// P5: Weapon-specific adjustments
+bool BowAdjust = false;
+bool OnSheila = false;
+bool HoldSheila = false;
+
+// P6: AimSnap targeting
+bool AimSnapToggle = false;
+int TargetIndex = 0;
+int TargetIndexLock = 0;
+
+// Smoothing mode: 0=SmoothDamp, 1=Linear, 2=Bezier, 3=CubicBezier, 4=SCurve, 5=Auto
+int smoothingMode = 0;
+int effectiveSmoothingMode = 0; // resolved each frame; used by CalculateBestBoneAim
+
 bool triggerbot = false;
 int triggerbot_key = 0xA0; // VK_LSHIFT
 bool triggerbot_aiming = false;
 float triggerbot_fov = 10.0f;
+int triggerbot_hitbox = 2;
 
 bool superglide = false;
 bool bhop = false;
@@ -169,7 +195,7 @@ std::array<float, 3> highlightParameter;
 // Inside SetPlayerGlow function
 void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
 {
-    	if (player_glow >= 1)
+    	if (player_glow)
     	{
     			if (!Target.isGlowing() || (int)Target.buffer[OFFSET_GLOW_THROUGH_WALLS_GLOW_VISIBLE_TYPE] != 1) {
     				float currentEntityTime = 5000.f;
@@ -197,7 +223,7 @@ void SetPlayerGlow(Entity& LPlayer, Entity& Target, int index)
     			}
     	}
     	//////////////////////////////////////////////////////////////////////////////////////////////////
-		else if((player_glow == 0) && Target.isGlowing())
+		else if(!player_glow && Target.isGlowing())
 		{
 			Target.disableGlow();
 		}
@@ -266,6 +292,7 @@ void ProcessPlayer(Entity &LPlayer, Entity &target, uint64_t entitylist, int ind
 			{
 				max = priority;
 				tmp_aimentity = target.ptr;
+				if (AimSnapToggle) TargetIndex = index;
 			}
 		}
 		else
@@ -355,46 +382,53 @@ Entity LPlayer = getEntity(LocalPlayer);
 
 //walljump ++/////////////////////////////////////
 if (walljump) {
-    bool success; // Declare success once
-    int onWall;
-    // Corrected memory read call
+    bool success;
+    // B3 FIX: initialize to prev value so assignment is safe on read failure
+    int onWall = onWallTmp;
     success = apex_mem.Read<int>(LocalPlayer + OFFSET_WALL_RUN_START_TIME, onWall);
-    if (success && onWall != onWallTmp)
+    if (success)
     {
-        int inForward;
-        success = apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD, inForward);
-        if (success && inForward == 0)  
+        if (onWall != onWallTmp)
         {
-            wallJumpNow = 1;
-            apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+            int inForward;
+            success = apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD, inForward);
+            if (success && inForward == 0)
+            {
+                wallJumpNow = 1;
+                apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+            }
         }
+        onWallTmp = onWall;
     }
-    onWallTmp = onWall;
 
-    int onWallOff;
+    int onWallOff = onWallOffTmp;
     success = apex_mem.Read<int>(LocalPlayer + OFFSET_WALL_RUN_CLEAR_TIME, onWallOff);
-    if (success && wallJumpNow == 1 && onWallOff != onWallOffTmp)
+    if (success)
     {
-        wallJumpNow = 0;
-        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-    }
-    onWallOffTmp = onWallOff;
-
-    float onEdge;
-    success = apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, onEdge);
-    if (success && onEdge != onEdgeTmp)
-    {
-        int inForward;
-        success = apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD, inForward);
-        if (success && inForward == 0)
+        if (wallJumpNow == 1 && onWallOff != onWallOffTmp)
         {
-            wallJumpNow = 2;
-            apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
-            // Consider the impact of sleep here, potentially remove or adjust
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            wallJumpNow = 0;
+            apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
         }
+        onWallOffTmp = onWallOff;
     }
-    onEdgeTmp = onEdge;
+
+    float onEdge = onEdgeTmp;
+    success = apex_mem.Read<float>(LocalPlayer + OFFSET_TRAVERSAL_PROGRESS, onEdge);
+    if (success)
+    {
+        if (onEdge != onEdgeTmp)
+        {
+            int inForward;
+            success = apex_mem.Read<int>(g_Base + OFFSET_IN_FORWARD, inForward);
+            if (success && inForward == 0)
+            {
+                wallJumpNow = 2;
+                apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+            }
+        }
+        onEdgeTmp = onEdge;
+    }
 
     if (wallJumpNow == 2)
     {
@@ -410,9 +444,11 @@ if (walljump) {
 //walljump ++///////////////
 
     // MANTLE BOOST (Superglide) - apex detection, EMA smoothing, non-blocking release
-    static bool boost_fired    = false;
-    static bool pending_release = false;
-    static float last_prog      = 0.0f;
+    static bool boost_fired      = false;
+    static bool pending_release  = false;
+    static bool grapple_pending  = false;
+    static std::chrono::steady_clock::time_point grapple_release_at;
+    static float last_prog       = 0.0f;
     static float last_velocity  = 0.0f;
     static float smooth_vel     = 0.0f;
     static std::chrono::steady_clock::time_point release_at;
@@ -458,26 +494,24 @@ if (walljump) {
 //WALLJUMP END
 ////////////////////////////////
 
-// Check if grapple is active
-apex_mem.Read<bool>(LocalPlayer + OFFSET_GRAPPLEACTIVED, isGrappling);
+// B5 FIX: non-blocking deferred release (same pattern as superglide)
+if (grapple_pending && std::chrono::steady_clock::now() >= grapple_release_at) {
+    apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
+    grapple_pending = false;
+}
 
-// Check if grapple is attached
+apex_mem.Read<bool>(LocalPlayer + OFFSET_GRAPPLEACTIVED, isGrappling);
 apex_mem.Read<int>(LocalPlayer + OFFSET_GRAPPLE + OFFSET_GRAPPLEATTACHED, grappleAttached);
 
-// Main logic
 if (isGrappling && grappleAttached == 1) {
-
-  // Boost by jumping
-  apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5); 
-  std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 4);
-
+    if (!grapple_pending) {
+        apex_mem.Write<int>(g_Base + OFFSET_IN_JUMP + 0x8, 5);
+        grapple_release_at = std::chrono::steady_clock::now() + std::chrono::milliseconds(5);
+        grapple_pending = true;
+    }
 } else {
-
-  // Reset values
-  isGrappling = false;
-  grappleAttached = 0;
-
+    isGrappling = false;
+    grappleAttached = 0;
 }
 
 //grapple END/////////////////////////////
@@ -602,6 +636,14 @@ static void EspLoop()
 			if (esp)
 			{
 				valid = false;
+
+				// B8 FIX: reset lastvis_esp when switching between firing range and normal mode
+				// to prevent stale visibility state from the other mode
+				static bool prev_firing_range_esp = false;
+				if (firing_range != prev_firing_range_esp) {
+					memset(lastvis_esp, 0, sizeof(lastvis_esp));
+					prev_firing_range_esp = firing_range;
+				}
 
 			uint64_t LocalPlayer = 0;
 			apex_mem.Read<uint64_t>(g_Base + OFFSET_LOCAL_ENT, LocalPlayer);
@@ -893,6 +935,41 @@ Entity LPlayer = getEntity(LocalPlayer);
 	esp_t = false;
 }
 
+// Auto smooth: pick algorithm based on weapon category and target distance.
+// Uses model-path name (patch-stable) — same source as ESP/triggerbot.
+static int resolveAutoSmoothingMode(const std::string& wname, float dist, bool aa_active) {
+    // Sniper & Marksman → AimSCurve (case 4)
+    if (wname == "Kraber"       || wname == "Longbow"     ||
+        wname == "Charge Rifle" || wname == "Sentinel"    ||
+        wname == "G7 Scout"     || wname == "Triple Take" ||
+        wname == "30-30"        || wname == "Bocek")
+        return 4;
+
+    // AR → SmoothDamp (case 0)
+    if (wname == "R-301"  || wname == "Flatline" ||
+        wname == "Havoc"  || wname == "Hemlok"   || wname == "Nemesis")
+        return 0;
+
+    // LMG → SmoothDamp (case 0)
+    if (wname == "Spitfire" || wname == "Devotion" ||
+        wname == "Rampage"  || wname == "L-STAR")
+        return 0;
+
+    // SMG / Pistols / Shotguns → short range: Linear (1), medium range: Bezier (2)
+    if (wname == "R-99"       || wname == "Volt SMG"   || wname == "C.A.R."     ||
+        wname == "Alternator" || wname == "Prowler"    ||
+        wname == "P2020"      || wname == "RE-45"      || wname == "Wingman"     ||
+        wname == "Mastiff"    || wname == "EVA-8"      || wname == "Peacekeeper" ||
+        wname == "Mozambique") {
+        if (dist <= 2500.0f || aa_active)
+            return 1; // short range → Linear
+        return 2;     // medium range → Bezier
+    }
+
+    // Fallback for unrecognized weapons → SmoothDamp
+    return 0;
+}
+
 static void AimbotLoop()
 {
 	static uintptr_t last_locked_entity = 0;
@@ -1004,27 +1081,56 @@ static void AimbotLoop()
 					continue;
 				}
 
-				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, current_max_fov, current_smooth);
+				// B4 FIX: for aim assist, determine whether to bypass smoothing
+				// aassist_strength behaviour:
+				//   0.0 → no movement
+				//   0.5 → light assistance (smoothed)
+				//   0.75 → strong sticky aim (smoothed)
+				//   1.0 → direct snap (bypass smoothing)
+				bool snap_mode = aa_only && (aassist_strength >= 1.0f);
+				if (smoothingMode == 5) {
+					char _wmodel[256] = {};
+					LPlayer.getWeaponModelName(_wmodel, sizeof(_wmodel));
+					std::string _wname = get_weapon_name_by_model(_wmodel);
+					if (_wname == "Unknown")
+						_wname = get_weapon_name(LPlayer.getCurrentWeaponId());
+					effectiveSmoothingMode = resolveAutoSmoothingMode(_wname, dist, aassist && aassist_aiming);
+				} else {
+					effectiveSmoothingMode = smoothingMode;
+				}
+				QAngle Angles = CalculateBestBoneAim(LPlayer, aimentity, current_max_fov, current_smooth, snap_mode);
 				if (Angles.x == 0 && Angles.y == 0)
 				{
 					continue;
 				}
 
+				if (AimSnapToggle && TargetIndex != TargetIndexLock)
+					continue;
+
 				if (aa_only) {
-					// Controller-style aim assist: graduated pull based on proximity to center
+					// Graduated pull based on proximity to crosshair center
 					// inner zone (35% of bubble) = full strength; outer zone = linear falloff
 					float inner_fov = current_max_fov * 0.35f;
-					float strength = 1.0f;
+					float prox = 1.0f;
 					if (fov > inner_fov) {
 						float range = current_max_fov - inner_fov;
-						if (range > 0.f) strength = (current_max_fov - fov) / range;
+						if (range > 0.f) prox = (current_max_fov - fov) / range;
 					}
-					strength = fmaxf(0.f, fminf(1.f, strength * aassist_strength));
+					prox = fmaxf(0.f, fminf(1.f, prox));
+
+					// B4 FIX: clamp aassist_strength to [0,1] at runtime
+					float s = fmaxf(0.f, fminf(1.f, aassist_strength));
+
+					// At strength 1.0 with snap_mode, Angles is the raw target — apply directly
+					// At strength < 1.0, Angles is pre-smoothed — lerp by (prox * s) for fluid pull
+					float effective = snap_mode ? prox : (prox * s);
+
 					QAngle ViewAngles = LPlayer.GetViewAngles();
 					QAngle AA;
-					AA.x = ViewAngles.x + (Angles.x - ViewAngles.x) * strength;
-					AA.y = ViewAngles.y + (Angles.y - ViewAngles.y) * strength;
+					AA.x = ViewAngles.x + (Angles.x - ViewAngles.x) * effective;
+					AA.y = ViewAngles.y + (Angles.y - ViewAngles.y) * effective;
 					AA.z = 0.f;
+					Math::NormalizeAngles(AA);
 					LPlayer.SetViewAngles(AA);
 				} else {
 					LPlayer.SetViewAngles(Angles);
@@ -1199,14 +1305,59 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 51, aassist_dist_addr);
 uint64_t aassist_aiming_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 52, aassist_aiming_addr);
 
-uint64_t aassist_smooth_addr = 0;
-client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, aassist_smooth_addr);
+uint64_t triggerbot_hitbox_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 53, triggerbot_hitbox_addr);
 
 uint64_t aassist_fov_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 54, aassist_fov_addr);
 
 uint64_t aassist_strength_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 55, aassist_strength_addr);
+
+uint64_t aassist_smooth_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 56, aassist_smooth_addr);
+
+uint64_t bulletspeed_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 57, bulletspeed_addr);
+
+uint64_t bulletgrav_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 58, bulletgrav_addr);
+
+uint64_t aimOffsetMultiplier_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 59, aimOffsetMultiplier_addr);
+
+uint64_t selectedFPSIndex_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 60, selectedFPSIndex_addr);
+
+uint64_t DeadZone_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 61, DeadZone_addr);
+
+uint64_t DeadZoneToleranceX_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 62, DeadZoneToleranceX_addr);
+
+uint64_t DeadZoneToleranceY_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 63, DeadZoneToleranceY_addr);
+
+uint64_t BowAdjust_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 64, BowAdjust_addr);
+
+uint64_t OnSheila_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 65, OnSheila_addr);
+
+uint64_t HoldSheila_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 66, HoldSheila_addr);
+
+uint64_t AimSnapToggle_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 67, AimSnapToggle_addr);
+
+uint64_t TargetIndexLock_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 68, TargetIndexLock_addr);
+
+uint64_t TargetIndex_write_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 69, TargetIndex_write_addr);
+
+uint64_t smoothingMode_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 70, smoothingMode_addr);
 
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
@@ -1272,6 +1423,10 @@ while (vars_t)
                     printf("Running r5dumper...\n");
                     if (access("r5dumper/r5dumper", X_OK) == 0) {
                         system("cd r5dumper && ./r5dumper ../dump.bin");
+                        // Merge the 3 dump files into a single offsets.ini at the server root
+                        if (merge_ini_files("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini", "../offsets.ini")) {
+                            printf("offsets.ini updated at server root\n");
+                        }
                     } else {
                         printf("r5dumper not found or not executable\n");
                     }
@@ -1286,6 +1441,9 @@ while (vars_t)
             if (update_req)
             {
                 printf("Update offsets requested\n");
+                // 1. Rewrite offsets.h with new values (preserves all arithmetic like + 0x58)
+                update_offsets_h("../offsets.h", "r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
+                // 2. Inject new offsets into live memory (no restart required)
                 load_offsets_from_ini("r5dumper/_offsets.ini", "r5dumper/_convars.ini", "r5dumper/_buttons.ini");
                 client_mem.Write<bool>(update_req_addr, false);
             }
@@ -1300,6 +1458,7 @@ while (vars_t)
             client_mem.Read<int>(screen_height_addr, screen_height);
 
         if (triggerbot_addr) client_mem.Read<bool>(triggerbot_addr, triggerbot);
+        if (triggerbot_key_addr) client_mem.Read<int>(triggerbot_key_addr, triggerbot_key);
 
         if (triggerbot_aiming_addr) client_mem.Read<bool>(triggerbot_aiming_addr, triggerbot_aiming);
 
@@ -1311,7 +1470,7 @@ while (vars_t)
 
         if (lock_target_addr) client_mem.Read<bool>(lock_target_addr, lock_target);
 
-        if (superkey_addr) client_mem.Read<int>(superkey_addr, SuperKey);
+        if (superkey_addr) client_mem.Read<bool>(superkey_addr, SuperKey);
 
         if (triggerbot_fov_addr) client_mem.Read<float>(triggerbot_fov_addr, triggerbot_fov);
 
@@ -1334,9 +1493,24 @@ while (vars_t)
         if (aassist_addr) client_mem.Read<bool>(aassist_addr, aassist);
         if (aassist_dist_addr) client_mem.Read<float>(aassist_dist_addr, aassist_dist);
         if (aassist_aiming_addr) client_mem.Read<bool>(aassist_aiming_addr, aassist_aiming);
-        if (aassist_smooth_addr) client_mem.Read<float>(aassist_smooth_addr, aassist_smooth);
+        if (triggerbot_hitbox_addr) client_mem.Read<int>(triggerbot_hitbox_addr, triggerbot_hitbox);
         if (aassist_fov_addr) client_mem.Read<float>(aassist_fov_addr, aassist_fov);
         if (aassist_strength_addr) client_mem.Read<float>(aassist_strength_addr, aassist_strength);
+        if (aassist_smooth_addr) client_mem.Read<float>(aassist_smooth_addr, aassist_smooth);
+        if (bulletspeed_addr)         client_mem.Read<float>(bulletspeed_addr, bulletspeed);
+        if (bulletgrav_addr)          client_mem.Read<float>(bulletgrav_addr, bulletgrav);
+        if (aimOffsetMultiplier_addr) client_mem.Read<float>(aimOffsetMultiplier_addr, aimOffsetMultiplier);
+        if (selectedFPSIndex_addr)    client_mem.Read<int>(selectedFPSIndex_addr, selectedFPSIndex);
+        if (DeadZone_addr)            client_mem.Read<bool>(DeadZone_addr, DeadZone);
+        if (DeadZoneToleranceX_addr)  client_mem.Read<float>(DeadZoneToleranceX_addr, DeadZoneToleranceX);
+        if (DeadZoneToleranceY_addr)  client_mem.Read<float>(DeadZoneToleranceY_addr, DeadZoneToleranceY);
+        if (BowAdjust_addr)           client_mem.Read<bool>(BowAdjust_addr, BowAdjust);
+        if (OnSheila_addr)            client_mem.Read<bool>(OnSheila_addr, OnSheila);
+        if (HoldSheila_addr)          client_mem.Read<bool>(HoldSheila_addr, HoldSheila);
+        if (AimSnapToggle_addr)       client_mem.Read<bool>(AimSnapToggle_addr, AimSnapToggle);
+        if (TargetIndexLock_addr)     client_mem.Read<int>(TargetIndexLock_addr, TargetIndexLock);
+        if (TargetIndex_write_addr)   client_mem.Write<int>(TargetIndex_write_addr, TargetIndex);
+        if (smoothingMode_addr)       client_mem.Read<int>(smoothingMode_addr, smoothingMode);
 
         if (esp && next)
         {

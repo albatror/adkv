@@ -30,12 +30,28 @@ extern bool firing_range;
 
 extern bool triggerbot;
 extern float triggerbot_fov;
+extern int triggerbot_hitbox;
 
 extern bool aassist;
 extern float aassist_dist;
 extern float aassist_smooth;
 extern float aassist_fov;
 extern float aassist_strength;
+
+extern float bulletspeed;
+extern float bulletgrav;
+extern float aimOffsetMultiplier;
+extern int selectedFPSIndex;
+extern bool DeadZone;
+extern float DeadZoneToleranceX;
+extern float DeadZoneToleranceY;
+extern bool BowAdjust;
+extern bool OnSheila;
+extern bool HoldSheila;
+extern bool AimSnapToggle;
+extern int TargetIndexLock;
+extern int TargetIndex;
+extern int smoothingMode;
 
 extern bool superglide;
 extern bool bhop;
@@ -195,6 +211,23 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Triggerbot (LSHIFT)"), &triggerbot);
 			ImGui::SliderFloat(XorStr("Trigger FOV"), &triggerbot_fov, 1.0f, 1000.0f, "%.2f");
 
+			{
+				const char* trigger_hitboxes[] = { "NONE", "Head (0)", "Neck (1)", "Upper Chest (2)", "Lower Chest (3)", "Stomach (4)", "Hip (11)", "NEAR3", "NEAR6", "NEAR12", "ALL" };
+				int current_trigger_hitbox = 0;
+				if (triggerbot_hitbox == -1) current_trigger_hitbox = 0;
+				else if (triggerbot_hitbox >= 0 && triggerbot_hitbox <= 4) current_trigger_hitbox = triggerbot_hitbox + 1;
+				else if (triggerbot_hitbox == 11) current_trigger_hitbox = 6;
+				else if (triggerbot_hitbox >= 101 && triggerbot_hitbox <= 104) current_trigger_hitbox = triggerbot_hitbox - 101 + 7;
+
+				if (ImGui::Combo(XorStr("Trigger Hitbox"), &current_trigger_hitbox, trigger_hitboxes, IM_ARRAYSIZE(trigger_hitboxes)))
+				{
+					if (current_trigger_hitbox == 0) triggerbot_hitbox = -1;
+					else if (current_trigger_hitbox >= 1 && current_trigger_hitbox <= 5) triggerbot_hitbox = current_trigger_hitbox - 1;
+					else if (current_trigger_hitbox == 6) triggerbot_hitbox = 11;
+					else if (current_trigger_hitbox >= 7) triggerbot_hitbox = current_trigger_hitbox - 7 + 101;
+				}
+			}
+
 			ImGui::Checkbox(XorStr("Aim Assist (RMB)"), &aassist);
 
 			ImGui::EndTabItem();
@@ -241,6 +274,55 @@ void Overlay::RenderMenu()
 			ImGui::SliderFloat(XorStr("##aassist_smooth"), &aassist_smooth, 1.0f, 100.0f, "%.2f");
 			ImGui::Text(XorStr("AAssist Strength (0=off, 1=full):"));
 			ImGui::SliderFloat(XorStr("##aassist_strength"), &aassist_strength, 0.0f, 1.0f, "%.2f");
+
+			ImGui::Separator();
+			ImGui::Text(XorStr("Smoothing Mode:"));
+			{
+				const char* smooth_modes[] = {
+					"SmoothDamp (spring-damper)",
+					"Linear (direct/raw)",
+					"Bezier (ease-out)",
+					"Cubic Bezier (ease-in-out)",
+					"S-Curve (ultra-smooth)",
+					"Auto (weapon + distance)"
+				};
+				ImGui::Combo(XorStr("##smoothingMode"), &smoothingMode, smooth_modes, IM_ARRAYSIZE(smooth_modes));
+			}
+
+			ImGui::Separator();
+			ImGui::Text(XorStr("--- Ballistic Prediction ---"));
+			ImGui::Text(XorStr("Bullet Speed Offset:"));
+			ImGui::SliderFloat(XorStr("##bulletspeed"), &bulletspeed, 0.0f, 0.5f, "%.3f");
+			ImGui::Text(XorStr("Bullet Gravity Offset:"));
+			ImGui::SliderFloat(XorStr("##bulletgrav"), &bulletgrav, 0.0f, 0.5f, "%.3f");
+			ImGui::Text(XorStr("Aim Offset Multiplier:"));
+			ImGui::SliderFloat(XorStr("##aimOffsetMultiplier"), &aimOffsetMultiplier, 0.5f, 2.0f, "%.2f");
+			{
+				const char* fps_items[] = { "60 FPS", "75 FPS", "144 FPS" };
+				ImGui::Combo(XorStr("Target FPS"), &selectedFPSIndex, fps_items, IM_ARRAYSIZE(fps_items));
+			}
+
+			ImGui::Separator();
+			ImGui::Text(XorStr("--- Dead Zone ---"));
+			ImGui::Checkbox(XorStr("Dead Zone"), &DeadZone);
+			if (DeadZone) {
+				ImGui::SliderFloat(XorStr("Tolerance X"), &DeadZoneToleranceX, 0.1f, 10.0f, "%.2f");
+				ImGui::SliderFloat(XorStr("Tolerance Y"), &DeadZoneToleranceY, 0.1f, 10.0f, "%.2f");
+			}
+
+			ImGui::Separator();
+			ImGui::Text(XorStr("--- Weapon Adjustments ---"));
+			ImGui::Checkbox(XorStr("Bow Adjust"), &BowAdjust);
+			ImGui::Checkbox(XorStr("On Sheila"), &OnSheila);
+			ImGui::Checkbox(XorStr("Hold Sheila"), &HoldSheila);
+
+			ImGui::Separator();
+			ImGui::Text(XorStr("--- Aim Snap ---"));
+			ImGui::Checkbox(XorStr("Aim Snap (lock to index)"), &AimSnapToggle);
+			if (AimSnapToggle) {
+				ImGui::SliderInt(XorStr("Target Lock Index"), &TargetIndexLock, 0, 60);
+				ImGui::Text(XorStr("Current Target Index: %d"), TargetIndex);
+			}
 
 			ImGui::Text(XorStr("Aim at (bone id):"));
 			ImGui::SliderInt(XorStr("##4"), &bone, 0, 175);
@@ -309,25 +391,25 @@ void Overlay::RenderMenu()
 			ImGui::Text(XorStr("Player Glow Visable:"));
 			ImGui::ColorEdit3("##Glow Color Picker Visable", glowcolorviz);
 			{
-				glowrviz = glowcolorviz[0] * 250;
-				glowgviz = glowcolorviz[1] * 250;
-				glowbviz = glowcolorviz[2] * 250;
+				glowrviz = glowcolorviz[0]; // [0,1] normalized — no * 250
+				glowgviz = glowcolorviz[1];
+				glowbviz = glowcolorviz[2];
 			}
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Not Visable:"));
 			ImGui::ColorEdit3("##Glow Color Not Visable", glowcolor);
 			{
-				glowr = glowcolor[0] * 250;
-				glowg = glowcolor[1] * 250;
-				glowb = glowcolor[2] * 250;
+				glowr = glowcolor[0]; // [0,1] normalized — no * 250
+				glowg = glowcolor[1];
+				glowb = glowcolor[2];
 			}
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Knocked:"));
 			ImGui::ColorEdit3("##Glow Color Knocked", glowcolorknocked);
 			{
-				glowrknocked = glowcolorknocked[0] * 250;
-				glowgknocked = glowcolorknocked[1] * 250;
-				glowbknocked = glowcolorknocked[2] * 250;
+				glowrknocked = glowcolorknocked[0]; // [0,1] normalized — no * 250
+				glowgknocked = glowcolorknocked[1];
+				glowbknocked = glowcolorknocked[2];
 			}
 			ImGui::Separator();
 			static unsigned char min_val = 0;

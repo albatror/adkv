@@ -81,5 +81,7 @@ struct DynamicOffsets {
 extern DynamicOffsets offsets;
 
 bool load_offsets_from_ini(const char* offsets_file, const char* convars_file, const char* buttons_file);
+bool merge_ini_files(const char* offsets_file, const char* convars_file, const char* buttons_file, const char* output_file);
+bool update_offsets_h(const char* offsets_h_path, const char* offsets_file, const char* convars_file, const char* buttons_file);
 
 #endif
