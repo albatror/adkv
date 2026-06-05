@@ -53,6 +53,8 @@ extern int TargetIndexLock;
 extern int TargetIndex;
 extern int smoothingMode;
 
+extern bool aiming;
+
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
@@ -432,7 +434,7 @@ void Overlay::RenderInfo()
 {
 	if (!v.info_window) return;
 	ImGui::SetNextWindowPos(ImVec2(300, 10));
-	ImGui::SetNextWindowSize(ImVec2(320, 205));
+	ImGui::SetNextWindowSize(ImVec2(320, 235));
 	ImGui::SetNextWindowBgAlpha(0.6f);
 	ImGui::Begin(XorStr("##info"), (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
 
@@ -469,6 +471,9 @@ void Overlay::RenderInfo()
 	ImGui::TextColored(WHITE, XorStr("-"));
 	ImGui::SameLine(240);
 	ImGui::TextColored(triggerbot ? GREEN : RED, XorStr("Triggerbot"));
+
+	// Row 4: aiming debug — GREEN while aim button held, confirms write to aiming_addr
+	ImGui::TextColored(aiming ? GREEN : RED, XorStr("- Aiming"));
 
 	float windowWidth = ImGui::GetWindowSize().x;
 	ImGui::Unindent(12);
