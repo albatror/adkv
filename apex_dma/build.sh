@@ -12,6 +12,9 @@ if cargo build --release --workspace ; then
     cp memflow_lib/target/release/libmemflow_win32.so build/ 2>/dev/null || true
     cp items.ini build/
     cp weapons.ini build/
+    mkdir -p build/apexdream
+    cp memflow_lib/apexdream/gamedata.ini build/apexdream/
+    cp memflow_lib/apexdream/config.ini build/apexdream/
     make
 else
     echo "Error while building memflow libraries"

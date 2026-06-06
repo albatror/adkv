@@ -18,3 +18,4 @@ extern float aassist_dist;
 extern float aassist_smooth;
 extern float aassist_fov;
 extern float aassist_strength;
+extern bool apexdream_enabled;
