@@ -59,8 +59,9 @@ enum class process_status : BYTE
 
 class Memory
 {
-private:
+public:
 	Process proc;
+private:
 	process_status status = process_status::NOT_FOUND;
 	std::mutex m;
 	uint64_t lastCorrectDtbPhysicalAddress = 0x0;

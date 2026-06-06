@@ -1,0 +1,19 @@
+[package]
+name = "apexdream_bridge"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "apexdream_bridge"
+crate-type = ["staticlib"]
+
+[dependencies]
+apexdream = { path = "../apexdream" }
+memflow = { version = "0.2", path = "../memflow" }
+log = "0.4"
+libc = "0.2"
+
+[patch.crates-io]
+goblin = { git = "https://github.com/h33p/goblin", branch = "lossy-macho" }
+bitset-core = { git = "https://github.com/CasualX/bitset-core" }
+vgc = { git = "https://github.com/CasualX/vgcolors" }

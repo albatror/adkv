@@ -103,6 +103,38 @@ bool superglide = false;
 bool bhop = false;
 bool walljump = false;
 
+int screen_width = 2560;
+int screen_height = 1440;
+
+extern "C" {
+    typedef int32_t (*ReadMemFn)(void* ctx, uint64_t addr, uint8_t* buf, size_t len);
+    typedef int32_t (*WriteMemFn)(void* ctx, uint64_t addr, const uint8_t* buf, size_t len);
+    typedef void (*GetScreenSizeFn)(void* ctx, int32_t* width, int32_t* height);
+
+    void* apexdream_init(void* ctx, ReadMemFn read_fn, WriteMemFn write_fn, GetScreenSizeFn get_screen_size_fn, uint64_t base_address, const char* gamedata_ini);
+    void apexdream_tick(void* bridge_ptr);
+    void apexdream_load_config(void* bridge_ptr, const char* config_ini);
+    void apexdream_free(void* bridge_ptr);
+}
+
+int32_t apexdream_read_mem(void* ctx, uint64_t addr, uint8_t* buf, size_t len) {
+    Memory* mem = (Memory*)ctx;
+    return mem->ReadArray<uint8_t>(addr, (uint8_t*)buf, len) ? 0 : -1;
+}
+
+int32_t apexdream_write_mem(void* ctx, uint64_t addr, const uint8_t* buf, size_t len) {
+    Memory* mem = (Memory*)ctx;
+    return mem->WriteArray<uint8_t>(addr, (const uint8_t*)buf, len) ? 0 : -1;
+}
+
+void apexdream_get_screen_size(void* ctx, int32_t* width, int32_t* height) {
+    *width = screen_width;
+    *height = screen_height;
+}
+
+void* apexdream_bridge = nullptr;
+bool apexdream_enabled = false;
+
 ///////////////////////////
 //Player Glow Color and Brightness.
 //inside fill
@@ -139,9 +171,6 @@ std::atomic<bool> next{false};
 std::atomic<bool> valid{false};
 bool lock = false;
 bool is_aimentity_visible = false;
-
-int screen_width = 2560;
-int screen_height = 1440;
 
 typedef struct player
 {
@@ -1359,6 +1388,9 @@ client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 69, TargetIndex_write_ad
 uint64_t smoothingMode_addr = 0;
 client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 70, smoothingMode_addr);
 
+uint64_t apexdream_enabled_addr = 0;
+client_mem.Read<uint64_t>(add_addr + sizeof(uint64_t) * 71, apexdream_enabled_addr);
+
 uint32_t check = 0;
 client_mem.Read<uint32_t>(check_addr, check);
 
@@ -1511,6 +1543,7 @@ while (vars_t)
         if (TargetIndexLock_addr)     client_mem.Read<int>(TargetIndexLock_addr, TargetIndexLock);
         if (TargetIndex_write_addr)   client_mem.Write<int>(TargetIndex_write_addr, TargetIndex);
         if (smoothingMode_addr)       client_mem.Read<int>(smoothingMode_addr, smoothingMode);
+        if (apexdream_enabled_addr)   client_mem.Read<bool>(apexdream_enabled_addr, apexdream_enabled);
 
         if (esp && next)
         {
@@ -1698,6 +1731,10 @@ int main(int argc, char *argv[])
 				stuff_t = false;
 				g_Base = 0;
 
+                if (apexdream_bridge) {
+                    apexdream_free(apexdream_bridge);
+                    apexdream_bridge = nullptr;
+                }
 			}
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1730,11 +1767,27 @@ int main(int argc, char *argv[])
 				actions_thr.detach();
 				stuffbot_thr.detach();
 				itemglow_thr.detach();
+
+                // Initialize ApexDream
+                std::string gd_path = "apexdream/gamedata.ini";
+                std::ifstream gd_file(gd_path);
+                std::string gd_content((std::istreambuf_iterator<char>(gd_file)), std::istreambuf_iterator<char>());
+                apexdream_bridge = apexdream_init(&apex_mem, apexdream_read_mem, apexdream_write_mem, apexdream_get_screen_size, g_Base, gd_content.c_str());
+                if (apexdream_bridge) {
+                    printf("ApexDream bridge initialized\n");
+                    std::string config_path = "apexdream/config.ini";
+                    std::ifstream config_file(config_path);
+                    std::string config_content((std::istreambuf_iterator<char>(config_file)), std::istreambuf_iterator<char>());
+                    apexdream_load_config(apexdream_bridge, config_content.c_str());
+                }
 			}
 		}
 		else
 		{
 			apex_mem.check_proc();
+            if (apexdream_bridge && apexdream_enabled) {
+                apexdream_tick(apexdream_bridge);
+            }
 		}
 
 		if (client_mem.get_proc_status() != process_status::FOUND_READY)

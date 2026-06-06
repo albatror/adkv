@@ -53,6 +53,7 @@ int triggerbot_hitbox = 2;
 bool superglide = false;
 bool bhop = false;
 bool walljump = false;
+bool apexdream_enabled = false;
 
 bool use_nvidia = false;
 bool active = true;
@@ -197,7 +198,7 @@ bool next = false; //read write
 
 int index = 0;
 
-uint64_t add[71];
+uint64_t add[72];
 
 bool k_f1 = 0;
 bool k_f2 = 0;
@@ -521,6 +522,7 @@ int main(int argc, char** argv)
 	add[68] = (uintptr_t)&TargetIndexLock;
 	add[69] = (uintptr_t)&TargetIndex;
 	add[70] = (uintptr_t)&smoothingMode;
+	add[71] = (uintptr_t)&apexdream_enabled;
 
 	printf(XorStr("add offset: 0x%I64x\n"), (uint64_t)&add[0] - (uint64_t)GetModuleHandle(NULL));
 

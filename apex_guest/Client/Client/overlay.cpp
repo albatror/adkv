@@ -58,6 +58,7 @@ extern bool aiming;
 extern bool superglide;
 extern bool bhop;
 extern bool walljump;
+extern bool apexdream_enabled;
 
 //extern float esp_distance;
 
@@ -236,6 +237,7 @@ void Overlay::RenderMenu()
 		}
 		if (ImGui::BeginTabItem(XorStr("Misc")))
 		{
+			ImGui::Checkbox(XorStr("ApexDream"), &apexdream_enabled);
 			ImGui::Checkbox(XorStr("Mantle Boost"), &superglide);
 			ImGui::Checkbox(XorStr("BHop"), &bhop);
 			ImGui::Checkbox(XorStr("WallJump"), &walljump);

@@ -13,6 +13,8 @@ members = [
     "memflow-kvm/memflow-kvm-ioctl",
     "memflow-win32/memflow-win32",
     "memflow-win32/memflow-win32-defs",
+    "apexdream",
+    "apexdream_bridge",
 ]
 default-members = [
     "memflow",
