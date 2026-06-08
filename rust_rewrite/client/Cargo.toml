@@ -1,0 +1,13 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+imgui = "0.11"
+imgui-winit-support = "0.11"
+imgui-glow-renderer = "0.11"
+glow = "0.12"
+winit = "0.28"
+windows = { version = "0.48", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_System_Memory"] }
+anyhow = "1.0"
