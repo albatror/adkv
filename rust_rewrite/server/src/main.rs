@@ -69,9 +69,11 @@ fn main() -> anyhow::Result<()> {
 
     println!("Client process found! Base: {:x}", client_mem.base_addr.to_umem());
 
-    // In a real scenario, we'd find the 'add' array offset dynamically or via config
-    let add_array_ptr: u64 = 0x0; // Replace with actual address from client handshake
-    let players_array_ptr = if add_array_ptr != 0 { add_array_ptr + (6 * 8) } else { 0 }; // index 6 in the 'add' array
+    // CRITICAL: Update this with the 'add offset' printed by the client.exe
+    let add_array_offset: u64 = 0x0;
+
+    let add_array_ptr = client_mem.base_addr.to_umem() + add_array_offset;
+    let players_array_ptr = if add_array_offset != 0 { add_array_ptr + (6 * 8) } else { 0 }; // index 6 in the 'add' array
 
     loop {
         let local_player_ptr = match apex_mem.read::<u64>(apex_mem.base_addr.to_umem() + OFFSET_LOCAL_ENT) {
