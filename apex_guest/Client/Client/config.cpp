@@ -148,6 +148,7 @@ void SaveConfig(const std::string& filename) {
     file << "triggerbot_fov_circle " << std::boolalpha << v.triggerbot_fov_circle << "\n";
     file << "ads_fov_circle " << std::boolalpha << v.ads_fov_circle << "\n";
     file << "hip_fov_circle " << std::boolalpha << v.hip_fov_circle << "\n";
+    file << "anti_screenshot " << std::boolalpha << v.anti_screenshot << "\n";
 
     file.close();
 }
@@ -234,6 +235,7 @@ void LoadConfig(const std::string& filename) {
         else if (key == "triggerbot_fov_circle") ss >> std::boolalpha >> v.triggerbot_fov_circle;
         else if (key == "ads_fov_circle") ss >> std::boolalpha >> v.ads_fov_circle;
         else if (key == "hip_fov_circle") ss >> std::boolalpha >> v.hip_fov_circle;
+        else if (key == "anti_screenshot") ss >> std::boolalpha >> v.anti_screenshot;
     }
 
     file.close();

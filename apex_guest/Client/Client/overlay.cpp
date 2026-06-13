@@ -388,6 +388,7 @@ void Overlay::RenderMenu()
 			ImGui::Checkbox(XorStr("Hipfire FOV Circle"), &v.hip_fov_circle);
 
 			ImGui::Checkbox(XorStr("Triggerbot Circle fov"), &v.triggerbot_fov_circle);
+			ImGui::Checkbox(XorStr("Stream Proof (Anti-Screenshot)"), &v.anti_screenshot);
 			//test glow
 			ImGui::Dummy(ImVec2(0.0f, 10.0f));
 			ImGui::Text(XorStr("Player Glow Visable:"));
@@ -637,6 +638,27 @@ DWORD Overlay::CreateOverlay()
 			RenderMenu();
 		else
 			RenderInfo();
+
+		// Handle Anti-Screenshot (SetWindowDisplayAffinity)
+		static bool last_anti_screenshot = false;
+		if (v.anti_screenshot != last_anti_screenshot)
+		{
+			// WDA_EXCLUDEFROMCAPTURE (0x00000011) is available on Windows 10 2004 and later.
+			// For older versions, WDA_MONITOR (0x00000001) can be used.
+			if (v.anti_screenshot)
+			{
+				// Try WDA_EXCLUDEFROMCAPTURE first, fallback to WDA_MONITOR if it fails or if we want to be safe
+				if (!SetWindowDisplayAffinity(overlayHWND, 0x00000011))
+				{
+					SetWindowDisplayAffinity(overlayHWND, WDA_MONITOR);
+				}
+			}
+			else
+			{
+				SetWindowDisplayAffinity(overlayHWND, WDA_NONE);
+			}
+			last_anti_screenshot = v.anti_screenshot;
+		}
 
 		RenderSpectator();
 

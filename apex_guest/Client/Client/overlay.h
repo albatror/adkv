@@ -44,6 +44,7 @@ typedef struct visuals
 	bool ads_fov_circle = false;
 	bool hip_fov_circle = false;
 	float skeleton_thickness = 1.0f;
+	bool anti_screenshot = false;
 }visuals;
 
 struct GColor {
